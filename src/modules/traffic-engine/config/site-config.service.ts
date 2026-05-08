@@ -11,6 +11,7 @@ import {
 import { UpdateSiteConfigDto, UpsertSiteConfigDto } from './dto/upsert-site-config.dto';
 
 const SITE_CONFIG_CACHE_TTL_SECONDS = 300;
+const CACHE_OP_TIMEOUT_MS = 800;
 
 @Injectable()
 export class SiteConfigService {
@@ -21,7 +22,7 @@ export class SiteConfigService {
 
   async getForSite(siteId: string): Promise<SiteConfigRecord> {
     const cacheKey = this.getCacheKey(siteId);
-    const cached = await this.redis.client.get(cacheKey);
+    const cached = await this.safeCacheGet(cacheKey);
     if (cached) {
       return JSON.parse(cached) as SiteConfigRecord;
     }
@@ -32,7 +33,7 @@ export class SiteConfigService {
     }
 
     const normalized = this.normalize(config);
-    await this.redis.client.setex(
+    await this.safeCacheSetex(
       cacheKey,
       SITE_CONFIG_CACHE_TTL_SECONDS,
       JSON.stringify(normalized),
@@ -95,11 +96,34 @@ export class SiteConfigService {
   }
 
   private async invalidate(siteId: string): Promise<void> {
-    await this.redis.client.del(this.getCacheKey(siteId));
+    await this.safeCacheDel(this.getCacheKey(siteId));
   }
 
   private getCacheKey(siteId: string): string {
     return `site-cfg:${siteId}`;
+  }
+
+  private async safeCacheGet(key: string): Promise<string | null> {
+    return this.withCacheTimeout(this.redis.client.get(key));
+  }
+
+  private async safeCacheSetex(key: string, ttlSeconds: number, value: string): Promise<void> {
+    await this.withCacheTimeout(this.redis.client.setex(key, ttlSeconds, value));
+  }
+
+  private async safeCacheDel(key: string): Promise<void> {
+    await this.withCacheTimeout(this.redis.client.del(key));
+  }
+
+  private async withCacheTimeout<T>(op: Promise<T>): Promise<T | null> {
+    try {
+      return await Promise.race([
+        op,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), CACHE_OP_TIMEOUT_MS)),
+      ]);
+    } catch {
+      return null;
+    }
   }
 
   private normalize(config: SiteConfig): SiteConfigRecord {
