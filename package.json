@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
-    "start": "node dist/main",
+    "build": "nest build && prisma generate",
+    "start": "prisma migrate deploy && node dist/src/main",
     "start:dev": "nest start --watch",
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
