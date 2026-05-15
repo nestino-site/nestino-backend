@@ -1,14 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { GscIngestionService } from './gsc-ingestion.service';
 
 @Injectable()
 export class AnalyticsIngestionService {
   private readonly logger = new Logger(AnalyticsIngestionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gscIngestion: GscIngestionService,
+  ) {}
 
-  /** Placeholder sync: creates/updates a daily aggregate row when GSC/GA4 credentials are absent. */
   async syncSiteMetrics(siteId: number): Promise<void> {
+    const gscResult = await this.gscIngestion.syncSiteIfConfigured(siteId);
+    if (gscResult.synced) {
+      this.logger.log({ msg: 'gsc_sync_complete', siteId, rows: gscResult.rows });
+      return;
+    }
+
     const hasGsc = Boolean(process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY);
     const hasGa4 = Boolean(process.env.GA4_PROPERTY_ID && process.env.GA4_CLIENT_EMAIL);
     if (!hasGsc && !hasGa4) {
@@ -40,6 +49,7 @@ export class AnalyticsIngestionService {
   }
 
   async syncAllSites(): Promise<void> {
+    await this.gscIngestion.syncAllSites();
     const sites = await this.prisma.site.findMany({ select: { id: true } });
     for (const s of sites) {
       await this.syncSiteMetrics(s.id);

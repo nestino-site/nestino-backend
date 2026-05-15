@@ -279,6 +279,7 @@ model Page {
   seoMetrics       SeoMetric[]
   aiGenerationLogs AiGenerationLog[]
   pageKeywords     PageKeyword[]
+  pillarSubjects   Subject[]     @relation("SubjectPillar")
 
   @@unique([siteId, slug, language])
   @@index([siteId, language, status])
@@ -557,10 +558,12 @@ model Subject {
   requiresFactualValidation Boolean                  @default(false)
   strictReviewMode          Boolean                  @default(false)
   status                    SubjectStatus            @default(ACTIVE)
+  pillarPageId              Int?
   createdAt                 DateTime                 @default(now())
   updatedAt                 DateTime                 @updatedAt
 
   site         Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  pillarPage   Page?            @relation("SubjectPillar", fields: [pillarPageId], references: [id], onDelete: SetNull)
   template     ContentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   contentIdeas ContentIdea[]
   ideaTasks    IdeaTask[]

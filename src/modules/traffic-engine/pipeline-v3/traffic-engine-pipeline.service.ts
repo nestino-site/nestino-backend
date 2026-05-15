@@ -10,10 +10,14 @@ import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
 import { AnalysisResult, AnalysisService } from './analysis.service';
 import { GenerationService } from './generation.service';
 import { ImageGenerationService } from './image-generation.service';
-import { PipelineCheckpoint, PipelineCheckpointService } from './pipeline-checkpoint.service';
+import {
+  PipelineCheckpoint,
+  PipelineCheckpointService,
+} from './pipeline-checkpoint.service';
 import { RewriteService } from './rewrite.service';
 import { SeoCheckService } from './seo-check.service';
 import { PublishService } from '../publishing/publish.service';
+import { InternalLinkingService } from '../intelligence/internal-linking.service';
 import { GeoScoreResult, GeoScoringService } from '../seo-strategy/geo-scoring.service';
 import { SchemaMarkupService } from '../seo-strategy/schema-markup.service';
 
@@ -53,6 +57,7 @@ export class TrafficEnginePipelineService {
     private readonly geoScoringService: GeoScoringService,
     private readonly schemaMarkupService: SchemaMarkupService,
     private readonly publishService: PublishService,
+    private readonly internalLinking: InternalLinkingService,
   ) {}
 
   async run(pageId: number, contentTaskId?: number): Promise<void> {
@@ -157,16 +162,9 @@ export class TrafficEnginePipelineService {
 
       if (config.runtimeConfig.enableAnalysis && !completedSteps.has('geo_score')) {
         await this.setStatus(pageId, PipelineStatus.GEO_SCORING, contentTaskId, 'geo_score');
-        const schemaMarkup = this.schemaMarkupService.generate({
-          slug: page.slug,
-          title: page.title,
-          metaDescription: page.metaDescription,
-          finalContent: draft,
-          keyword: cluster.primaryKeyword,
-          intent: cluster.intent,
-          domain: page.site.domain,
-          siteName: page.site.name,
-        });
+        const schemaMarkup = this.schemaMarkupService.generate(
+          this.schemaInput(page, draft, cluster),
+        );
         geoScore = this.geoScoringService.score(draft, schemaMarkup, cluster.primaryKeyword);
         await this.prisma.page.update({
           where: { id: pageId },
@@ -296,11 +294,48 @@ export class TrafficEnginePipelineService {
             ),
           config.runtimeConfig.maxRetries,
         );
-        // Use SEO-improved content for the rest of the pipeline (publish)
         if (seoResult.improvedContent) {
           finalContent = seoResult.improvedContent;
         }
+
+        const minSeoScore = config.runtimeConfig.minSeoCheckScore ?? 50;
+        if (seoResult.score < minSeoScore) {
+          throw new Error(
+            `SEO_CHECK_SCORE_BELOW_THRESHOLD:${seoResult.score}<${minSeoScore}`,
+          );
+        }
         await this.saveCheckpoint(pageId, completedSteps, 'seo_check', true);
+      }
+
+      if (!completedSteps.has('final_geo_schema')) {
+        await this.setStatus(pageId, PipelineStatus.GEO_SCORING, contentTaskId, 'final_geo_schema');
+        const refreshed = await this.prisma.page.findUnique({
+          where: { id: pageId },
+          include: { site: true },
+        });
+        if (refreshed) {
+          geoScore = await this.persistGeoAndSchema(refreshed, finalContent, cluster);
+        }
+        await this.saveCheckpoint(pageId, completedSteps, 'final_geo_schema', true);
+      }
+
+      const pillarPageId = await this.resolvePillarPageId(page.siteId, page.keyword.keyword);
+
+      if (
+        (config.runtimeConfig.enableInternalLinking ?? true) &&
+        !completedSteps.has('internal_linking')
+      ) {
+        await this.setStatus(pageId, PipelineStatus.REWRITING, contentTaskId, 'internal_linking');
+        const linkResult = await this.internalLinking.enrichContent(
+          page.siteId,
+          pageId,
+          finalContent,
+          cluster.primaryKeyword,
+          cluster.secondaryKeywords.map((k) => k.keyword),
+          { maxLinks: 5, pillarPageId },
+        );
+        finalContent = linkResult.content;
+        await this.saveCheckpoint(pageId, completedSteps, 'internal_linking', true);
       }
 
       finalContent = cleanMarkdownOutput(finalContent);
@@ -372,28 +407,89 @@ export class TrafficEnginePipelineService {
     }
   }
 
+  private schemaInput(
+    page: {
+      slug: string;
+      title: string | null;
+      metaDescription: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      site: { domain: string; name: string };
+    },
+    content: string,
+    cluster: KeywordClusterData,
+  ) {
+    return {
+      slug: page.slug,
+      title: page.title,
+      metaDescription: page.metaDescription,
+      finalContent: content,
+      keyword: cluster.primaryKeyword,
+      intent: cluster.intent,
+      domain: page.site.domain,
+      siteName: page.site.name,
+      datePublished: page.createdAt,
+      dateModified: page.updatedAt,
+    };
+  }
+
+  private async persistGeoAndSchema(
+    page: {
+      id: number;
+      slug: string;
+      title: string | null;
+      metaDescription: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      site: { domain: string; name: string };
+    },
+    finalContent: string,
+    cluster: KeywordClusterData,
+  ): Promise<GeoScoreResult> {
+    const schemaMarkup = this.schemaMarkupService.generate(
+      this.schemaInput(page, finalContent, cluster),
+    );
+    const geoScore = this.geoScoringService.score(
+      finalContent,
+      schemaMarkup,
+      cluster.primaryKeyword,
+    );
+    await this.prisma.page.update({
+      where: { id: page.id },
+      data: {
+        schemaMarkup: schemaMarkup as Prisma.InputJsonValue,
+        geoScore: geoScore.total,
+        geoScorePillars: geoScore.pillars as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return geoScore;
+  }
+
+  private async resolvePillarPageId(siteId: number, keyword: string): Promise<number | null> {
+    const subject = await this.prisma.subject.findFirst({
+      where: {
+        siteId,
+        OR: [
+          { primaryKeywords: { has: keyword } },
+          { secondaryKeywords: { has: keyword } },
+        ],
+        pillarPageId: { not: null },
+      },
+      select: { pillarPageId: true },
+    });
+    return subject?.pillarPageId ?? null;
+  }
+
   private async saveCheckpoint(
     pageId: number,
-    completedSteps: Set<
-      'generate' | 'validate' | 'analyze' | 'geo_score' | 'adversarial_stress_test' | 'rewrite'
-      | 'image_generation'
-      | 'seo_check'
-    >,
-    step:
-      | 'generate'
-      | 'validate'
-      | 'analyze'
-      | 'geo_score'
-      | 'adversarial_stress_test'
-      | 'rewrite'
-      | 'image_generation'
-      | 'seo_check',
+    completedSteps: Set<string>,
+    step: string,
     draftSaved: boolean,
   ): Promise<void> {
     completedSteps.add(step);
     const checkpoint: PipelineCheckpoint = {
-      completedSteps: [...completedSteps],
-      lastStep: step,
+      completedSteps: [...completedSteps] as PipelineCheckpoint['completedSteps'],
+      lastStep: step as PipelineCheckpoint['lastStep'],
       draftSaved,
     };
     await this.checkpointService.save(pageId, checkpoint);

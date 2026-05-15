@@ -52,6 +52,10 @@ export interface RuntimeConfig {
   enableImageGeneration: boolean;
   enableSeoCheck: boolean;
   maxRetries: number;
+  /** Minimum seo_check score (0–100) required before pipelineStatus READY. Default 50. */
+  minSeoCheckScore?: number;
+  /** Enable post–SEO-check internal link injection. Default true. */
+  enableInternalLinking?: boolean;
 }
 
 export interface SiteConfigRecord {

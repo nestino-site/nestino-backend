@@ -6,6 +6,8 @@ import { ClusterBuilderService } from './keyword-intelligence/cluster-builder.se
 import { ContentCoverageEngineService } from './keyword-intelligence/content-coverage-engine.service';
 import { IntentScoringService } from './keyword-intelligence/intent-scoring.service';
 import { SemanticExpansionService } from './keyword-intelligence/semantic-expansion.service';
+import { InternalLinkingService } from './internal-linking.service';
+import { KnowledgeBaseService } from './knowledge-base.service';
 
 @Module({
   providers: [
@@ -16,6 +18,8 @@ import { SemanticExpansionService } from './keyword-intelligence/semantic-expans
     IntentScoringService,
     ClusterBuilderService,
     ContentCoverageEngineService,
+    InternalLinkingService,
+    KnowledgeBaseService,
   ],
   exports: [
     KeywordIntentClassifierService,
@@ -25,6 +29,8 @@ import { SemanticExpansionService } from './keyword-intelligence/semantic-expans
     IntentScoringService,
     ClusterBuilderService,
     ContentCoverageEngineService,
+    InternalLinkingService,
+    KnowledgeBaseService,
   ],
 })
 export class IntelligenceModule {}

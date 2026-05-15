@@ -17,7 +17,7 @@ export class ContentApiController {
   @HttpCode(HttpStatus.OK)
   async getContent(@ParseIntParam('pageId') pageId: number) {
     const page = await this.stateManager.getState(pageId);
-    const body = this.mapper.toContract(page);
+    const body = await this.mapper.toContract(page);
     if (
       page.pipelineStatus !== PipelineStatus.READY &&
       page.pipelineStatus !== PipelineStatus.FAILED

@@ -6,7 +6,7 @@ interface FaqEntry {
   answer: string;
 }
 
-interface SchemaPageInput {
+export interface SchemaPageInput {
   slug: string;
   title?: string | null;
   metaDescription?: string | null;
@@ -15,6 +15,9 @@ interface SchemaPageInput {
   intent: KeywordIntent;
   domain: string;
   siteName: string;
+  datePublished?: Date;
+  dateModified?: Date;
+  imageUrl?: string | null;
 }
 
 @Injectable()
@@ -23,20 +26,22 @@ export class SchemaMarkupService {
     const url = this.buildAbsoluteUrl(input.domain, input.slug);
     const faq = this.extractFaq(input.finalContent ?? '');
     const schema: Record<string, unknown>[] = [];
+    const published = (input.datePublished ?? new Date()).toISOString();
+    const modified = (input.dateModified ?? input.datePublished ?? new Date()).toISOString();
 
     if (input.intent === KeywordIntent.INFORMATIONAL) {
-      schema.push(this.buildBlogPostingSchema(input, url));
+      schema.push(this.buildBlogPostingSchema(input, url, published, modified));
       if (faq.length >= 2) {
         schema.push(this.buildFaqSchema(faq));
       }
       schema.push(this.buildBreadcrumbSchema(url, input.slug, input.title));
     } else if (input.intent === KeywordIntent.TRANSACTIONAL) {
-      schema.push(this.buildProductSchema(input, url));
+      schema.push(this.buildLodgingOrProductSchema(input, url, published, modified));
       if (faq.length >= 2) {
         schema.push(this.buildFaqSchema(faq));
       }
     } else if (input.intent === KeywordIntent.COMMERCIAL) {
-      schema.push(this.buildArticleSchema(input, url));
+      schema.push(this.buildArticleSchema(input, url, published, modified));
       if (faq.length >= 2) {
         schema.push(this.buildFaqSchema(faq));
       }
@@ -55,64 +60,85 @@ export class SchemaMarkupService {
     return `${normalizedBase}${normalizedSlug}`;
   }
 
-  private buildBlogPostingSchema(input: SchemaPageInput, url: string): Record<string, unknown> {
+  private publisherBlock(input: SchemaPageInput): Record<string, unknown> {
     return {
+      '@type': 'Organization',
+      name: input.siteName,
+      url: this.buildAbsoluteUrl(input.domain, '/'),
+    };
+  }
+
+  private buildBlogPostingSchema(
+    input: SchemaPageInput,
+    url: string,
+    datePublished: string,
+    dateModified: string,
+  ): Record<string, unknown> {
+    const block: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'BlogPosting',
       headline: input.title ?? input.keyword,
       description: input.metaDescription ?? `Guide about ${input.keyword}`,
-      author: {
-        '@type': 'Organization',
-        name: input.siteName,
-        sameAs: [this.buildAbsoluteUrl(input.domain, '/')],
-      },
-      publisher: {
-        '@type': 'Organization',
-        name: input.siteName,
-      },
-      mainEntityOfPage: {
-        '@type': 'WebPage',
-        '@id': url,
-      },
-      datePublished: new Date().toISOString(),
-      dateModified: new Date().toISOString(),
+      author: this.publisherBlock(input),
+      publisher: this.publisherBlock(input),
+      mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+      datePublished,
+      dateModified,
     };
+    if (input.imageUrl) {
+      block.image = input.imageUrl;
+    }
+    return block;
   }
 
-  private buildArticleSchema(input: SchemaPageInput, url: string): Record<string, unknown> {
-    return {
+  private buildArticleSchema(
+    input: SchemaPageInput,
+    url: string,
+    datePublished: string,
+    dateModified: string,
+  ): Record<string, unknown> {
+    const block: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: input.title ?? input.keyword,
       description: input.metaDescription ?? `Article about ${input.keyword}`,
-      author: {
-        '@type': 'Organization',
-        name: input.siteName,
-        sameAs: [this.buildAbsoluteUrl(input.domain, '/')],
-      },
-      publisher: {
-        '@type': 'Organization',
-        name: input.siteName,
-      },
-      mainEntityOfPage: {
-        '@type': 'WebPage',
-        '@id': url,
-      },
-      datePublished: new Date().toISOString(),
-      dateModified: new Date().toISOString(),
+      author: this.publisherBlock(input),
+      publisher: this.publisherBlock(input),
+      mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+      datePublished,
+      dateModified,
     };
+    if (input.imageUrl) {
+      block.image = input.imageUrl;
+    }
+    return block;
   }
 
-  private buildProductSchema(input: SchemaPageInput, url: string): Record<string, unknown> {
+  private buildLodgingOrProductSchema(
+    input: SchemaPageInput,
+    url: string,
+    datePublished: string,
+    dateModified: string,
+  ): Record<string, unknown> {
+    const isLodging = /villa|hotel|resort|stay|accommodation|rental/i.test(input.keyword);
+    if (isLodging) {
+      return {
+        '@context': 'https://schema.org',
+        '@type': 'LodgingBusiness',
+        name: input.title ?? input.keyword,
+        description: input.metaDescription ?? `Details for ${input.keyword}`,
+        url,
+        datePublished,
+        dateModified,
+        publisher: this.publisherBlock(input),
+      };
+    }
     return {
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: input.title ?? input.keyword,
       description: input.metaDescription ?? `Details for ${input.keyword}`,
-      brand: {
-        '@type': 'Brand',
-        name: input.siteName,
-      },
+      brand: { '@type': 'Brand', name: input.siteName },
       offers: {
         '@type': 'Offer',
         url,
@@ -139,10 +165,7 @@ export class SchemaMarkupService {
       mainEntity: faq.map((entry) => ({
         '@type': 'Question',
         name: entry.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: entry.answer,
-        },
+        acceptedAnswer: { '@type': 'Answer', text: entry.answer },
       })),
     };
   }

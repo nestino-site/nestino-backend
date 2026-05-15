@@ -159,6 +159,12 @@ export class SiteConfigService {
       enableImageGeneration:
         typeof r.enableImageGeneration === 'boolean' ? r.enableImageGeneration : false,
       enableSeoCheck: typeof r.enableSeoCheck === 'boolean' ? r.enableSeoCheck : false,
+      minSeoCheckScore:
+        typeof r.minSeoCheckScore === 'number' && r.minSeoCheckScore >= 0 && r.minSeoCheckScore <= 100
+          ? r.minSeoCheckScore
+          : 50,
+      enableInternalLinking:
+        typeof r.enableInternalLinking === 'boolean' ? r.enableInternalLinking : true,
     };
   }
 }

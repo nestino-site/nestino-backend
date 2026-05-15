@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Page, PipelineStatus } from '@prisma/client';
+import { HreflangService } from '../seo-strategy/hreflang.service';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
 
 type PageWithLogs = Page & {
@@ -13,7 +14,10 @@ type PageWithLogs = Page & {
 
 @Injectable()
 export class NextJsContractMapperService {
-  toContract(page: PageWithLogs) {
+  constructor(private readonly hreflang: HreflangService) {}
+
+  async toContract(page: PageWithLogs) {
+    const hreflangAlternates = await this.hreflang.getAlternatesForPage(page.id);
     const latestLog = page.aiGenerationLogs[0];
     const status = this.mapStatus(page.pipelineStatus);
     const totalCost = page.aiGenerationLogs.reduce((sum, log) => sum + Number(log.cost), 0);
@@ -37,7 +41,10 @@ export class NextJsContractMapperService {
         modelUsed: latestLog?.model ?? null,
         completedSteps: this.deriveCompletedSteps(page.pipelineStatus),
         skippedSteps: page.pipelineStatus === PipelineStatus.SKIPPED_STEP ? ['rewrite'] : [],
+        hreflangAlternates,
       },
+      schemaMarkup: page.schemaMarkup ?? null,
+      geoScore: page.geoScore,
     };
   }
 

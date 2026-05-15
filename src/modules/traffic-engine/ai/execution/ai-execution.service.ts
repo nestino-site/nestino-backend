@@ -112,6 +112,10 @@ export class AiExecutionService {
   }
 
   private async buildPromptContext(input: ExecuteStepInput): Promise<PromptCompositionContext> {
+    const site = await this.prisma.site.findUnique({
+      where: { id: input.siteId },
+      select: { domain: true },
+    });
     const siteConfig = await this.siteConfigService.getForSite(input.siteId);
     const version =
       input.step === 'generate'
@@ -128,6 +132,7 @@ export class AiExecutionService {
     return {
       type: input.step,
       siteId: input.siteId,
+      siteDomain: site?.domain,
       version,
       tone: pc.tone,
       locale: pc.locale ?? 'en',

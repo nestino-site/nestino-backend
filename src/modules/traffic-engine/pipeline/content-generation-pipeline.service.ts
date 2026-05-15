@@ -87,7 +87,7 @@ export class ContentGenerationPipelineService {
       }
     }
 
-    const brief = this.briefBuilder.build(page.site, page.keyword, page);
+    const brief = await this.briefBuilder.build(page.site, page.keyword, page);
     const briefInputBase: Omit<PromptBuildInput, 'briefJson' | 'draftText' | 'analyzeJson'> = {
       stepKey: '',
       siteName: brief.siteName,

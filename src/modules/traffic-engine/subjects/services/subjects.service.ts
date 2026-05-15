@@ -23,6 +23,7 @@ export class SubjectsService {
         data: {
           siteId: dto.siteId,
           templateId: dto.templateId,
+          pillarPageId: dto.pillarPageId,
           title: dto.title,
           description: dto.description,
           primaryKeywords: dto.primaryKeywords,
@@ -81,6 +82,7 @@ export class SubjectsService {
         data: {
           siteId: dto.siteId,
           templateId: dto.templateId,
+          pillarPageId: dto.pillarPageId,
           title: dto.title,
           description: dto.description,
           primaryKeywords: dto.primaryKeywords,

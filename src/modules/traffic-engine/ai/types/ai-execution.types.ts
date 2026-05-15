@@ -22,6 +22,8 @@ export interface ModelResolutionContext {
 export interface PromptCompositionContext {
   type: PipelineStep;
   siteId: number;
+  /** Used for brand-specific prompt layers (e.g. Villa Silyan). */
+  siteDomain?: string;
   version: string;
   tone: string;
   locale: string;

@@ -2,11 +2,16 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { KeywordResearch, KeywordResearchSource } from '@prisma/client';
 import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { ContentLanguage } from '@prisma/client';
+import { KeywordDataProviderService } from '../keyword-data-provider.service';
 import { CreateKeywordResearchDto } from '../dto/create-keyword-research.dto';
 
 @Injectable()
 export class KeywordResearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly keywordData: KeywordDataProviderService,
+  ) {}
 
   async create(dto: CreateKeywordResearchDto): Promise<KeywordResearch> {
     if (dto.source !== KeywordResearchSource.MANUAL) {
@@ -28,5 +33,9 @@ export class KeywordResearchService {
 
   async findAll(): Promise<KeywordResearch[]> {
     return this.prisma.keywordResearch.findMany({ orderBy: { createdAt: 'desc' } });
+  }
+
+  async enrichFromProvider(seedKeyword: string, language: ContentLanguage) {
+    return this.keywordData.enrichSeedKeyword(seedKeyword, language);
   }
 }

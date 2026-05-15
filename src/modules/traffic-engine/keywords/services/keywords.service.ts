@@ -2,29 +2,40 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContentLanguage, Keyword } from '@prisma/client';
 import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { KeywordDataProviderService } from '../../keyword-research/keyword-data-provider.service';
 import { CreateKeywordDto } from '../dto/create-keyword.dto';
 import { UpdateKeywordDto } from '../dto/update-keyword.dto';
 
 @Injectable()
 export class KeywordsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly keywordData: KeywordDataProviderService,
+  ) {}
 
   async create(dto: CreateKeywordDto): Promise<Keyword> {
+    const lang = dto.language ?? ContentLanguage.EN;
+    const enriched = await this.keywordData.enrichSeedKeyword(dto.keyword, lang);
+    const relatedNote =
+      enriched.relatedKeywords.length > 0
+        ? `Related (${enriched.source}): ${enriched.relatedKeywords.slice(0, 8).join('; ')}`
+        : undefined;
+
     try {
       return await this.prisma.keyword.create({
         data: {
           siteId: dto.siteId,
           keyword: dto.keyword,
-          language: dto.language ?? ContentLanguage.EN,
+          language: lang,
           baseKeywordId: dto.baseKeywordId,
           intent: dto.intent,
           status: dto.status,
-          searchVolume: dto.searchVolume,
-          difficulty: dto.difficulty,
+          searchVolume: dto.searchVolume ?? enriched.searchVolume,
+          difficulty: dto.difficulty ?? enriched.difficulty,
           cpc: dto.cpc,
           priority: dto.priority,
           targetUrl: dto.targetUrl,
-          notes: dto.notes,
+          notes: dto.notes ?? relatedNote,
         },
       });
     } catch (error) {

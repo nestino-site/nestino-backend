@@ -141,12 +141,24 @@ export class PromptCompositionEngineService {
       return TRAVEL_REWRITE_EDITOR_SYSTEM;
     }
     if (context.type === 'generate' && context.runtimeContext.mode === 'outline') {
-      return `${TRAVEL_OUTLINE_JSON_HINT}\n\n${VILLA_SILYAN_OUTLINE_LAYER}`;
+      const brand = this.brandLayer(context, 'outline');
+      return brand ? `${TRAVEL_OUTLINE_JSON_HINT}\n\n${brand}` : TRAVEL_OUTLINE_JSON_HINT;
     }
     if (context.type === 'generate') {
-      return VILLA_SILYAN_DRAFT_LAYER;
+      return this.brandLayer(context, 'draft') ?? '';
     }
     return '';
+  }
+
+  private brandLayer(context: PromptCompositionContext, mode: 'outline' | 'draft'): string {
+    const domain = (context.siteDomain ?? '').toLowerCase();
+    const useVillaSilyan =
+      domain.includes('villasilyan') ||
+      process.env.ENABLE_VILLA_SILYAN_PROMPTS === 'true';
+    if (!useVillaSilyan) {
+      return '';
+    }
+    return mode === 'outline' ? VILLA_SILYAN_OUTLINE_LAYER : VILLA_SILYAN_DRAFT_LAYER;
   }
 
   private fallbackPrompt(context: PromptCompositionContext): BuiltPrompt {

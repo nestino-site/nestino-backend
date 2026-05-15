@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
+import { BriefModule } from '../brief/brief.module';
 import { ConfigModule } from '../config/config.module';
 import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { PublishingModule } from '../publishing/publishing.module';
@@ -13,7 +14,14 @@ import { SeoCheckService } from './seo-check.service';
 import { TrafficEnginePipelineService } from './traffic-engine-pipeline.service';
 
 @Module({
-  imports: [ConfigModule, AiModule, IntelligenceModule, SeoStrategyModule, PublishingModule],
+  imports: [
+    ConfigModule,
+    AiModule,
+    BriefModule,
+    IntelligenceModule,
+    SeoStrategyModule,
+    PublishingModule,
+  ],
   providers: [
     PipelineCheckpointService,
     GenerationService,

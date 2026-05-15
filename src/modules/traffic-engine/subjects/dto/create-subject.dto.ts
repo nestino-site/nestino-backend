@@ -26,6 +26,11 @@ export class CreateSubjectDto {
   @IsInt()
   templateId?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  pillarPageId?: number;
+
   @IsString()
   title!: string;
 

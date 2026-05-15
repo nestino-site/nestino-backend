@@ -9,7 +9,9 @@ export type PipelineStep =
   | 'adversarial_stress_test'
   | 'rewrite'
   | 'image_generation'
-  | 'seo_check';
+  | 'seo_check'
+  | 'internal_linking'
+  | 'final_geo_schema';
 
 export interface PipelineCheckpoint {
   completedSteps: PipelineStep[];

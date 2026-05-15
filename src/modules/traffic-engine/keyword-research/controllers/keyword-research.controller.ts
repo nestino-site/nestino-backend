@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ContentLanguage } from '@prisma/client';
 import { CreateKeywordResearchDto } from '../dto/create-keyword-research.dto';
 import { KeywordResearchService } from '../services/keyword-research.service';
 
@@ -14,5 +15,16 @@ export class KeywordResearchController {
   @Get()
   findAll() {
     return this.keywordResearchService.findAll();
+  }
+
+  @Get('enrich')
+  enrich(
+    @Query('seed') seed: string,
+    @Query('language') language?: ContentLanguage,
+  ) {
+    return this.keywordResearchService.enrichFromProvider(
+      seed,
+      language ?? ContentLanguage.EN,
+    );
   }
 }
