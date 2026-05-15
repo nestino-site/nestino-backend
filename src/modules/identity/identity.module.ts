@@ -5,6 +5,7 @@ import { AppAuthGuard } from './guards/app-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { SiteApiKeyGuard } from './guards/site-api-key.guard';
 import { IdentityAuthService } from './services/identity-auth.service';
+import { IdentityBootstrapService } from './services/identity-bootstrap.service';
 import { IdentityJwtService } from './services/identity-jwt.service';
 import { PasswordService } from './services/password.service';
 import { SiteApiKeyService } from './services/site-api-key.service';
@@ -17,6 +18,7 @@ import { SiteApiKeyService } from './services/site-api-key.service';
     SiteApiKeyService,
     IdentityJwtService,
     IdentityAuthService,
+    IdentityBootstrapService,
     JwtAuthGuard,
     SiteApiKeyGuard,
     AppAuthGuard,
