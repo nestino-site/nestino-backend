@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { marked } from 'marked';
+import MarkdownIt from 'markdown-it';
 
 @Injectable()
 export class MarkdownRendererService {
+  private readonly md = new MarkdownIt();
+
   render(markdown: string): string {
-    const html = marked.parse(markdown, { async: false }) as string;
+    const html = this.md.render(markdown);
     return this.stripInterTagNewlines(html);
   }
 
@@ -13,4 +15,3 @@ export class MarkdownRendererService {
     return html.replace(/>\s*\n+\s*</g, '><').trim();
   }
 }
-
