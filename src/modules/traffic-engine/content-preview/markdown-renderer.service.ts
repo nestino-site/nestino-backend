@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import MarkdownIt from 'markdown-it';
+import MarkdownIt = require('markdown-it');
 
 @Injectable()
 export class MarkdownRendererService {
