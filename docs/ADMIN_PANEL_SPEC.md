@@ -8,6 +8,24 @@
 
 This document is the single source of truth for building a panel to **create sites, plan SEO subjects, generate & approve ideas, run the AI pipeline, publish pages, and track status end-to-end**.
 
+### Entity IDs (numeric)
+
+All API entity IDs are **integers** (autoincrement), not CUID strings.
+
+| Entity | Example route / field |
+|--------|------------------------|
+| Site | `/sites/1`, `siteId: 1` |
+| Page | `/pages/42`, `pageId: 42` |
+| Subject | `/subjects/3`, `subjectId: 3` |
+| Keyword | `/keywords/10`, `keywordId: 10` |
+| Content idea | `/content-ideas/7`, `ideaIds: [1, 2, 3]` |
+
+Path and query params must be sent as numbers (e.g. `/pages/42`, not `/pages/cmp6zygd…`). JWT `sub` remains a **string** (`"1"`) per JWT spec; parse with `Number(sub)` when calling APIs that expect numeric user ids.
+
+**Publish webhook** (`page.published` / `page.updated`) sends `{ pageId: number, siteId: number, slug, event, timestamp }`. Update Villa Silyan `NESTINO_SITE_ID` and any stored page references after deploy.
+
+After production migration, export old→new mappings: `npx ts-node scripts/export-id-mapping.ts` → `id_mapping.json` (sites + pages).
+
 ---
 
 ## 1. What the panel must do (product goals)

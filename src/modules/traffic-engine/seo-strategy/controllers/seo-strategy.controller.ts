@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Post } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { SeoStrategyService } from '../seo-strategy.service';
 
 @Controller('seo-strategy')
@@ -6,27 +7,27 @@ export class SeoStrategyController {
   constructor(private readonly seoStrategyService: SeoStrategyService) {}
 
   @Get(':siteId/quick-wins')
-  findQuickWins(@Param('siteId') siteId: string) {
+  findQuickWins(@ParseIntParam('siteId') siteId: number) {
     return this.seoStrategyService.findQuickWins(siteId);
   }
 
   @Get(':siteId/cannibalization')
-  findCannibalization(@Param('siteId') siteId: string) {
+  findCannibalization(@ParseIntParam('siteId') siteId: number) {
     return this.seoStrategyService.findCannibalization(siteId);
   }
 
   @Get(':siteId/keyword-orphans')
-  findKeywordOrphans(@Param('siteId') siteId: string) {
+  findKeywordOrphans(@ParseIntParam('siteId') siteId: number) {
     return this.seoStrategyService.findKeywordOrphans(siteId);
   }
 
   @Get(':siteId/geo-scores')
-  findGeoScores(@Param('siteId') siteId: string) {
+  findGeoScores(@ParseIntParam('siteId') siteId: number) {
     return this.seoStrategyService.findGeoScores(siteId);
   }
 
   @Post(':pageId/generate-schema')
-  generateSchema(@Param('pageId') pageId: string) {
+  generateSchema(@ParseIntParam('pageId') pageId: number) {
     return this.seoStrategyService.generateSchemaForPage(pageId);
   }
 }

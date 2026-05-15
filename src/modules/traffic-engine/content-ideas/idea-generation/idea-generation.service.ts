@@ -27,10 +27,10 @@ export class IdeaGenerationService {
   ) {}
 
   async generateForSubject(
-    subjectId: string,
+    subjectId: number,
     count: number,
     provider: AiProvider = AiProvider.google,
-  ): Promise<{ created: number; subjectId: string }> {
+  ): Promise<{ created: number; subjectId: number }> {
     const subject = await this.subjectsService.findOne(subjectId);
     if (!subject) {
       throw new NotFoundException(`Subject ${subjectId} not found`);

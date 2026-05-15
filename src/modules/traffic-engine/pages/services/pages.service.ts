@@ -29,7 +29,7 @@ export class PagesService {
     }
   }
 
-  async findBySite(siteId: string, status?: PageStatus, language?: ContentLanguage): Promise<Page[]> {
+  async findBySite(siteId: number, status?: PageStatus, language?: ContentLanguage): Promise<Page[]> {
     return this.prisma.page.findMany({
       where: {
         siteId,
@@ -40,7 +40,7 @@ export class PagesService {
     });
   }
 
-  async findOne(id: string): Promise<Page> {
+  async findOne(id: number): Promise<Page> {
     const page = await this.prisma.page.findUnique({ where: { id } });
     if (!page) {
       throw new NotFoundException(`Page ${id} not found`);
@@ -48,7 +48,7 @@ export class PagesService {
     return page;
   }
 
-  async update(id: string, dto: UpdatePageDto): Promise<Page> {
+  async update(id: number, dto: UpdatePageDto): Promise<Page> {
     await this.findOne(id);
     try {
       return await this.prisma.page.update({ where: { id }, data: dto });

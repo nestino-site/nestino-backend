@@ -12,8 +12,8 @@ import { PromptCompositionEngineService } from '../prompt-engine/prompt-composit
 
 export interface ExecuteStepInput {
   step: PipelineStep;
-  siteId: string;
-  pageId: string;
+  siteId: number;
+  pageId: number;
   priority: number;
   intent: KeywordIntent;
   runtimeContext: Record<string, unknown>;

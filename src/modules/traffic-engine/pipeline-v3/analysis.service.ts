@@ -45,8 +45,8 @@ export class AnalysisService {
   ) {}
 
   async analyze(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     draft: string,
     outline: Record<string, unknown>,
     cluster: KeywordClusterData,

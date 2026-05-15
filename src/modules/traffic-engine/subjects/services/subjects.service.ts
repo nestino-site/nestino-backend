@@ -47,7 +47,7 @@ export class SubjectsService {
     }
   }
 
-  async findAll(siteId?: string, status?: SubjectStatus): Promise<Subject[]> {
+  async findAll(siteId?: number, status?: SubjectStatus): Promise<Subject[]> {
     const where: Prisma.SubjectWhereInput = {};
     if (siteId) {
       where.siteId = siteId;
@@ -62,7 +62,7 @@ export class SubjectsService {
     });
   }
 
-  async findOne(id: string): Promise<Subject> {
+  async findOne(id: number): Promise<Subject> {
     const subject = await this.prisma.subject.findUnique({
       where: { id },
       include: { template: true, _count: { select: { contentIdeas: true } } },
@@ -73,7 +73,7 @@ export class SubjectsService {
     return subject;
   }
 
-  async update(id: string, dto: UpdateSubjectDto): Promise<Subject> {
+  async update(id: number, dto: UpdateSubjectDto): Promise<Subject> {
     await this.findOne(id);
     try {
       return await this.prisma.subject.update({
@@ -104,7 +104,7 @@ export class SubjectsService {
     }
   }
 
-  async remove(id: string): Promise<Subject> {
+  async remove(id: number): Promise<Subject> {
     await this.findOne(id);
     try {
       return await this.prisma.subject.delete({ where: { id } });

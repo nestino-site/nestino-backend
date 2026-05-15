@@ -79,12 +79,14 @@ export class PromptCompositionEngineService {
     return merged;
   }
 
-  async resolveVariant(siteId: string, pageId: string): Promise<'A' | 'B' | undefined> {
+  async resolveVariant(siteId: number, pageId: number): Promise<'A' | 'B' | undefined> {
     const siteCfg = await this.siteConfigService.getForSite(siteId);
     if (!siteCfg.promptConfig.abTestingEnabled) {
       return undefined;
     }
-    const hash = [...pageId].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const hash = String(pageId)
+      .split('')
+      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
     return hash % 2 === 0 ? 'A' : 'B';
   }
 

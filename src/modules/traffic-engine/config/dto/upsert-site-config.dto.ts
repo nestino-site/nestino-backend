@@ -133,8 +133,9 @@ class RuntimeConfigDto {
 }
 
 export class UpsertSiteConfigDto {
-  @IsString()
-  siteId!: string;
+  @Type(() => Number)
+  @IsNumber()
+  siteId!: number;
 
   @IsNumber()
   @Min(0)

@@ -2,12 +2,14 @@ import { Type } from 'class-transformer';
 import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpsertSeoMetricDto {
-  @IsString()
-  siteId!: string;
+  @Type(() => Number)
+  @IsInt()
+  siteId!: number;
 
   @IsOptional()
-  @IsString()
-  pageId?: string;
+  @Type(() => Number)
+  @IsInt()
+  pageId?: number;
 
   @IsDateString()
   date!: string;

@@ -24,8 +24,9 @@ export class SiteApiKeyGuard implements CanActivate {
       throw new ForbiddenException('Missing X-Site-Api-Key header');
     }
 
-    const pageId = req.params.pageId;
-    if (!pageId || typeof pageId !== 'string') {
+    const pageIdRaw = req.params.pageId;
+    const pageId = Number(pageIdRaw);
+    if (!pageIdRaw || !Number.isInteger(pageId) || pageId < 1) {
       throw new ForbiddenException('Page id is required for site API key auth');
     }
 

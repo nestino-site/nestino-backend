@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { ParseIntParam } from '../../../common/pipes/parse-int-param.decorator';
 import { PipelineStep } from '../ai/types/ai-execution.types';
 import { PromptDebugService } from './prompt-debug.service';
 
@@ -20,7 +21,7 @@ export class PromptDebugController {
    */
   @Get(':pageId')
   async getPrompt(
-    @Param('pageId') pageId: string,
+    @ParseIntParam('pageId') pageId: number,
     @Query('step') stepRaw: string,
     @Query('generateMode') generateModeRaw?: string,
   ) {

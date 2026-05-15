@@ -15,7 +15,7 @@ export class TrafficEngineSchedulerService {
 
   constructor(
     @InjectQueue(TRAFFIC_ENGINE_ANALYTICS_QUEUE)
-    private readonly analyticsQueue: Queue<{ siteId?: string }>,
+    private readonly analyticsQueue: Queue<{ siteId?: number }>,
     private readonly prisma: PrismaService,
     private readonly evaluator: PerformanceEvaluatorService,
   ) {}

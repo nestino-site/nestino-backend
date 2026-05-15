@@ -17,12 +17,14 @@ import {
 } from 'class-validator';
 
 export class CreateSubjectDto {
-  @IsString()
-  siteId!: string;
+  @Type(() => Number)
+  @IsInt()
+  siteId!: number;
 
   @IsOptional()
-  @IsString()
-  templateId?: string;
+  @Type(() => Number)
+  @IsInt()
+  templateId?: number;
 
   @IsString()
   title!: string;

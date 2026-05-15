@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, ParseIntPipe } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { CreateKeywordDto } from '../dto/create-keyword.dto';
 import { UpdateKeywordDto } from '../dto/update-keyword.dto';
 import { KeywordsService } from '../services/keywords.service';
@@ -13,22 +14,22 @@ export class KeywordsController {
   }
 
   @Get('cluster')
-  findCluster(@Query('baseKeywordId') rootId: string) {
+  findCluster(@Query('baseKeywordId', ParseIntPipe) rootId: number) {
     return this.keywordsService.findCluster(rootId);
   }
 
   @Get()
-  findBySite(@Query('siteId') siteId: string) {
+  findBySite(@Query('siteId', ParseIntPipe) siteId: number) {
     return this.keywordsService.findBySite(siteId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.keywordsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateKeywordDto) {
+  update(@ParseIntParam('id') id: number, @Body() dto: UpdateKeywordDto) {
     return this.keywordsService.update(id, dto);
   }
 }

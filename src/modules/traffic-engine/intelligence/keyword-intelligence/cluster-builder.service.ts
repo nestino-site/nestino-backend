@@ -20,7 +20,7 @@ export class ClusterBuilderService {
     private readonly semanticExpansion: SemanticExpansionService,
   ) {}
 
-  async buildCluster(primaryKeywordId: string, siteId: string): Promise<KeywordClusterData> {
+  async buildCluster(primaryKeywordId: number, siteId: number): Promise<KeywordClusterData> {
     const cacheKey = `cluster:${primaryKeywordId}`;
     const cached = await this.redis.client.get(cacheKey);
     if (cached) {
@@ -98,7 +98,7 @@ export class ClusterBuilderService {
     return clusterData;
   }
 
-  async invalidateCache(primaryKeywordId: string): Promise<void> {
+  async invalidateCache(primaryKeywordId: number): Promise<void> {
     await this.redis.client.del(`cluster:${primaryKeywordId}`);
   }
 
@@ -106,8 +106,8 @@ export class ClusterBuilderService {
     primaryKeyword: string,
     language: ContentLanguage,
     intent: KeywordIntent,
-    siteId: string,
-    excludeId: string,
+    siteId: number,
+    excludeId: number,
   ): Promise<ClusterKeyword[]> {
     // Find keywords with same intent first, fallback to same language
     const candidates = await this.prisma.keyword.findMany({
@@ -132,7 +132,7 @@ export class ClusterBuilderService {
       .slice(0, MAX_SECONDARY);
   }
 
-  private async loadSecondaryKeywords(ids: string[]): Promise<ClusterKeyword[]> {
+  private async loadSecondaryKeywords(ids: number[]): Promise<ClusterKeyword[]> {
     const keywords = await this.prisma.keyword.findMany({ where: { id: { in: ids } } });
     return keywords.map((kw) => ({
       id: kw.id,

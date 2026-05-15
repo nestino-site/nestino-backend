@@ -24,8 +24,8 @@ export class SeoCheckService {
   ) {}
 
   async check(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     finalContent: string,
     cluster: KeywordClusterData,
     priority: number,

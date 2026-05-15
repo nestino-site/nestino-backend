@@ -13,12 +13,12 @@ export class CostControllerService {
     private readonly siteConfigService: SiteConfigService,
   ) {}
 
-  async checkBudget(siteId: string): Promise<boolean> {
+  async checkBudget(siteId: number): Promise<boolean> {
     const budget = await this.getBudgetSnapshot(siteId);
     return budget.spent < budget.limit;
   }
 
-  async getDowngradeAction(siteId: string): Promise<BudgetAction> {
+  async getDowngradeAction(siteId: number): Promise<BudgetAction> {
     const budget = await this.getBudgetSnapshot(siteId);
     if (budget.limit <= 0) {
       return 'skip_analysis';
@@ -36,7 +36,7 @@ export class CostControllerService {
     return null;
   }
 
-  async recordCost(siteId: string, tokens: number, cost: number): Promise<void> {
+  async recordCost(siteId: number, tokens: number, cost: number): Promise<void> {
     const date = this.todayUtcDate();
     const ledger = await this.prisma.costLedger.upsert({
       where: { siteId_date: { siteId, date } },
@@ -58,7 +58,7 @@ export class CostControllerService {
     await this.redis.client.expire(cacheKey, this.secondsUntilMidnightUtc());
   }
 
-  private async getBudgetSnapshot(siteId: string): Promise<{ limit: number; spent: number }> {
+  private async getBudgetSnapshot(siteId: number): Promise<{ limit: number; spent: number }> {
     const siteConfig = await this.siteConfigService.getForSite(siteId);
     const limit = siteConfig.aiBudgetLimit;
     const date = this.todayUtcDate();
@@ -83,7 +83,7 @@ export class CostControllerService {
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   }
 
-  private getDailyCacheKey(siteId: string, date: Date): string {
+  private getDailyCacheKey(siteId: number, date: Date): string {
     return `cost:daily:${siteId}:${date.toISOString().slice(0, 10)}`;
   }
 

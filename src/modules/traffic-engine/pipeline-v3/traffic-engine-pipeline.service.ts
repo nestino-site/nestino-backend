@@ -55,7 +55,7 @@ export class TrafficEnginePipelineService {
     private readonly publishService: PublishService,
   ) {}
 
-  async run(pageId: string, contentTaskId?: string): Promise<void> {
+  async run(pageId: number, contentTaskId?: number): Promise<void> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true, keyword: true },
@@ -373,7 +373,7 @@ export class TrafficEnginePipelineService {
   }
 
   private async saveCheckpoint(
-    pageId: string,
+    pageId: number,
     completedSteps: Set<
       'generate' | 'validate' | 'analyze' | 'geo_score' | 'adversarial_stress_test' | 'rewrite'
       | 'image_generation'
@@ -400,9 +400,9 @@ export class TrafficEnginePipelineService {
   }
 
   private async setStatus(
-    pageId: string,
+    pageId: number,
     status: PipelineStatus,
-    contentTaskId?: string,
+    contentTaskId?: number,
     currentStep?: string,
   ): Promise<void> {
     await this.prisma.page.update({ where: { id: pageId }, data: { pipelineStatus: status } });
@@ -414,7 +414,7 @@ export class TrafficEnginePipelineService {
     }
   }
 
-  private async markTaskCompleted(contentTaskId?: string): Promise<void> {
+  private async markTaskCompleted(contentTaskId?: number): Promise<void> {
     if (!contentTaskId) {
       return;
     }
@@ -430,7 +430,7 @@ export class TrafficEnginePipelineService {
     });
   }
 
-  async buildClusterForKeyword(primaryKeywordId: string, siteId: string): Promise<KeywordClusterData> {
+  async buildClusterForKeyword(primaryKeywordId: number, siteId: number): Promise<KeywordClusterData> {
     return this.clusterBuilder.buildCluster(primaryKeywordId, siteId);
   }
 

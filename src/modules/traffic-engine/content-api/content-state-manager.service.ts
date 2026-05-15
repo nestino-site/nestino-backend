@@ -6,7 +6,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 export class ContentStateManagerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getState(pageId: string) {
+  async getState(pageId: number) {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: {
@@ -22,7 +22,7 @@ export class ContentStateManagerService {
     return page;
   }
 
-  async updateStatus(pageId: string, status: PipelineStatus): Promise<void> {
+  async updateStatus(pageId: number, status: PipelineStatus): Promise<void> {
     await this.prisma.page.update({
       where: { id: pageId },
       data: { pipelineStatus: status },

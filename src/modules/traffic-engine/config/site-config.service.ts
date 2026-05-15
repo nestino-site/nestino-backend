@@ -20,7 +20,7 @@ export class SiteConfigService {
     private readonly redis: RedisService,
   ) {}
 
-  async getForSite(siteId: string): Promise<SiteConfigRecord> {
+  async getForSite(siteId: number): Promise<SiteConfigRecord> {
     const cacheKey = this.getCacheKey(siteId);
     const cached = await this.safeCacheGet(cacheKey);
     if (cached) {
@@ -41,7 +41,7 @@ export class SiteConfigService {
     return normalized;
   }
 
-  async getForPage(pageId: string): Promise<SiteConfigRecord> {
+  async getForPage(pageId: number): Promise<SiteConfigRecord> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       select: { siteId: true },
@@ -74,7 +74,7 @@ export class SiteConfigService {
     return this.normalize(config);
   }
 
-  async update(siteId: string, dto: UpdateSiteConfigDto): Promise<SiteConfigRecord> {
+  async update(siteId: number, dto: UpdateSiteConfigDto): Promise<SiteConfigRecord> {
     const existing = await this.prisma.siteConfig.findUnique({ where: { siteId } });
     if (!existing) {
       throw new NotFoundException(`SiteConfig for site ${siteId} not found`);
@@ -95,11 +95,11 @@ export class SiteConfigService {
     return this.normalize(config);
   }
 
-  private async invalidate(siteId: string): Promise<void> {
+  private async invalidate(siteId: number): Promise<void> {
     await this.safeCacheDel(this.getCacheKey(siteId));
   }
 
-  private getCacheKey(siteId: string): string {
+  private getCacheKey(siteId: number): string {
     return `site-cfg:${siteId}`;
   }
 

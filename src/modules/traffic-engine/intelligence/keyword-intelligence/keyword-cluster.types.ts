@@ -1,16 +1,16 @@
 import { KeywordIntent } from '@prisma/client';
 
 export interface ClusterKeyword {
-  id: string;
+  id: number;
   keyword: string;
   language: string;
   weight: number;
 }
 
 export interface KeywordClusterData {
-  id: string;
-  siteId: string;
-  mainKeywordId: string;
+  id: number;
+  siteId: number;
+  mainKeywordId: number;
   primaryKeyword: string;
   language: string;
   intent: KeywordIntent;

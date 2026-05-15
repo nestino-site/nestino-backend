@@ -4,7 +4,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: IdentityJwtPayload;
-      siteId?: string;
+      siteId?: number;
     }
   }
 }

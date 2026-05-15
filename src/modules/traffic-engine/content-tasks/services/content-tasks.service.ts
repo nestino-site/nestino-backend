@@ -11,8 +11,8 @@ import {
 import { CreateContentTaskDto } from '../dto/create-content-task.dto';
 
 export interface AiGenerationJobPayload {
-  pageId: string;
-  contentTaskId?: string;
+  pageId: number;
+  contentTaskId?: number;
 }
 
 @Injectable()
@@ -51,7 +51,7 @@ export class ContentTasksService {
    * Keep content-task creation responsive even when Redis/queue is degraded.
    * The task row is still created and can be retried later by explicit requeue calls.
    */
-  async enqueueAiJobBestEffort(pageId: string, contentTaskId: string): Promise<void> {
+  async enqueueAiJobBestEffort(pageId: number, contentTaskId: number): Promise<void> {
     const enqueueTimeoutMs = Number(process.env.TASK_ENQUEUE_TIMEOUT_MS ?? 1200);
     try {
       await Promise.race([
@@ -71,20 +71,20 @@ export class ContentTasksService {
     }
   }
 
-  async enqueueAiJob(pageId: string, contentTaskId: string): Promise<void> {
+  async enqueueAiJob(pageId: number, contentTaskId: number): Promise<void> {
     // BullMQ rejects ':' in custom jobId; use a stable delimiter between two cuids.
     const jobId = `${pageId}-${contentTaskId}`;
     await this.aiQueue.add(TRAFFIC_ENGINE_AI_JOB_PROCESS, { pageId, contentTaskId }, { jobId });
   }
 
-  async findAll(siteId?: string): Promise<ContentTask[]> {
+  async findAll(siteId?: number): Promise<ContentTask[]> {
     return this.prisma.contentTask.findMany({
       where: siteId ? { siteId } : undefined,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string): Promise<ContentTask> {
+  async findOne(id: number): Promise<ContentTask> {
     const task = await this.prisma.contentTask.findUnique({ where: { id } });
     if (!task) {
       throw new NotFoundException(`ContentTask ${id} not found`);

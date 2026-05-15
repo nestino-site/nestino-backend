@@ -8,7 +8,7 @@ export interface LoginResult {
   accessToken: string;
   expiresIn: string;
   user: {
-    id: string;
+    id: number;
     email: string;
     displayName: string | null;
     role: PlatformUser['role'];
@@ -44,7 +44,7 @@ export class IdentityAuthService {
     });
 
     const accessToken = await this.jwtService.signAccessToken({
-      sub: user.id,
+      sub: String(user.id),
       email: user.email,
       role: user.role,
     });
@@ -61,7 +61,7 @@ export class IdentityAuthService {
     };
   }
 
-  async getProfile(userId: string): Promise<LoginResult['user']> {
+  async getProfile(userId: number): Promise<LoginResult['user']> {
     const user = await this.prisma.platformUser.findUnique({ where: { id: userId } });
     if (!user?.isActive) {
       throw new UnauthorizedException();

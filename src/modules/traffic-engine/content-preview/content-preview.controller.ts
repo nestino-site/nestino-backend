@@ -1,6 +1,7 @@
-import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
 import { SiteApiKey } from '../../identity/decorators/site-api-key.decorator';
+import { ParseIntParam } from '../../../common/pipes/parse-int-param.decorator';
 import { ContentPreviewService, PreviewMode } from './content-preview.service';
 
 @Controller('content')
@@ -10,7 +11,7 @@ export class ContentPreviewController {
 
   @Get(':pageId/preview')
   async preview(
-    @Param('pageId') pageId: string,
+    @ParseIntParam('pageId') pageId: number,
     @Query('mode') mode?: PreviewMode,
   ) {
     const safeMode: PreviewMode = mode === 'draft' ? 'draft' : 'final';
@@ -22,4 +23,3 @@ export class ContentPreviewController {
     };
   }
 }
-

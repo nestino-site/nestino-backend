@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, ParseIntPipe } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { CreateContentTaskDto } from '../dto/create-content-task.dto';
 import { ContentTasksService } from '../services/content-tasks.service';
 
@@ -12,12 +13,12 @@ export class ContentTasksController {
   }
 
   @Get()
-  findAll(@Query('siteId') siteId?: string) {
+  findAll(@Query('siteId', new ParseIntPipe({ optional: true })) siteId?: number) {
     return this.contentTasksService.findAll(siteId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.contentTasksService.findOne(id);
   }
 }

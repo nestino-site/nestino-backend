@@ -14,8 +14,8 @@ export class RewriteService {
   ) {}
 
   async rewrite(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     draft: string,
     analysis: AnalysisResult,
     cluster: KeywordClusterData,
@@ -60,8 +60,8 @@ export class RewriteService {
   }
 
   async runAdversarialStressRewrite(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     draft: string,
     cluster: KeywordClusterData,
     priority: number,

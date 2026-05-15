@@ -19,8 +19,8 @@ export class GenerationService {
   ) {}
 
   async generate(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     _config: unknown,
     runtimeContext: Record<string, unknown>,
     cluster: KeywordClusterData,

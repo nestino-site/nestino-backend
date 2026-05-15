@@ -8,8 +8,8 @@ import { TrafficEnginePipelineService } from '../pipeline-v3/traffic-engine-pipe
 import { TRAFFIC_ENGINE_AI_JOB_PROCESS, TRAFFIC_ENGINE_AI_QUEUE } from '../queue/queue.constants';
 
 export interface AiGenerationJobPayload {
-  pageId: string;
-  contentTaskId?: string;
+  pageId: number;
+  contentTaskId?: number;
 }
 
 @Injectable()

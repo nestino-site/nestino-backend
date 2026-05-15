@@ -15,13 +15,13 @@ export interface ModelResolutionContext {
   step: PipelineStep;
   intent: KeywordIntent;
   priority: number;
-  siteId: string;
+  siteId: number;
   budgetAction: BudgetAction;
 }
 
 export interface PromptCompositionContext {
   type: PipelineStep;
-  siteId: string;
+  siteId: number;
   version: string;
   tone: string;
   locale: string;

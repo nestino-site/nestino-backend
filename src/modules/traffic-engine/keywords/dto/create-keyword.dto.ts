@@ -3,8 +3,9 @@ import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class CreateKeywordDto {
-  @IsString()
-  siteId!: string;
+  @Type(() => Number)
+  @IsInt()
+  siteId!: number;
 
   @IsString()
   keyword!: string;
@@ -14,8 +15,9 @@ export class CreateKeywordDto {
   language?: ContentLanguage;
 
   @IsOptional()
-  @IsString()
-  baseKeywordId?: string;
+  @Type(() => Number)
+  @IsInt()
+  baseKeywordId?: number;
 
   @IsOptional()
   @IsEnum(KeywordIntent)

@@ -14,10 +14,10 @@ export class PerformanceEvaluatorService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(TRAFFIC_ENGINE_AI_QUEUE) private readonly aiQueue: Queue<{ pageId: string; contentTaskId?: string }>,
+    @InjectQueue(TRAFFIC_ENGINE_AI_QUEUE) private readonly aiQueue: Queue<{ pageId: number; contentTaskId?: number }>,
   ) {}
 
-  async evaluateSite(siteId: string): Promise<void> {
+  async evaluateSite(siteId: number): Promise<void> {
     const ctrThreshold = Number(process.env.UNDERPERFORM_CTR_THRESHOLD ?? 0.02);
     const daysOld = Number(process.env.UNDERPERFORM_DAYS_OLD ?? 30);
     const since = new Date();

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { SiteConfigService } from '../site-config.service';
 import { UpdateSiteConfigDto, UpsertSiteConfigDto } from '../dto/upsert-site-config.dto';
 
@@ -12,12 +13,12 @@ export class SiteConfigController {
   }
 
   @Get(':siteId')
-  findOne(@Param('siteId') siteId: string) {
+  findOne(@ParseIntParam('siteId') siteId: number) {
     return this.siteConfigService.getForSite(siteId);
   }
 
   @Patch(':siteId')
-  update(@Param('siteId') siteId: string, @Body() dto: UpdateSiteConfigDto) {
+  update(@ParseIntParam('siteId') siteId: number, @Body() dto: UpdateSiteConfigDto) {
     return this.siteConfigService.update(siteId, dto);
   }
 }

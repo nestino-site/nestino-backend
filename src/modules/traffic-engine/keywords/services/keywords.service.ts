@@ -32,14 +32,14 @@ export class KeywordsService {
     }
   }
 
-  async findBySite(siteId: string): Promise<Keyword[]> {
+  async findBySite(siteId: number): Promise<Keyword[]> {
     return this.prisma.keyword.findMany({
       where: { siteId },
       orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
     });
   }
 
-  async findCluster(rootId: string): Promise<Keyword[]> {
+  async findCluster(rootId: number): Promise<Keyword[]> {
     return this.prisma.keyword.findMany({
       where: {
         OR: [{ id: rootId }, { baseKeywordId: rootId }],
@@ -48,7 +48,7 @@ export class KeywordsService {
     });
   }
 
-  async findOne(id: string): Promise<Keyword> {
+  async findOne(id: number): Promise<Keyword> {
     const keyword = await this.prisma.keyword.findUnique({ where: { id } });
     if (!keyword) {
       throw new NotFoundException(`Keyword ${id} not found`);
@@ -56,7 +56,7 @@ export class KeywordsService {
     return keyword;
   }
 
-  async update(id: string, dto: UpdateKeywordDto): Promise<Keyword> {
+  async update(id: number, dto: UpdateKeywordDto): Promise<Keyword> {
     await this.findOne(id);
     try {
       return await this.prisma.keyword.update({ where: { id }, data: dto });

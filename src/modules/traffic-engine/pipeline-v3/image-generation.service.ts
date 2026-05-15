@@ -17,8 +17,8 @@ export class ImageGenerationService {
   ) {}
 
   async generate(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     finalContent: string,
     keyword: string,
     priority: number,

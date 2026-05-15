@@ -164,68 +164,68 @@ enum IdeaTaskStatus {
 }
 
 model Site {
-  id               String           @id @default(cuid())
-  name             String
-  domain           String           @unique
-  timezone         String           @default("UTC")
-  status           SiteStatus       @default(ACTIVE)
-  config           Json?
+  id                     Int              @id @default(autoincrement())
+  name                   String
+  domain                 String           @unique
+  timezone               String           @default("UTC")
+  status                 SiteStatus       @default(ACTIVE)
+  config                 Json?
 
-  defaultLanguage  ContentLanguage  @default(EN)
-  languages        ContentLanguage[]
-  strategy         ContentStrategy  @default(BALANCED)
-  gscProperty      String?
-  ga4PropertyId    String?
-  aiPipeline       Json?
+  defaultLanguage        ContentLanguage  @default(EN)
+  languages              ContentLanguage[]
+  strategy               ContentStrategy  @default(BALANCED)
+  gscProperty            String?
+  ga4PropertyId           String?
+  aiPipeline             Json?
 
-  publishWebhookUrl    String?
-  publishWebhookSecret String?
-  autoPublish          Boolean  @default(true)
-  contentApiKeyHash        String?
-  contentApiKeyCreatedAt   DateTime?
+  publishWebhookUrl      String?
+  publishWebhookSecret   String?
+  autoPublish            Boolean          @default(true)
+  contentApiKeyHash      String?
+  contentApiKeyCreatedAt DateTime?
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
-  keywords         Keyword[]
-  pages            Page[]
-  seoMetrics       SeoMetric[]
-  siteConfig       SiteConfig?
-  promptTemplates  PromptTemplate[]
-  costLedger       CostLedger[]
-  keywordClusters  KeywordCluster[]
-  subjects         Subject[]
-  ideaTasks        IdeaTask[]
+  keywords               Keyword[]
+  pages                  Page[]
+  seoMetrics             SeoMetric[]
+  siteConfig             SiteConfig?
+  promptTemplates        PromptTemplate[]
+  costLedger             CostLedger[]
+  keywordClusters        KeywordCluster[]
+  subjects               Subject[]
+  ideaTasks              IdeaTask[]
 
   @@index([domain])
   @@map("sites")
 }
 
 model Keyword {
-  id             String           @id @default(cuid())
-  siteId         String
-  keyword        String
-  language       ContentLanguage  @default(EN)
-  baseKeywordId  String?
-  intent         KeywordIntent    @default(INFORMATIONAL)
-  status         KeywordStatus    @default(PENDING)
-  searchVolume   Int?
-  difficulty     Float?
-  cpc            Float?
-  priority       Int              @default(0)
+  id                   Int              @id @default(autoincrement())
+  siteId               Int
+  keyword              String
+  language             ContentLanguage  @default(EN)
+  baseKeywordId        Int?
+  intent               KeywordIntent    @default(INFORMATIONAL)
+  status               KeywordStatus    @default(PENDING)
+  searchVolume         Int?
+  difficulty           Float?
+  cpc                  Float?
+  priority             Int              @default(0)
   cannibalizationGroup String?
-  targetUrl      String?
-  notes          String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  targetUrl            String?
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
-  site           Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  baseKeyword    Keyword?         @relation("KeywordCluster", fields: [baseKeywordId], references: [id], onDelete: SetNull)
-  derivedKeywords Keyword[]       @relation("KeywordCluster")
-  pages          Page[]
-  contentTasks   ContentTask[]
-  pageKeywords   PageKeyword[]
-  cluster        KeywordCluster?  @relation("ClusterMain")
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  baseKeyword     Keyword?         @relation("KeywordCluster", fields: [baseKeywordId], references: [id], onDelete: SetNull)
+  derivedKeywords Keyword[]        @relation("KeywordCluster")
+  pages           Page[]
+  contentTasks    ContentTask[]
+  pageKeywords    PageKeyword[]
+  cluster         KeywordCluster?  @relation("ClusterMain")
 
   @@unique([siteId, keyword, language])
   @@index([siteId, status])
@@ -236,49 +236,49 @@ model Keyword {
 }
 
 model Page {
-  id                 String           @id @default(cuid())
-  siteId             String
-  keywordId          String
-  language           ContentLanguage  @default(EN)
-  slug               String
-  title              String?
-  metaTitle          String?
-  metaDescription    String?
-  outline            Json?
-  rawDraft           String?          @db.Text
-  finalContent       String?          @db.Text
-  imagePrompt        String?          @db.Text
-  generatedImageBase64 String?        @db.Text
-  schemaMarkup       Json?
-  status             PageStatus       @default(DRAFT)
-  seoScore           Float?
-  seoCheckScore      Int?
-  seoCheckPassed     Boolean?
-  seoCheckIssues     Json?
-  geoScore           Float?
-  geoScorePillars    Json?
+  id                   Int                   @id @default(autoincrement())
+  siteId               Int
+  keywordId            Int
+  language             ContentLanguage       @default(EN)
+  slug                 String
+  title                String?
+  metaTitle            String?
+  metaDescription      String?
+  outline              Json?
+  rawDraft             String?               @db.Text
+  finalContent         String?               @db.Text
+  imagePrompt          String?               @db.Text
+  generatedImageBase64 String?               @db.Text
+  schemaMarkup         Json?
+  status               PageStatus            @default(DRAFT)
+  seoScore             Float?
+  seoCheckScore        Int?
+  seoCheckPassed       Boolean?
+  seoCheckIssues       Json?
+  geoScore             Float?
+  geoScorePillars      Json?
   cannibalizationStatus CannibalizationStatus @default(NONE)
-  readabilityScore Float?
-  wordCount          Int?
-  optimizationCount Int             @default(0)
-  pipelineStatus     PipelineStatus  @default(PENDING)
-  pipelineVersion    Int?
-  pipelineCheckpoint Json?
-  intentMatch        Float?
-  contentDepth       Float?
-  redundancyScore    Float?
-  contentGaps        String[]
-  lastAnalyzedAt     DateTime?
-  publishedAt        DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  readabilityScore     Float?
+  wordCount            Int?
+  optimizationCount    Int                   @default(0)
+  pipelineStatus       PipelineStatus        @default(PENDING)
+  pipelineVersion      Int?
+  pipelineCheckpoint   Json?
+  intentMatch          Float?
+  contentDepth         Float?
+  redundancyScore      Float?
+  contentGaps          String[]
+  lastAnalyzedAt       DateTime?
+  publishedAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
-  site               Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  keyword            Keyword          @relation(fields: [keywordId], references: [id], onDelete: Restrict)
-  contentTasks       ContentTask[]
-  seoMetrics         SeoMetric[]
-  aiGenerationLogs   AiGenerationLog[]
-  pageKeywords       PageKeyword[]
+  site             Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  keyword          Keyword           @relation(fields: [keywordId], references: [id], onDelete: Restrict)
+  contentTasks     ContentTask[]
+  seoMetrics       SeoMetric[]
+  aiGenerationLogs AiGenerationLog[]
+  pageKeywords     PageKeyword[]
 
   @@unique([siteId, slug, language])
   @@index([siteId, language, status])
@@ -287,10 +287,10 @@ model Page {
 }
 
 model ContentTask {
-  id          String     @id @default(cuid())
-  siteId      String?
-  keywordId   String?
-  pageId      String?
+  id          Int        @id @default(autoincrement())
+  siteId      Int?
+  keywordId   Int?
+  pageId      Int?
   type        TaskType   @default(GENERATE_CONTENT)
   status      TaskStatus @default(QUEUED)
   priority    Int        @default(0)
@@ -309,8 +309,8 @@ model ContentTask {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  keyword     Keyword?   @relation(fields: [keywordId], references: [id], onDelete: SetNull)
-  page        Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  keyword Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  page    Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
   @@index([status, scheduledAt])
   @@index([keywordId])
@@ -319,9 +319,9 @@ model ContentTask {
 }
 
 model SeoMetric {
-  id              String   @id @default(cuid())
-  siteId          String
-  pageId          String?
+  id              Int      @id @default(autoincrement())
+  siteId          Int
+  pageId          Int?
   query           String?
   date            DateTime @db.Date
   impressions     Int      @default(0)
@@ -334,8 +334,8 @@ model SeoMetric {
   bounceRate      Float?
   createdAt       DateTime @default(now())
 
-  site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  page            Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  site Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  page Page? @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
   @@unique([siteId, pageId, date])
   @@index([siteId, date])
@@ -344,7 +344,7 @@ model SeoMetric {
 }
 
 model KeywordResearch {
-  id           String                @id @default(cuid())
+  id           Int                   @id @default(autoincrement())
   seedKeyword  String
   language     ContentLanguage
   suggestions  String[]
@@ -356,21 +356,21 @@ model KeywordResearch {
 }
 
 model AiGenerationLog {
-  id            String             @id @default(cuid())
-  pageId        String
+  id              Int                @id @default(autoincrement())
+  pageId          Int
   pipelineVersion Int?
-  stepKey       String
-  provider      AiProvider
-  model         String
-  inputTokens   Int
-  outputTokens  Int
-  cost          Decimal            @db.Decimal(12, 6)
-  durationMs    Int
-  promptHash    String
-  status        AiGenerationStatus
-  createdAt     DateTime           @default(now())
+  stepKey         String
+  provider        AiProvider
+  model           String
+  inputTokens     Int
+  outputTokens    Int
+  cost            Decimal            @db.Decimal(12, 6)
+  durationMs      Int
+  promptHash      String
+  status          AiGenerationStatus
+  createdAt       DateTime           @default(now())
 
-  page          Page               @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId, createdAt])
   @@index([stepKey, createdAt])
@@ -378,8 +378,8 @@ model AiGenerationLog {
 }
 
 model SiteConfig {
-  id               String   @id @default(cuid())
-  siteId           String   @unique
+  id               Int      @id @default(autoincrement())
+  siteId           Int      @unique
   aiBudgetLimit    Decimal  @db.Decimal(12, 2)
   qualityThreshold Float    @default(70)
   pipelineConfig   Json
@@ -389,14 +389,14 @@ model SiteConfig {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  site             Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@map("site_configs")
 }
 
 model PromptTemplate {
-  id        String   @id @default(cuid())
-  siteId    String?
+  id        Int      @id @default(autoincrement())
+  siteId    Int?
   type      String
   version   String
   tone      String   @default("seo")
@@ -407,7 +407,7 @@ model PromptTemplate {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  site      Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site Site? @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@unique([type, version, siteId, abVariant])
   @@index([siteId, type, isActive])
@@ -415,15 +415,15 @@ model PromptTemplate {
 }
 
 model CostLedger {
-  id           String   @id @default(cuid())
-  siteId       String
+  id           Int      @id @default(autoincrement())
+  siteId       Int
   date         DateTime @db.Date
   totalCost    Decimal  @db.Decimal(12, 6)
   totalTokens  Int      @default(0)
   requestCount Int      @default(0)
   updatedAt    DateTime @updatedAt
 
-  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@unique([siteId, date])
   @@index([siteId, date])
@@ -431,15 +431,15 @@ model CostLedger {
 }
 
 model PageKeyword {
-  id        String          @id @default(cuid())
-  pageId    String
-  keywordId String
+  id        Int             @id @default(autoincrement())
+  pageId    Int
+  keywordId Int
   role      PageKeywordRole @default(SECONDARY)
   weight    Float           @default(0.5)
   createdAt DateTime        @default(now())
 
-  page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  keyword   Keyword         @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  page    Page    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
 
   @@unique([pageId, keywordId])
   @@index([pageId, role])
@@ -447,25 +447,25 @@ model PageKeyword {
 }
 
 model KeywordCluster {
-  id                  String        @id @default(cuid())
-  siteId              String
-  mainKeywordId       String        @unique
+  id                  Int           @id @default(autoincrement())
+  siteId              Int
+  mainKeywordId       Int           @unique
   intent              KeywordIntent
   topic               String
   semanticTopics      String[]
-  secondaryKeywordIds String[]
+  secondaryKeywordIds Int[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  site                Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  mainKeyword         Keyword       @relation("ClusterMain", fields: [mainKeywordId], references: [id], onDelete: Cascade)
+  site        Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  mainKeyword Keyword @relation("ClusterMain", fields: [mainKeywordId], references: [id], onDelete: Cascade)
 
   @@index([siteId, intent])
   @@map("keyword_clusters")
 }
 
 model PlatformUser {
-  id           String       @id @default(cuid())
+  id           Int          @id @default(autoincrement())
   email        String       @unique
   passwordHash String
   displayName  String?
@@ -479,7 +479,7 @@ model PlatformUser {
 }
 
 model VillaUser {
-  id            String         @id @default(cuid())
+  id            Int            @id @default(autoincrement())
   email         String
   villaId       String
   createdAt     DateTime       @default(now())
@@ -491,7 +491,7 @@ model VillaUser {
 }
 
 model Otp {
-  id        String   @id @default(cuid())
+  id        Int      @id @default(autoincrement())
   email     String
   villaId   String
   code      String
@@ -504,10 +504,10 @@ model Otp {
 }
 
 model RefreshToken {
-  id          String    @id @default(cuid())
+  id          Int       @id @default(autoincrement())
   jti         String    @unique
   tokenHash   String    @unique
-  villaUserId String
+  villaUserId Int
   villaUser   VillaUser @relation(fields: [villaUserId], references: [id], onDelete: Cascade)
   expiresAt   DateTime
   createdAt   DateTime  @default(now())
@@ -517,20 +517,20 @@ model RefreshToken {
 }
 
 model ContentTemplate {
-  id                      String      @id @default(cuid())
-  name                    String
-  description             String?
-  contentType             ContentType @default(ARTICLE)
-  requiredSections        Json
-  headingStructure        Json
-  seoRules                Json
-  faqStructure            Json
-  ctaPlacement            String?
-  internalLinkingRules    Json?
-  formattingInstructions  String?     @db.Text
-  isActive                Boolean     @default(true)
-  createdAt               DateTime    @default(now())
-  updatedAt               DateTime    @updatedAt
+  id                     Int         @id @default(autoincrement())
+  name                   String
+  description            String?
+  contentType            ContentType @default(ARTICLE)
+  requiredSections       Json
+  headingStructure       Json
+  seoRules               Json
+  faqStructure           Json
+  ctaPlacement           String?
+  internalLinkingRules     Json?
+  formattingInstructions String?     @db.Text
+  isActive               Boolean     @default(true)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
 
   subjects Subject[]
 
@@ -539,26 +539,26 @@ model ContentTemplate {
 }
 
 model Subject {
-  id                        String                  @id @default(cuid())
-  siteId                    String
-  templateId                String?
+  id                        Int                      @id @default(autoincrement())
+  siteId                    Int
+  templateId                Int?
   title                     String
-  description               String?                 @db.Text
+  description               String?                  @db.Text
   primaryKeywords           String[]
   secondaryKeywords         String[]
-  searchIntent              KeywordIntent           @default(INFORMATIONAL)
-  language                  ContentLanguage         @default(EN)
+  searchIntent              KeywordIntent            @default(INFORMATIONAL)
+  language                  ContentLanguage          @default(EN)
   country                   String?
   city                      String?
   seoGoal                   String?
-  contentCountTarget        Int                     @default(10)
+  contentCountTarget        Int                      @default(10)
   hallucinationSensitivity  HallucinationSensitivity @default(MEDIUM)
-  riskCategory              RiskCategory            @default(GENERAL)
-  requiresFactualValidation Boolean                 @default(false)
-  strictReviewMode          Boolean                 @default(false)
-  status                    SubjectStatus           @default(ACTIVE)
-  createdAt                 DateTime                @default(now())
-  updatedAt                 DateTime                @updatedAt
+  riskCategory              RiskCategory             @default(GENERAL)
+  requiresFactualValidation Boolean                  @default(false)
+  strictReviewMode          Boolean                  @default(false)
+  status                    SubjectStatus            @default(ACTIVE)
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
 
   site         Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
   template     ContentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
@@ -571,8 +571,8 @@ model Subject {
 }
 
 model ContentIdea {
-  id                         String        @id @default(cuid())
-  subjectId                  String
+  id                         Int           @id @default(autoincrement())
+  subjectId                  Int
   title                      String
   slug                       String
   targetKeyword              String
@@ -602,10 +602,10 @@ model ContentIdea {
 }
 
 model IdeaTask {
-  id          String         @id @default(cuid())
-  ideaId      String
-  subjectId   String
-  siteId      String?
+  id          Int            @id @default(autoincrement())
+  ideaId      Int
+  subjectId   Int
+  siteId      Int?
   type        TaskType       @default(GENERATE_CONTENT)
   status      IdeaTaskStatus @default(QUEUED)
   priority    Int            @default(0)

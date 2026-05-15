@@ -1,6 +1,7 @@
-import { Controller, Get, HttpCode, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
 import { SiteApiKey } from '../../../identity/decorators/site-api-key.decorator';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { ContentStateManagerService } from '../content-state-manager.service';
 import { NextJsContractMapperService } from '../next-js-contract-mapper.service';
 
@@ -14,7 +15,7 @@ export class ContentApiController {
 
   @Get(':pageId')
   @HttpCode(HttpStatus.OK)
-  async getContent(@Param('pageId') pageId: string) {
+  async getContent(@ParseIntParam('pageId') pageId: number) {
     const page = await this.stateManager.getState(pageId);
     const body = this.mapper.toContract(page);
     if (
@@ -30,7 +31,7 @@ export class ContentApiController {
   }
 
   @Get(':pageId/logs')
-  async getLogs(@Param('pageId') pageId: string) {
+  async getLogs(@ParseIntParam('pageId') pageId: number) {
     const page = await this.stateManager.getState(pageId);
     return {
       pageId,

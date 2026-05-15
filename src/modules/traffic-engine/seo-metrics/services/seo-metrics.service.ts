@@ -86,7 +86,7 @@ export class SeoMetricsService {
     return Promise.all(dtos.map((dto) => this.upsert(dto)));
   }
 
-  async findBySite(siteId: string, days: number): Promise<SeoMetric[]> {
+  async findBySite(siteId: number, days: number): Promise<SeoMetric[]> {
     const from = new Date();
     from.setDate(from.getDate() - days);
     return this.prisma.seoMetric.findMany({

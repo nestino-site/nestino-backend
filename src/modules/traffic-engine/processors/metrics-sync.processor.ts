@@ -13,7 +13,7 @@ export class MetricsSyncProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ siteId?: string }>): Promise<void> {
+  async process(job: Job<{ siteId?: number }>): Promise<void> {
     if (job.name !== TRAFFIC_ENGINE_ANALYTICS_JOB_SYNC) {
       return;
     }

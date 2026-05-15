@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query } from '@nestjs/common';
 import { IdeaStatus } from '@prisma/client';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { BulkReviewDto } from '../dto/bulk-review.dto';
 import { GenerateIdeasDto } from '../dto/generate-ideas.dto';
 import { ReviewIdeaDto } from '../dto/review-idea.dto';
@@ -11,7 +12,7 @@ export class ContentIdeasController {
 
   @Post('subjects/:subjectId/ideas/generate')
   generateForSubject(
-    @Param('subjectId') subjectId: string,
+    @ParseIntParam('subjectId') subjectId: number,
     @Body() dto: GenerateIdeasDto,
   ) {
     return this.contentIdeasService.enqueueGeneration(
@@ -23,29 +24,29 @@ export class ContentIdeasController {
 
   @Get('subjects/:subjectId/ideas')
   listBySubject(
-    @Param('subjectId') subjectId: string,
+    @ParseIntParam('subjectId') subjectId: number,
     @Query('status') status?: IdeaStatus,
   ) {
     return this.contentIdeasService.findBySubject(subjectId, status);
   }
 
   @Get('content-ideas/:id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.contentIdeasService.findOne(id);
   }
 
   @Patch('content-ideas/:id/approve')
-  approve(@Param('id') id: string, @Body() dto: ReviewIdeaDto) {
+  approve(@ParseIntParam('id') id: number, @Body() dto: ReviewIdeaDto) {
     return this.contentIdeasService.approve(id, dto.reviewNotes);
   }
 
   @Patch('content-ideas/:id/reject')
-  reject(@Param('id') id: string, @Body() dto: ReviewIdeaDto) {
+  reject(@ParseIntParam('id') id: number, @Body() dto: ReviewIdeaDto) {
     return this.contentIdeasService.reject(id, dto.reviewNotes);
   }
 
   @Patch('content-ideas/:id/request-revision')
-  requestRevision(@Param('id') id: string, @Body() dto: ReviewIdeaDto) {
+  requestRevision(@ParseIntParam('id') id: number, @Body() dto: ReviewIdeaDto) {
     return this.contentIdeasService.requestRevision(id, dto.reviewNotes);
   }
 

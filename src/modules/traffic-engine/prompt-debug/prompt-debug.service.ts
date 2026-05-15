@@ -28,7 +28,7 @@ export class PromptDebugService {
   ) {}
 
   async previewPrompt(
-    pageId: string,
+    pageId: number,
     step: PipelineStep,
     generateMode: 'outline' | 'draft',
   ): Promise<PromptPreviewResult> {
@@ -172,8 +172,8 @@ export class PromptDebugService {
   }
 
   private async buildCompositionContext(
-    pageId: string,
-    siteId: string,
+    pageId: number,
+    siteId: number,
     step: PipelineStep,
     siteConfig: SiteConfigRecord,
     runtimeContext: Record<string, unknown>,

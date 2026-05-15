@@ -38,7 +38,7 @@ export class TemplatesService {
     });
   }
 
-  async findOne(id: string): Promise<ContentTemplate> {
+  async findOne(id: number): Promise<ContentTemplate> {
     const template = await this.prisma.contentTemplate.findUnique({ where: { id } });
     if (!template) {
       throw new NotFoundException(`ContentTemplate ${id} not found`);
@@ -46,7 +46,7 @@ export class TemplatesService {
     return template;
   }
 
-  async update(id: string, dto: UpdateTemplateDto): Promise<ContentTemplate> {
+  async update(id: number, dto: UpdateTemplateDto): Promise<ContentTemplate> {
     await this.findOne(id);
     try {
       return await this.prisma.contentTemplate.update({
@@ -70,7 +70,7 @@ export class TemplatesService {
     }
   }
 
-  async remove(id: string): Promise<ContentTemplate> {
+  async remove(id: number): Promise<ContentTemplate> {
     await this.findOne(id);
     try {
       return await this.prisma.contentTemplate.delete({ where: { id } });

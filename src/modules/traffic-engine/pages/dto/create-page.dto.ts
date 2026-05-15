@@ -1,12 +1,15 @@
 import { ContentLanguage, PageStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreatePageDto {
-  @IsString()
-  siteId!: string;
+  @Type(() => Number)
+  @IsInt()
+  siteId!: number;
 
-  @IsString()
-  keywordId!: string;
+  @Type(() => Number)
+  @IsInt()
+  keywordId!: number;
 
   @IsString()
   slug!: string;

@@ -71,7 +71,7 @@ export class ContentGenerationPipelineService {
     return { version, steps: parsed };
   }
 
-  async runForPage(pageId: string, contentTaskId?: string): Promise<void> {
+  async runForPage(pageId: number, contentTaskId?: number): Promise<void> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true, keyword: true },

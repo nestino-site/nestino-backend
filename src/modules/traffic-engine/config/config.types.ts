@@ -55,7 +55,7 @@ export interface RuntimeConfig {
 }
 
 export interface SiteConfigRecord {
-  siteId: string;
+  siteId: number;
   aiBudgetLimit: number;
   qualityThreshold: number;
   pipelineConfig: PipelineConfig;

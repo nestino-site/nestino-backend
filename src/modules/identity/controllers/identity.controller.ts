@@ -17,6 +17,6 @@ export class IdentityController {
 
   @Get('me')
   me(@CurrentUser() user: IdentityJwtPayload) {
-    return this.identityAuthService.getProfile(user.sub);
+    return this.identityAuthService.getProfile(Number(user.sub));
   }
 }

@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ErrorClass } from './error-classifier.service';
 
 interface ErrorContext {
-  pageId: string;
-  siteId: string;
+  pageId: number;
+  siteId: number;
   step: string;
   errorClass: ErrorClass;
 }

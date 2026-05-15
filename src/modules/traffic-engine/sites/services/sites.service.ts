@@ -12,7 +12,7 @@ import { UpdateSiteDto } from '../dto/update-site.dto';
 export interface BulkGenerateResult {
   queued: number;
   skipped: number;
-  taskIds: string[];
+  taskIds: number[];
 }
 
 export interface CreateSiteResult {
@@ -21,7 +21,7 @@ export interface CreateSiteResult {
 }
 
 export interface RotateContentApiKeyResult {
-  siteId: string;
+  siteId: number;
   contentApiKey: string;
   contentApiKeyCreatedAt: Date;
 }
@@ -64,7 +64,7 @@ export class SitesService {
     }
   }
 
-  async rotateContentApiKey(siteId: string): Promise<RotateContentApiKeyResult> {
+  async rotateContentApiKey(siteId: number): Promise<RotateContentApiKeyResult> {
     await this.findOne(siteId);
     const { plaintext, hash } = await this.siteApiKeyService.generateWithHash();
     const now = new Date();
@@ -90,7 +90,7 @@ export class SitesService {
     return this.prisma.site.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  async findOne(id: string): Promise<Site> {
+  async findOne(id: number): Promise<Site> {
     const site = await this.prisma.site.findUnique({ where: { id } });
     if (!site) {
       throw new NotFoundException(`Site ${id} not found`);
@@ -98,7 +98,7 @@ export class SitesService {
     return site;
   }
 
-  async update(id: string, dto: UpdateSiteDto): Promise<Site> {
+  async update(id: number, dto: UpdateSiteDto): Promise<Site> {
     await this.findOne(id);
     try {
       return await this.prisma.site.update({ where: { id }, data: dto });
@@ -112,7 +112,7 @@ export class SitesService {
    * Skips keywords that already have a page for this site.
    * Respects aiBudgetLimit from site config (no-op if budget would be exceeded).
    */
-  async bulkGenerate(siteId: string, dto: BulkGenerateDto): Promise<BulkGenerateResult> {
+  async bulkGenerate(siteId: number, dto: BulkGenerateDto): Promise<BulkGenerateResult> {
     await this.findOne(siteId);
 
     const keywords = await this.prisma.keyword.findMany({
@@ -125,7 +125,7 @@ export class SitesService {
     });
     const alreadyQueued = new Set(existingPages.map((p) => p.keywordId));
 
-    const taskIds: string[] = [];
+    const taskIds: number[] = [];
     let skipped = 0;
 
     for (const kw of keywords) {
@@ -163,7 +163,7 @@ export class SitesService {
     return { queued: taskIds.length, skipped, taskIds };
   }
 
-  async patchAiPipeline(id: string, dto: PatchAiPipelineDto): Promise<Site> {
+  async patchAiPipeline(id: number, dto: PatchAiPipelineDto): Promise<Site> {
     await this.findOne(id);
     const stepKeys = new Set(dto.steps.map((s) => s.stepKey));
     if (stepKeys.size !== dto.steps.length) {

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { CreateTemplateDto } from '../dto/create-template.dto';
 import { UpdateTemplateDto } from '../dto/update-template.dto';
 import { TemplatesService } from '../services/templates.service';
@@ -13,22 +14,22 @@ export class TemplatesController {
   }
 
   @Get()
-  findAll(@Query('activeOnly') activeOnly?: string) {
-    return this.templatesService.findAll(activeOnly === 'true' || activeOnly === '1');
+  findAll() {
+    return this.templatesService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.templatesService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto) {
+  update(@ParseIntParam('id') id: number, @Body() dto: UpdateTemplateDto) {
     return this.templatesService.update(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@ParseIntParam('id') id: number) {
     return this.templatesService.remove(id);
   }
 }

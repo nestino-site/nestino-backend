@@ -5,7 +5,7 @@ import { SchemaMarkupService } from './schema-markup.service';
 
 export interface QuickWinItem {
   query: string;
-  pageId: string | null;
+  pageId: number | null;
   pageSlug: string | null;
   avgPosition: number;
   impressions: number;
@@ -18,16 +18,16 @@ export interface QuickWinItem {
 
 export interface CannibalizationItem {
   query: string;
-  winnerPageId: string;
+  winnerPageId: number;
   winnerPageSlug: string | null;
   winnerReason: string;
-  loserPages: { pageId: string; pageSlug: string | null; avgPosition: number; clicks: number }[];
+  loserPages: { pageId: number; pageSlug: string | null; avgPosition: number; clicks: number }[];
   recommendedAction: string;
 }
 
 export interface KeywordOrphanItem {
   query: string;
-  pageId: string | null;
+  pageId: number | null;
   pageSlug: string | null;
   avgPosition: number;
   impressions: number;
@@ -41,7 +41,7 @@ export class SeoStrategyService {
     private readonly schemaMarkupService: SchemaMarkupService,
   ) {}
 
-  async findQuickWins(siteId: string): Promise<QuickWinItem[]> {
+  async findQuickWins(siteId: number): Promise<QuickWinItem[]> {
     const metrics = await this.prisma.seoMetric.findMany({
       where: {
         siteId,
@@ -78,7 +78,7 @@ export class SeoStrategyService {
     return quickWins;
   }
 
-  async findCannibalization(siteId: string): Promise<CannibalizationItem[]> {
+  async findCannibalization(siteId: number): Promise<CannibalizationItem[]> {
     const metrics = await this.prisma.seoMetric.findMany({
       where: {
         siteId,
@@ -99,10 +99,10 @@ export class SeoStrategyService {
     }
 
     const results: CannibalizationItem[] = [];
-    const pageStatuses = new Map<string, CannibalizationStatus>();
+    const pageStatuses = new Map<number, CannibalizationStatus>();
 
     for (const [query, rows] of byQuery.entries()) {
-      const byPage = new Map<string, (typeof rows)[number][]>();
+      const byPage = new Map<number, (typeof rows)[number][]>();
       for (const row of rows) {
         if (!row.pageId) continue;
         const list = byPage.get(row.pageId) ?? [];
@@ -150,7 +150,7 @@ export class SeoStrategyService {
     return results;
   }
 
-  async findKeywordOrphans(siteId: string): Promise<KeywordOrphanItem[]> {
+  async findKeywordOrphans(siteId: number): Promise<KeywordOrphanItem[]> {
     const metrics = await this.prisma.seoMetric.findMany({
       where: {
         siteId,
@@ -184,7 +184,7 @@ export class SeoStrategyService {
     return orphans;
   }
 
-  async findGeoScores(siteId: string): Promise<{ pageId: string; slug: string; geoScore: number }[]> {
+  async findGeoScores(siteId: number): Promise<{ pageId: number; slug: string; geoScore: number }[]> {
     const pages = await this.prisma.page.findMany({
       where: { siteId, geoScore: { not: null } },
       select: { id: true, slug: true, geoScore: true },
@@ -193,7 +193,7 @@ export class SeoStrategyService {
     return pages.map((p) => ({ pageId: p.id, slug: p.slug, geoScore: p.geoScore ?? 0 }));
   }
 
-  async generateSchemaForPage(pageId: string): Promise<unknown> {
+  async generateSchemaForPage(pageId: number): Promise<unknown> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: {
@@ -239,7 +239,7 @@ export class SeoStrategyService {
     return values.reduce((sum, v) => sum + v, 0) / values.length;
   }
 
-  private async persistPageCannibalizationStatuses(statuses: Map<string, CannibalizationStatus>): Promise<void> {
+  private async persistPageCannibalizationStatuses(statuses: Map<number, CannibalizationStatus>): Promise<void> {
     await this.prisma.$transaction(
       [...statuses.entries()].map(([pageId, status]) =>
         this.prisma.page.update({

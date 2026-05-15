@@ -16,7 +16,7 @@ export class PageKeywordService {
     private readonly clusterBuilder: ClusterBuilderService,
   ) {}
 
-  async assign(pageId: string, dto: AssignPageKeywordDto): Promise<PageKeyword> {
+  async assign(pageId: number, dto: AssignPageKeywordDto): Promise<PageKeyword> {
     const page = await this.prisma.page.findUnique({ where: { id: pageId } });
     if (!page) throw new NotFoundException(`Page ${pageId} not found`);
 
@@ -58,7 +58,7 @@ export class PageKeywordService {
     }
   }
 
-  async listForPage(pageId: string): Promise<(PageKeyword & { keyword: { keyword: string; intent: string; language: string } })[]> {
+  async listForPage(pageId: number): Promise<(PageKeyword & { keyword: { keyword: string; intent: string; language: string } })[]> {
     return this.prisma.pageKeyword.findMany({
       where: { pageId },
       include: { keyword: { select: { keyword: true, intent: true, language: true } } },
@@ -66,7 +66,7 @@ export class PageKeywordService {
     }) as Promise<(PageKeyword & { keyword: { keyword: string; intent: string; language: string } })[]>;
   }
 
-  async remove(pageId: string, keywordId: string): Promise<void> {
+  async remove(pageId: number, keywordId: number): Promise<void> {
     const existing = await this.prisma.pageKeyword.findUnique({
       where: { pageId_keywordId: { pageId, keywordId } },
     });

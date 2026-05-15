@@ -23,7 +23,7 @@ export interface PipelineCheckpoint {
 export class PipelineCheckpointService {
   constructor(private readonly redis: RedisService) {}
 
-  async save(pageId: string, checkpoint: PipelineCheckpoint): Promise<void> {
+  async save(pageId: number, checkpoint: PipelineCheckpoint): Promise<void> {
     await this.redis.client.setex(
       this.key(pageId),
       24 * 60 * 60,
@@ -31,7 +31,7 @@ export class PipelineCheckpointService {
     );
   }
 
-  async load(pageId: string): Promise<PipelineCheckpoint | null> {
+  async load(pageId: number): Promise<PipelineCheckpoint | null> {
     const raw = await this.redis.client.get(this.key(pageId));
     if (!raw) {
       return null;
@@ -39,11 +39,11 @@ export class PipelineCheckpointService {
     return JSON.parse(raw) as PipelineCheckpoint;
   }
 
-  async clear(pageId: string): Promise<void> {
+  async clear(pageId: number): Promise<void> {
     await this.redis.client.del(this.key(pageId));
   }
 
-  private key(pageId: string): string {
+  private key(pageId: number): string {
     return `pipeline:checkpoint:${pageId}`;
   }
 }

@@ -3,14 +3,15 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Query,
   NotFoundException,
   UnprocessableEntityException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ContentLanguage, PageStatus } from '@prisma/client';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ContentTasksService } from '../../content-tasks/services/content-tasks.service';
 import { PipelineCheckpointService } from '../../pipeline-v3/pipeline-checkpoint.service';
@@ -43,7 +44,7 @@ export class PagesController {
    */
   @Post(':id/generate-content')
   async queueGenerateContent(
-    @Param('id') pageId: string,
+    @ParseIntParam('id') pageId: number,
     @Query('resetCheckpoint') resetCheckpoint?: string,
   ) {
     const page = await this.prisma.page.findUnique({
@@ -71,14 +72,14 @@ export class PagesController {
    * Works for both autoPublish=true sites (retry) and autoPublish=false sites (manual review flow).
    */
   @Post(':id/publish')
-  async publishPage(@Param('id') pageId: string) {
+  async publishPage(@ParseIntParam('id') pageId: number) {
     const result = await this.publishService.publishPage(pageId);
     return result;
   }
 
   @Get()
   findBySite(
-    @Query('siteId') siteId: string,
+    @Query('siteId', ParseIntPipe) siteId: number,
     @Query('status') status?: PageStatus,
     @Query('language') language?: ContentLanguage,
   ) {
@@ -86,29 +87,32 @@ export class PagesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.pagesService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePageDto) {
+  update(@ParseIntParam('id') id: number, @Body() dto: UpdatePageDto) {
     return this.pagesService.update(id, dto);
   }
 
   // ─── PageKeyword (cluster management) ───────────────────────────────────────
 
   @Post(':id/keywords')
-  assignKeyword(@Param('id') id: string, @Body() dto: AssignPageKeywordDto) {
+  assignKeyword(@ParseIntParam('id') id: number, @Body() dto: AssignPageKeywordDto) {
     return this.pageKeywordService.assign(id, dto);
   }
 
   @Get(':id/keywords')
-  listKeywords(@Param('id') id: string) {
+  listKeywords(@ParseIntParam('id') id: number) {
     return this.pageKeywordService.listForPage(id);
   }
 
   @Delete(':id/keywords/:keywordId')
-  removeKeyword(@Param('id') id: string, @Param('keywordId') keywordId: string) {
+  removeKeyword(
+    @ParseIntParam('id') id: number,
+    @ParseIntParam('keywordId') keywordId: number,
+  ) {
     return this.pageKeywordService.remove(id, keywordId);
   }
 }

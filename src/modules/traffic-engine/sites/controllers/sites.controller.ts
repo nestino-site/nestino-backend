@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { BulkGenerateDto } from '../dto/bulk-generate.dto';
 import { CreateSiteDto } from '../dto/create-site.dto';
 import { PatchAiPipelineDto } from '../dto/patch-ai-pipeline.dto';
@@ -20,36 +21,27 @@ export class SitesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.sitesService.findOne(id);
   }
 
   @Patch(':id/ai-pipeline')
-  patchAiPipeline(@Param('id') id: string, @Body() dto: PatchAiPipelineDto) {
+  patchAiPipeline(@ParseIntParam('id') id: number, @Body() dto: PatchAiPipelineDto) {
     return this.sitesService.patchAiPipeline(id, dto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSiteDto) {
+  update(@ParseIntParam('id') id: number, @Body() dto: UpdateSiteDto) {
     return this.sitesService.update(id, dto);
   }
 
-  /**
-   * Batch-generate content for multiple keywords at once.
-   * Creates one page per keyword and enqueues the AI pipeline for each.
-   * Skips keywords that already have a page on this site.
-   */
   @Post(':id/bulk-generate')
-  bulkGenerate(@Param('id') id: string, @Body() dto: BulkGenerateDto) {
+  bulkGenerate(@ParseIntParam('id') id: number, @Body() dto: BulkGenerateDto) {
     return this.sitesService.bulkGenerate(id, dto);
   }
 
-  /**
-   * Generate a new content API key for frontend content reads.
-   * The plaintext key is returned once; store it securely.
-   */
   @Post(':id/rotate-content-api-key')
-  rotateContentApiKey(@Param('id') id: string) {
+  rotateContentApiKey(@ParseIntParam('id') id: number) {
     return this.sitesService.rotateContentApiKey(id);
   }
 }

@@ -26,7 +26,7 @@ export class IdeaTasksService {
     private readonly contentTasksService: ContentTasksService,
   ) {}
 
-  async createFromApprovedIdea(ideaId: string, dto: CreateIdeaTaskDto): Promise<IdeaTask> {
+  async createFromApprovedIdea(ideaId: number, dto: CreateIdeaTaskDto): Promise<IdeaTask> {
     const idea = await this.prisma.contentIdea.findUnique({
       where: { id: ideaId },
       include: { subject: true },
@@ -145,7 +145,7 @@ export class IdeaTasksService {
     }
   }
 
-  async findAll(subjectId?: string): Promise<IdeaTask[]> {
+  async findAll(subjectId?: number): Promise<IdeaTask[]> {
     return this.prisma.ideaTask.findMany({
       where: subjectId ? { subjectId } : undefined,
       orderBy: { createdAt: 'desc' },
@@ -153,7 +153,7 @@ export class IdeaTasksService {
     });
   }
 
-  async findOne(id: string): Promise<IdeaTask> {
+  async findOne(id: number): Promise<IdeaTask> {
     const task = await this.prisma.ideaTask.findUnique({
       where: { id },
       include: { idea: true, subject: true },

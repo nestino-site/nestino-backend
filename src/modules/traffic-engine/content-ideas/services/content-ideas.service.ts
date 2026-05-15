@@ -17,7 +17,7 @@ import { SubjectsService } from '../../subjects/services/subjects.service';
 import { IdeaValidationService } from '../idea-validation.service';
 
 export interface IdeaGenerationJobPayload {
-  subjectId: string;
+  subjectId: number;
   count: number;
   provider?: AiProvider;
 }
@@ -33,10 +33,10 @@ export class ContentIdeasService {
   ) {}
 
   async enqueueGeneration(
-    subjectId: string,
+    subjectId: number,
     count: number,
     provider?: AiProvider,
-  ): Promise<{ jobQueued: true; subjectId: string; count: number }> {
+  ): Promise<{ jobQueued: true; subjectId: number; count: number }> {
     await this.subjectsService.findOne(subjectId);
 
     const jobId = `subject-${subjectId}-${Date.now()}`;
@@ -49,7 +49,7 @@ export class ContentIdeasService {
     return { jobQueued: true, subjectId, count };
   }
 
-  async findBySubject(subjectId: string, status?: IdeaStatus): Promise<ContentIdea[]> {
+  async findBySubject(subjectId: number, status?: IdeaStatus): Promise<ContentIdea[]> {
     await this.subjectsService.findOne(subjectId);
     return this.prisma.contentIdea.findMany({
       where: {
@@ -60,7 +60,7 @@ export class ContentIdeasService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: number) {
     const idea = await this.prisma.contentIdea.findUnique({
       where: { id },
       include: { subject: true },
@@ -71,7 +71,7 @@ export class ContentIdeasService {
     return idea;
   }
 
-  async approve(id: string, reviewNotes?: string): Promise<ContentIdea> {
+  async approve(id: number, reviewNotes?: string): Promise<ContentIdea> {
     const idea = await this.findOne(id);
     const subject = idea.subject;
 
@@ -84,15 +84,15 @@ export class ContentIdeasService {
     return this.updateStatus(id, IdeaStatus.APPROVED, reviewNotes);
   }
 
-  async reject(id: string, reviewNotes?: string): Promise<ContentIdea> {
+  async reject(id: number, reviewNotes?: string): Promise<ContentIdea> {
     return this.updateStatus(id, IdeaStatus.REJECTED, reviewNotes);
   }
 
-  async requestRevision(id: string, reviewNotes?: string): Promise<ContentIdea> {
+  async requestRevision(id: number, reviewNotes?: string): Promise<ContentIdea> {
     return this.updateStatus(id, IdeaStatus.NEEDS_REVISION, reviewNotes);
   }
 
-  async bulkApprove(ideaIds: string[], reviewNotes?: string): Promise<{ updated: number }> {
+  async bulkApprove(ideaIds: number[], reviewNotes?: string): Promise<{ updated: number }> {
     const ideas = await this.prisma.contentIdea.findMany({
       where: { id: { in: ideaIds } },
       include: { subject: true },
@@ -121,7 +121,7 @@ export class ContentIdeasService {
     return { updated: result.count };
   }
 
-  async bulkReject(ideaIds: string[], reviewNotes?: string): Promise<{ updated: number }> {
+  async bulkReject(ideaIds: number[], reviewNotes?: string): Promise<{ updated: number }> {
     const result = await this.prisma.contentIdea.updateMany({
       where: { id: { in: ideaIds } },
       data: {
@@ -133,7 +133,7 @@ export class ContentIdeasService {
   }
 
   private async updateStatus(
-    id: string,
+    id: number,
     status: IdeaStatus,
     reviewNotes?: string,
   ): Promise<ContentIdea> {

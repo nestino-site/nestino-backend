@@ -5,9 +5,9 @@ import { PageStatus, PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 export interface PublishWebhookPayload {
-  pageId: string;
+  pageId: number;
   slug: string;
-  siteId: string;
+  siteId: number;
   event: 'page.published' | 'page.updated';
   timestamp: number;
 }
@@ -27,7 +27,7 @@ export class PublishService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async publishPage(pageId: string): Promise<PublishResult> {
+  async publishPage(pageId: number): Promise<PublishResult> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true },
@@ -76,7 +76,7 @@ export class PublishService {
     return { published: true, webhookFired, webhookStatus };
   }
 
-  async triggerUpdateWebhook(pageId: string): Promise<void> {
+  async triggerUpdateWebhook(pageId: number): Promise<void> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true },

@@ -3,12 +3,13 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { SubjectStatus } from '@prisma/client';
+import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { CreateSubjectDto } from '../dto/create-subject.dto';
 import { UpdateSubjectDto } from '../dto/update-subject.dto';
 import { SubjectsService } from '../services/subjects.service';
@@ -24,24 +25,24 @@ export class SubjectsController {
 
   @Get()
   findAll(
-    @Query('siteId') siteId?: string,
+    @Query('siteId', new ParseIntPipe({ optional: true })) siteId?: number,
     @Query('status') status?: SubjectStatus,
   ) {
     return this.subjectsService.findAll(siteId, status);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@ParseIntParam('id') id: number) {
     return this.subjectsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSubjectDto) {
+  update(@ParseIntParam('id') id: number, @Body() dto: UpdateSubjectDto) {
     return this.subjectsService.update(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@ParseIntParam('id') id: number) {
     return this.subjectsService.remove(id);
   }
 }

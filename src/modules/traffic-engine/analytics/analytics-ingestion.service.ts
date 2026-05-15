@@ -8,7 +8,7 @@ export class AnalyticsIngestionService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Placeholder sync: creates/updates a daily aggregate row when GSC/GA4 credentials are absent. */
-  async syncSiteMetrics(siteId: string): Promise<void> {
+  async syncSiteMetrics(siteId: number): Promise<void> {
     const hasGsc = Boolean(process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY);
     const hasGa4 = Boolean(process.env.GA4_PROPERTY_ID && process.env.GA4_CLIENT_EMAIL);
     if (!hasGsc && !hasGa4) {

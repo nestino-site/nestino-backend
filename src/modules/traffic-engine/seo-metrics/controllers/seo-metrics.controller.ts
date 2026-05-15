@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, ParseIntPipe } from '@nestjs/common';
 import { UpsertSeoMetricDto } from '../dto/upsert-seo-metric.dto';
 import { SeoMetricsService } from '../services/seo-metrics.service';
 
@@ -17,7 +17,7 @@ export class SeoMetricsController {
   }
 
   @Get()
-  findBySite(@Query('siteId') siteId: string, @Query('days') days?: string) {
+  findBySite(@Query('siteId', ParseIntPipe) siteId: number, @Query('days') days?: string) {
     return this.seoMetricsService.findBySite(siteId, days ? Number(days) : 30);
   }
 }

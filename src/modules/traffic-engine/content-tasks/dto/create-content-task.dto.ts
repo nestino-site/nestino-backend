@@ -1,18 +1,22 @@
 import { TaskType } from '@prisma/client';
-import { IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsObject, IsOptional } from 'class-validator';
 
 export class CreateContentTaskDto {
   @IsOptional()
-  @IsString()
-  siteId?: string;
+  @Type(() => Number)
+  @IsInt()
+  siteId?: number;
 
   @IsOptional()
-  @IsString()
-  keywordId?: string;
+  @Type(() => Number)
+  @IsInt()
+  keywordId?: number;
 
   @IsOptional()
-  @IsString()
-  pageId?: string;
+  @Type(() => Number)
+  @IsInt()
+  pageId?: number;
 
   @IsOptional()
   @IsEnum(TaskType)

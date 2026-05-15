@@ -12,7 +12,7 @@ export class ContentPreviewService {
     private readonly renderer: MarkdownRendererService,
   ) {}
 
-  async getPreview(pageId: string, mode: PreviewMode = 'final') {
+  async getPreview(pageId: number, mode: PreviewMode = 'final') {
     const page = await this.prisma.page.findUnique({ where: { id: pageId } });
     if (!page) {
       throw new NotFoundException(`Page ${pageId} not found`);

@@ -3,8 +3,8 @@ import { AiGenerationStatus, AiProvider, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 interface RecordStepMetricInput {
-  pageId: string;
-  siteId: string;
+  pageId: number;
+  siteId: number;
   step: string;
   model: string;
   provider: AiProvider;
@@ -37,14 +37,14 @@ export class PipelineMetricsService {
     });
   }
 
-  async getStepBreakdown(pageId: string) {
+  async getStepBreakdown(pageId: number) {
     return this.prisma.aiGenerationLog.findMany({
       where: { pageId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getSiteSuccessRatio(siteId: string, since: Date): Promise<{ success: number; failed: number }> {
+  async getSiteSuccessRatio(siteId: number, since: Date): Promise<{ success: number; failed: number }> {
     const rows = await this.prisma.aiGenerationLog.findMany({
       where: {
         createdAt: { gte: since },
