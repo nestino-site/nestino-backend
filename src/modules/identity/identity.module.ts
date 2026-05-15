@@ -4,6 +4,7 @@ import { IdentityController } from './controllers/identity.controller';
 import { AppAuthGuard } from './guards/app-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { SiteApiKeyGuard } from './guards/site-api-key.guard';
+import { SiteScopedApiKeyGuard } from './guards/site-scoped-api-key.guard';
 import { IdentityAuthService } from './services/identity-auth.service';
 import { IdentityBootstrapService } from './services/identity-bootstrap.service';
 import { IdentityJwtService } from './services/identity-jwt.service';
@@ -21,6 +22,7 @@ import { SiteApiKeyService } from './services/site-api-key.service';
     IdentityBootstrapService,
     JwtAuthGuard,
     SiteApiKeyGuard,
+    SiteScopedApiKeyGuard,
     AppAuthGuard,
     {
       provide: APP_GUARD,

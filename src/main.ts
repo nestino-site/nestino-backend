@@ -34,6 +34,7 @@ async function bootstrap(): Promise<void> {
       'Authorization',
       'Accept',
       'X-Site-Api-Key',
+      'X-Site-Id',
       'X-Requested-With',
     ],
   });

@@ -10,3 +10,6 @@ export const TRAFFIC_ENGINE_ANALYTICS_JOB_SYNC = 'traffic-engine.analytics.run';
 
 export const TRAFFIC_ENGINE_IDEA_GENERATION_QUEUE = 'traffic-engine.idea.generate';
 export const TRAFFIC_ENGINE_IDEA_JOB_PROCESS = 'traffic-engine.idea.process';
+
+export const TRAFFIC_ENGINE_WEBHOOK_QUEUE = 'traffic-engine.webhook.retry';
+export const TRAFFIC_ENGINE_WEBHOOK_JOB_RETRY = 'traffic-engine.webhook.process';

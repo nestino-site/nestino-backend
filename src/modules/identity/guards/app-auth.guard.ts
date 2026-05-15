@@ -1,8 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY, IS_SITE_API_KEY_KEY } from '../identity.constants';
+import { IS_PUBLIC_KEY, IS_SITE_API_KEY_KEY, IS_SITE_SCOPED_API_KEY_KEY } from '../identity.constants';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { SiteApiKeyGuard } from './site-api-key.guard';
+import { SiteScopedApiKeyGuard } from './site-scoped-api-key.guard';
 
 @Injectable()
 export class AppAuthGuard implements CanActivate {
@@ -10,6 +11,7 @@ export class AppAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly jwtAuthGuard: JwtAuthGuard,
     private readonly siteApiKeyGuard: SiteApiKeyGuard,
+    private readonly siteScopedApiKeyGuard: SiteScopedApiKeyGuard,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -19,6 +21,14 @@ export class AppAuthGuard implements CanActivate {
     ]);
     if (isPublic) {
       return true;
+    }
+
+    const isSiteScopedApiKey = this.reflector.getAllAndOverride<boolean>(
+      IS_SITE_SCOPED_API_KEY_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (isSiteScopedApiKey) {
+      return this.siteScopedApiKeyGuard.canActivate(context);
     }
 
     const isSiteApiKey = this.reflector.getAllAndOverride<boolean>(IS_SITE_API_KEY_KEY, [

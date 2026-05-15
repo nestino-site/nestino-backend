@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PageStatus } from '@prisma/client';
 import { PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
@@ -27,6 +28,32 @@ export class ContentStateManagerService {
     await this.prisma.page.update({
       where: { id: pageId },
       data: { pipelineStatus: status },
+    });
+  }
+
+  async getStateBySlug(siteId: number, slug: string) {
+    const normalized = slug.startsWith('/') ? slug : `/${slug}`;
+    const page = await this.prisma.page.findFirst({
+      where: { siteId, slug: normalized },
+      include: {
+        site: true,
+        aiGenerationLogs: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page with slug ${normalized} not found`);
+    }
+    return page;
+  }
+
+  async listPublishedForSite(siteId: number) {
+    return this.prisma.page.findMany({
+      where: { siteId, status: PageStatus.PUBLISHED },
+      select: { id: true, slug: true, language: true, updatedAt: true },
+      orderBy: { publishedAt: 'desc' },
     });
   }
 }

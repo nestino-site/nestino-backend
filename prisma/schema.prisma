@@ -198,6 +198,7 @@ model Site {
   subjects               Subject[]
   ideaTasks              IdeaTask[]
   topicalClusters        TopicalCluster[]
+  webhookDeliveries      WebhookDelivery[]
 
   @@index([domain])
   @@map("sites")
@@ -251,6 +252,7 @@ model Page {
   finalContent         String?               @db.Text
   imagePrompt          String?               @db.Text
   generatedImageBase64 String?               @db.Text
+  generatedImageCdnUrl String?
   schemaMarkup         Json?
   status               PageStatus            @default(DRAFT)
   seoScore             Float?
@@ -283,6 +285,7 @@ model Page {
   pageKeywords     PageKeyword[]
   pillarSubjects   Subject[]         @relation("SubjectPillar")
   topicalClusters  TopicalCluster[]  @relation("TopicalClusterPillar")
+  webhookDeliveries WebhookDelivery[]
 
   @@unique([siteId, slug, language])
   @@index([siteId, language, status])
@@ -680,4 +683,35 @@ model SerpSnapshot {
   @@unique([keyword, language, country])
   @@index([keyword, language])
   @@map("serp_snapshots")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+model WebhookDelivery {
+  id           Int                   @id @default(autoincrement())
+  siteId       Int
+  pageId       Int
+  url          String
+  payload      Json
+  signature    String
+  status       WebhookDeliveryStatus @default(PENDING)
+  attempts     Int                   @default(0)
+  maxAttempts  Int                   @default(5)
+  lastStatus   Int?
+  lastError    String?
+  nextRetryAt  DateTime              @default(now())
+  deliveredAt  DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRetryAt])
+  @@index([pageId])
+  @@map("webhook_deliveries")
 }

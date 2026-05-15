@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Page, PipelineStatus, Site } from '@prisma/client';
 import { HreflangService } from '../seo-strategy/hreflang.service';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
+import { MarkdownHtmlService } from './markdown-html.service';
 
 type PageWithDetails = Page & {
   site: Site;
@@ -39,7 +40,10 @@ export interface HeroImage {
 
 @Injectable()
 export class NextJsContractMapperService {
-  constructor(private readonly hreflang: HreflangService) {}
+  constructor(
+    private readonly hreflang: HreflangService,
+    private readonly markdownHtml: MarkdownHtmlService,
+  ) {}
 
   async toContract(page: PageWithDetails) {
     const [hreflangAlternates] = await Promise.all([
@@ -50,6 +54,7 @@ export class NextJsContractMapperService {
     const totalCost = page.aiGenerationLogs.reduce((sum, log) => sum + Number(log.cost), 0);
 
     const finalContent = page.finalContent != null ? cleanMarkdownOutput(page.finalContent) : null;
+    const htmlContent = finalContent ? this.markdownHtml.toHtml(finalContent) : null;
     const base = this.normalizeDomain(page.site.domain);
     const canonical = this.buildUrl(base, page.slug);
     const heroImage = this.extractHeroImage(page);
@@ -64,6 +69,7 @@ export class NextJsContractMapperService {
       // Core content
       draft: page.rawDraft != null ? cleanMarkdownOutput(page.rawDraft) : null,
       finalContent,
+      htmlContent,
       wordCount: page.wordCount,
       language: page.language,
       publishedAt: page.publishedAt?.toISOString() ?? null,
@@ -132,10 +138,17 @@ export class NextJsContractMapperService {
   }
 
   private extractHeroImage(page: PageWithDetails): HeroImage {
-    const cdnBase = process.env.CDN_BASE_URL?.trim();
+    if (page.generatedImageCdnUrl) {
+      return {
+        url: page.generatedImageCdnUrl,
+        alt: page.title ?? page.metaTitle ?? null,
+        width: 1200,
+        height: 630,
+      };
+    }
 
-    if (cdnBase && page.slug) {
-      // If images are uploaded to CDN keyed by page slug, prefer that URL
+    const cdnBase = process.env.CDN_BASE_URL?.trim();
+    if (cdnBase) {
       const cdnUrl = `${cdnBase.replace(/\/$/, '')}/pages/${page.id}/hero.webp`;
       return {
         url: cdnUrl,
@@ -145,10 +158,9 @@ export class NextJsContractMapperService {
       };
     }
 
-    // Return data URI only if CDN not configured (won't appear in JSON-LD; just for preview)
     if (page.generatedImageBase64) {
       return {
-        url: `data:image/webp;base64,${page.generatedImageBase64.slice(0, 20)}...`,
+        url: null,
         alt: page.title ?? null,
         width: null,
         height: null,
