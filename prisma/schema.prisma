@@ -13,6 +13,10 @@ enum SiteStatus {
   SUSPENDED
 }
 
+enum PlatformRole {
+  ADMIN
+}
+
 enum ContentLanguage {
   EN
   AR
@@ -113,6 +117,52 @@ enum CannibalizationStatus {
   NONE
 }
 
+enum SubjectStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum IdeaStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+enum HallucinationSensitivity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskCategory {
+  GENERAL
+  MEDICAL
+  LEGAL
+  FINANCIAL
+  IMMIGRATION
+  PRICING
+}
+
+enum ContentType {
+  ARTICLE
+  LANDING_PAGE
+  CITY_PAGE
+  FAQ
+  COMPARISON
+  BLOG_POST
+}
+
+enum IdeaTaskStatus {
+  QUEUED
+  PROCESSING
+  GENERATED
+  FAILED
+  PUBLISHED
+}
+
 model Site {
   id               String           @id @default(cuid())
   name             String
@@ -131,6 +181,8 @@ model Site {
   publishWebhookUrl    String?
   publishWebhookSecret String?
   autoPublish          Boolean  @default(true)
+  contentApiKeyHash        String?
+  contentApiKeyCreatedAt   DateTime?
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -142,6 +194,8 @@ model Site {
   promptTemplates  PromptTemplate[]
   costLedger       CostLedger[]
   keywordClusters  KeywordCluster[]
+  subjects         Subject[]
+  ideaTasks        IdeaTask[]
 
   @@index([domain])
   @@map("sites")
@@ -410,6 +464,20 @@ model KeywordCluster {
   @@map("keyword_clusters")
 }
 
+model PlatformUser {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  displayName  String?
+  role         PlatformRole @default(ADMIN)
+  isActive     Boolean      @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("platform_users")
+}
+
 model VillaUser {
   id            String         @id @default(cuid())
   email         String
@@ -446,4 +514,120 @@ model RefreshToken {
 
   @@index([villaUserId])
   @@map("refresh_tokens")
+}
+
+model ContentTemplate {
+  id                      String      @id @default(cuid())
+  name                    String
+  description             String?
+  contentType             ContentType @default(ARTICLE)
+  requiredSections        Json
+  headingStructure        Json
+  seoRules                Json
+  faqStructure            Json
+  ctaPlacement            String?
+  internalLinkingRules    Json?
+  formattingInstructions  String?     @db.Text
+  isActive                Boolean     @default(true)
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  subjects Subject[]
+
+  @@index([contentType, isActive])
+  @@map("content_templates")
+}
+
+model Subject {
+  id                        String                  @id @default(cuid())
+  siteId                    String
+  templateId                String?
+  title                     String
+  description               String?                 @db.Text
+  primaryKeywords           String[]
+  secondaryKeywords         String[]
+  searchIntent              KeywordIntent           @default(INFORMATIONAL)
+  language                  ContentLanguage         @default(EN)
+  country                   String?
+  city                      String?
+  seoGoal                   String?
+  contentCountTarget        Int                     @default(10)
+  hallucinationSensitivity  HallucinationSensitivity @default(MEDIUM)
+  riskCategory              RiskCategory            @default(GENERAL)
+  requiresFactualValidation Boolean                 @default(false)
+  strictReviewMode          Boolean                 @default(false)
+  status                    SubjectStatus           @default(ACTIVE)
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+
+  site         Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  template     ContentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  contentIdeas ContentIdea[]
+  ideaTasks    IdeaTask[]
+
+  @@index([siteId, status])
+  @@index([templateId])
+  @@map("subjects")
+}
+
+model ContentIdea {
+  id                         String        @id @default(cuid())
+  subjectId                  String
+  title                      String
+  slug                       String
+  targetKeyword              String
+  metaDescription            String?       @db.Text
+  searchIntent               KeywordIntent @default(INFORMATIONAL)
+  outline                    Json?
+  headings                   String[]
+  faqSuggestions             Json?
+  internalLinkingSuggestions String[]
+  contentType                ContentType   @default(ARTICLE)
+  confidenceScore            Float         @default(0)
+  hallucinationRiskScore     Float         @default(0)
+  status                     IdeaStatus    @default(PENDING_REVIEW)
+  reviewNotes                String?       @db.Text
+  generatedBy                AiProvider?
+  generatedModel             String?
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  ideaTasks IdeaTask[]
+
+  @@unique([subjectId, slug])
+  @@index([subjectId, status])
+  @@index([subjectId, createdAt])
+  @@map("content_ideas")
+}
+
+model IdeaTask {
+  id          String         @id @default(cuid())
+  ideaId      String
+  subjectId   String
+  siteId      String?
+  type        TaskType       @default(GENERATE_CONTENT)
+  status      IdeaTaskStatus @default(QUEUED)
+  priority    Int            @default(0)
+  payload     Json?
+  result      Json?
+  errorLog    String?        @db.Text
+  attempts    Int            @default(0)
+  maxAttempts Int            @default(3)
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  lockedAt    DateTime?
+  lockedBy    String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  idea    ContentIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  subject Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  site    Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([subjectId])
+  @@index([ideaId])
+  @@map("idea_tasks")
 }

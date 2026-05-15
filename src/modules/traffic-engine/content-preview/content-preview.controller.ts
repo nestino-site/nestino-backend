@@ -1,8 +1,10 @@
 import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
+import { SiteApiKey } from '../../identity/decorators/site-api-key.decorator';
 import { ContentPreviewService, PreviewMode } from './content-preview.service';
 
 @Controller('content')
+@SiteApiKey()
 export class ContentPreviewController {
   constructor(private readonly previewService: ContentPreviewService) {}
 

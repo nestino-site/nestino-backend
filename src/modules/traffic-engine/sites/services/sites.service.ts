@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ContentLanguage, PageStatus, Prisma, Site, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { SiteApiKeyService } from '../../../identity/services/site-api-key.service';
 import { ContentTasksService } from '../../content-tasks/services/content-tasks.service';
 import { BulkGenerateDto } from '../dto/bulk-generate.dto';
 import { CreateSiteDto } from '../dto/create-site.dto';
@@ -14,19 +15,33 @@ export interface BulkGenerateResult {
   taskIds: string[];
 }
 
+export interface CreateSiteResult {
+  site: Site;
+  contentApiKey: string;
+}
+
+export interface RotateContentApiKeyResult {
+  siteId: string;
+  contentApiKey: string;
+  contentApiKeyCreatedAt: Date;
+}
+
 @Injectable()
 export class SitesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contentTasks: ContentTasksService,
+    private readonly siteApiKeyService: SiteApiKeyService,
   ) {}
 
-  async create(dto: CreateSiteDto): Promise<Site> {
+  async create(dto: CreateSiteDto): Promise<CreateSiteResult> {
     const defaultLanguage = dto.defaultLanguage ?? ContentLanguage.EN;
     const languages =
       dto.languages && dto.languages.length > 0 ? dto.languages : [defaultLanguage];
+    const { plaintext, hash } = await this.siteApiKeyService.generateWithHash();
+    const now = new Date();
     try {
-      return await this.prisma.site.create({
+      const site = await this.prisma.site.create({
         data: {
           name: dto.name,
           domain: dto.domain,
@@ -39,8 +54,33 @@ export class SitesService {
           publishWebhookUrl: dto.publishWebhookUrl,
           publishWebhookSecret: dto.publishWebhookSecret,
           autoPublish: dto.autoPublish,
+          contentApiKeyHash: hash,
+          contentApiKeyCreatedAt: now,
         },
       });
+      return { site, contentApiKey: plaintext };
+    } catch (error) {
+      throw PrismaErrorMapper.toHttpException(error);
+    }
+  }
+
+  async rotateContentApiKey(siteId: string): Promise<RotateContentApiKeyResult> {
+    await this.findOne(siteId);
+    const { plaintext, hash } = await this.siteApiKeyService.generateWithHash();
+    const now = new Date();
+    try {
+      await this.prisma.site.update({
+        where: { id: siteId },
+        data: {
+          contentApiKeyHash: hash,
+          contentApiKeyCreatedAt: now,
+        },
+      });
+      return {
+        siteId,
+        contentApiKey: plaintext,
+        contentApiKeyCreatedAt: now,
+      };
     } catch (error) {
       throw PrismaErrorMapper.toHttpException(error);
     }

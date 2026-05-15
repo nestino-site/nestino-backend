@@ -43,4 +43,13 @@ export class SitesController {
   bulkGenerate(@Param('id') id: string, @Body() dto: BulkGenerateDto) {
     return this.sitesService.bulkGenerate(id, dto);
   }
+
+  /**
+   * Generate a new content API key for frontend content reads.
+   * The plaintext key is returned once; store it securely.
+   */
+  @Post(':id/rotate-content-api-key')
+  rotateContentApiKey(@Param('id') id: string) {
+    return this.sitesService.rotateContentApiKey(id);
+  }
 }

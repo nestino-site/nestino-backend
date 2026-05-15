@@ -51,7 +51,7 @@ export class ContentTasksService {
    * Keep content-task creation responsive even when Redis/queue is degraded.
    * The task row is still created and can be retried later by explicit requeue calls.
    */
-  private async enqueueAiJobBestEffort(pageId: string, contentTaskId: string): Promise<void> {
+  async enqueueAiJobBestEffort(pageId: string, contentTaskId: string): Promise<void> {
     const enqueueTimeoutMs = Number(process.env.TASK_ENQUEUE_TIMEOUT_MS ?? 1200);
     try {
       await Promise.race([

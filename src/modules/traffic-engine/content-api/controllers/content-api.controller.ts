@@ -1,9 +1,11 @@
 import { Controller, Get, HttpCode, HttpStatus, Param } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
+import { SiteApiKey } from '../../../identity/decorators/site-api-key.decorator';
 import { ContentStateManagerService } from '../content-state-manager.service';
 import { NextJsContractMapperService } from '../next-js-contract-mapper.service';
 
 @Controller('content')
+@SiteApiKey()
 export class ContentApiController {
   constructor(
     private readonly stateManager: ContentStateManagerService,

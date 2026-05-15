@@ -7,3 +7,6 @@ export const TRAFFIC_ENGINE_AI_JOB_PROCESS = 'traffic-engine.ai.process';
 
 export const TRAFFIC_ENGINE_ANALYTICS_QUEUE = 'traffic-engine.analytics.sync';
 export const TRAFFIC_ENGINE_ANALYTICS_JOB_SYNC = 'traffic-engine.analytics.run';
+
+export const TRAFFIC_ENGINE_IDEA_GENERATION_QUEUE = 'traffic-engine.idea.generate';
+export const TRAFFIC_ENGINE_IDEA_JOB_PROCESS = 'traffic-engine.idea.process';

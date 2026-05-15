@@ -21,6 +21,14 @@ async function bootstrap(): Promise<void> {
     .setTitle('Traffic Engine Backend API')
     .setDescription('SEO and content generation API')
     .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+      'bearer',
+    )
+    .addApiKey(
+      { type: 'apiKey', name: 'x-site-api-key', in: 'header' },
+      'site-api-key',
+    )
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('swagger', app, swaggerDocument);
