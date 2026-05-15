@@ -34,6 +34,10 @@ export class OpenAiProvider implements AiProviderClient {
           ],
           temperature: request.temperature ?? 0.3,
           max_tokens: request.maxOutputTokens,
+          // Activate JSON mode for structured steps (outline, analyze, seo_check)
+          ...(request.responseFormat === 'json'
+            ? { response_format: { type: 'json_object' } }
+            : {}),
         }),
         signal: controller.signal,
       });

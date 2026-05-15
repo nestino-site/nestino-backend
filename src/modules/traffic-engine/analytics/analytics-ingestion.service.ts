@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { SeoStrategyService } from '../seo-strategy/seo-strategy.service';
 import { GscIngestionService } from './gsc-ingestion.service';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class AnalyticsIngestionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gscIngestion: GscIngestionService,
+    @Optional() private readonly seoStrategy?: SeoStrategyService,
   ) {}
 
   async syncSiteMetrics(siteId: number): Promise<void> {
@@ -53,6 +55,11 @@ export class AnalyticsIngestionService {
     const sites = await this.prisma.site.findMany({ select: { id: true } });
     for (const s of sites) {
       await this.syncSiteMetrics(s.id);
+      // After GSC sync, auto-enqueue quick-win and cannibalization tasks
+      if (this.seoStrategy) {
+        await this.seoStrategy.autoEnqueueQuickWins(s.id).catch(() => null);
+        await this.seoStrategy.autoEnqueueCannibalizationTasks(s.id).catch(() => null);
+      }
     }
   }
 }

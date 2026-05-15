@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AnalysisSchema, safeParse } from '../ai/schemas/structured-output.schemas';
 import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { SiteConfigRecord } from '../config/config.types';
 import { ContentScoringService } from '../intelligence/content-scoring.service';
@@ -74,11 +75,16 @@ export class AnalysisService {
     const deterministic = this.scoring.score(draft, cluster.primaryKeyword, outline, cluster.intent);
     const coverage = this.coverageEngine.analyzeCoverage(draft, cluster);
 
-    let aiParsed: Record<string, unknown> = {};
-    try {
-      aiParsed = JSON.parse(aiOutput.text) as Record<string, unknown>;
-    } catch {
-      aiParsed = {};
+    const validated = safeParse(AnalysisSchema, aiOutput.text);
+    let aiParsed: Record<string, unknown>;
+    if (validated) {
+      aiParsed = validated as Record<string, unknown>;
+    } else {
+      try {
+        aiParsed = JSON.parse(aiOutput.text) as Record<string, unknown>;
+      } catch {
+        aiParsed = {};
+      }
     }
 
     const aiIssues = Array.isArray(aiParsed.issues) ? (aiParsed.issues as string[]).filter((x) => typeof x === 'string') : [];

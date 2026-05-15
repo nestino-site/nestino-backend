@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { KeywordIntent } from '@prisma/client';
 import { ModelConfig } from '../../config/config.types';
 import { SiteConfigService } from '../../config/site-config.service';
 import { ModelResolutionContext } from '../types/ai-execution.types';
@@ -21,9 +22,20 @@ export class AiModelRouterService {
     if (context.budgetAction === 'downgrade_model') {
       return modelConfig.rules.fallback;
     }
+
+    // High-priority or explicitly important intent: always use high-priority model
     if (context.priority >= 8) {
       return modelConfig.rules.highPriority;
     }
+
+    // Transactional / commercial content needs the stronger model for conversion copy
+    if (
+      context.step === 'generate' &&
+      (context.intent === KeywordIntent.TRANSACTIONAL || context.intent === KeywordIntent.COMMERCIAL)
+    ) {
+      return modelConfig.rules.highPriority;
+    }
+
     if (context.priority <= 3) {
       return modelConfig.rules.lowPriority;
     }

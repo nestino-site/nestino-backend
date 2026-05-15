@@ -16,6 +16,23 @@ function compactOutline(brief: Record<string, unknown>): Record<string, unknown>
   };
 }
 
+/** Flatten knowledge-base facts to a compact bullet list (max ~1.5 KB). */
+function compactKnowledgeFacts(kb: unknown): string[] {
+  if (!kb || typeof kb !== 'object' || Array.isArray(kb)) return [];
+  const bullets: string[] = [];
+  for (const [k, v] of Object.entries(kb as Record<string, unknown>)) {
+    if (Array.isArray(v)) {
+      for (const item of v.slice(0, 4)) {
+        bullets.push(`${k}: ${String(item)}`);
+      }
+    } else if (v !== null && v !== undefined) {
+      bullets.push(`${k}: ${String(v)}`);
+    }
+    if (bullets.length >= 15) break;
+  }
+  return bullets;
+}
+
 /**
  * Compact payload embedded in the user message (not full pipeline context).
  * Full `runtimeContext` is still kept on the composition context for fallbacks.
@@ -53,6 +70,86 @@ export function slimRuntimeContextForPrompt(
     if (mode === 'draft' && raw.briefJson && typeof raw.briefJson === 'object') {
       base.outline = compactOutline(raw.briefJson as Record<string, unknown>);
     }
+
+    // --- SEO brief context (critical for impression-driving content) ---
+    if (raw.intent && typeof raw.intent === 'string') {
+      base.intent = raw.intent;
+    }
+    if (raw.topic && typeof raw.topic === 'string' && raw.topic.trim()) {
+      base.topic = raw.topic.trim();
+    }
+    if (typeof raw.targetWordCount === 'number') {
+      base.targetWordCount = raw.targetWordCount;
+    }
+    if (Array.isArray(raw.requiredSections) && raw.requiredSections.length > 0) {
+      base.requiredSections = (raw.requiredSections as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 10);
+    }
+    if (Array.isArray(raw.secondaryKeywords) && raw.secondaryKeywords.length > 0) {
+      base.secondaryKeywords = (raw.secondaryKeywords as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 8);
+    }
+    if (Array.isArray(raw.semanticTopics) && raw.semanticTopics.length > 0) {
+      base.semanticTopics = (raw.semanticTopics as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 10);
+    }
+    if (Array.isArray(raw.paaQuestions) && raw.paaQuestions.length > 0) {
+      base.paaQuestions = (raw.paaQuestions as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 6);
+    }
+
+    // Competitor heading hints (titles only to save tokens)
+    const seoBrief = raw.seoBrief as Record<string, unknown> | undefined;
+    if (seoBrief && Array.isArray(seoBrief.competitorOutlineHints) && seoBrief.competitorOutlineHints.length > 0) {
+      base.competitorHeadings = (seoBrief.competitorOutlineHints as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 8);
+    }
+
+    // Internal link targets (brief slug+anchor hints so model can reference them)
+    if (Array.isArray(raw.internalLinkTargets) && raw.internalLinkTargets.length > 0) {
+      base.internalLinkTargets = (raw.internalLinkTargets as Array<Record<string, unknown>>)
+        .slice(0, 5)
+        .map((t) => ({ slug: t.slug, keyword: t.keyword }));
+    }
+
+    // Knowledge base facts (grounding; prevents hallucination)
+    if (raw.knowledgeBase) {
+      const facts = compactKnowledgeFacts(raw.knowledgeBase);
+      if (facts.length > 0) {
+        base.knowledgeFacts = facts;
+      }
+    } else if (seoBrief?.knowledgeFacts) {
+      const facts = compactKnowledgeFacts(seoBrief.knowledgeFacts);
+      if (facts.length > 0) {
+        base.knowledgeFacts = facts;
+      }
+    }
+
+    // SERP entities from SerpSnapshot if available
+    if (Array.isArray(raw.serpEntities) && raw.serpEntities.length > 0) {
+      base.serpEntities = (raw.serpEntities as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 8);
+    }
+
+    // Template formatting constraints
+    if (typeof raw.templateFormattingInstructions === 'string' && raw.templateFormattingInstructions.trim()) {
+      base.formattingInstructions = raw.templateFormattingInstructions.trim().slice(0, 400);
+    }
+    if (Array.isArray(raw.templateSeoRules) && raw.templateSeoRules.length > 0) {
+      base.seoRules = (raw.templateSeoRules as unknown[])
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, 6);
+    }
+    if (typeof raw.templateInternalLinkingRules === 'string' && raw.templateInternalLinkingRules.trim()) {
+      base.internalLinkingRules = raw.templateInternalLinkingRules.trim().slice(0, 200);
+    }
+
     return base;
   }
 

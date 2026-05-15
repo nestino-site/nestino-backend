@@ -15,9 +15,12 @@ export interface SchemaPageInput {
   intent: KeywordIntent;
   domain: string;
   siteName: string;
+  language?: string;
   datePublished?: Date;
   dateModified?: Date;
   imageUrl?: string | null;
+  /** Optional persona for E-E-A-T Person author. Read from site.config.authorPersona. */
+  authorPersona?: { name?: string; url?: string; sameAs?: string[] } | null;
 }
 
 @Injectable()
@@ -68,26 +71,58 @@ export class SchemaMarkupService {
     };
   }
 
+  private authorBlock(input: SchemaPageInput): Record<string, unknown> {
+    if (input.authorPersona?.name) {
+      const person: Record<string, unknown> = {
+        '@type': 'Person',
+        name: input.authorPersona.name,
+      };
+      if (input.authorPersona.url) person.url = input.authorPersona.url;
+      if (input.authorPersona.sameAs?.length) person.sameAs = input.authorPersona.sameAs;
+      return person;
+    }
+    return this.publisherBlock(input);
+  }
+
+  private imageBlock(input: SchemaPageInput, url: string): Record<string, unknown> | undefined {
+    const cdnBase = process.env.CDN_BASE_URL?.trim();
+    const imageUrl = input.imageUrl ?? (cdnBase ? undefined : undefined);
+    if (!imageUrl) return undefined;
+    return {
+      '@type': 'ImageObject',
+      url: imageUrl,
+      contentUrl: imageUrl,
+      ...(cdnBase ? { width: 1200, height: 630 } : {}),
+      caption: input.title ?? input.keyword,
+    };
+  }
+
   private buildBlogPostingSchema(
     input: SchemaPageInput,
     url: string,
     datePublished: string,
     dateModified: string,
   ): Record<string, unknown> {
+    const img = this.imageBlock(input, url);
+    const lang = (input.language ?? 'en').toLowerCase();
     const block: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'BlogPosting',
       headline: input.title ?? input.keyword,
       description: input.metaDescription ?? `Guide about ${input.keyword}`,
-      author: this.publisherBlock(input),
+      author: this.authorBlock(input),
       publisher: this.publisherBlock(input),
       mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+      inLanguage: lang,
       datePublished,
       dateModified,
+      // Speakable for voice/AI extraction on informational content
+      speakable: {
+        '@type': 'SpeakableSpecification',
+        cssSelector: ['h1', '.article-summary'],
+      },
     };
-    if (input.imageUrl) {
-      block.image = input.imageUrl;
-    }
+    if (img) block.image = img;
     return block;
   }
 
@@ -97,20 +132,21 @@ export class SchemaMarkupService {
     datePublished: string,
     dateModified: string,
   ): Record<string, unknown> {
+    const img = this.imageBlock(input, url);
+    const lang = (input.language ?? 'en').toLowerCase();
     const block: Record<string, unknown> = {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: input.title ?? input.keyword,
       description: input.metaDescription ?? `Article about ${input.keyword}`,
-      author: this.publisherBlock(input),
+      author: this.authorBlock(input),
       publisher: this.publisherBlock(input),
       mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+      inLanguage: lang,
       datePublished,
       dateModified,
     };
-    if (input.imageUrl) {
-      block.image = input.imageUrl;
-    }
+    if (img) block.image = img;
     return block;
   }
 
@@ -121,8 +157,9 @@ export class SchemaMarkupService {
     dateModified: string,
   ): Record<string, unknown> {
     const isLodging = /villa|hotel|resort|stay|accommodation|rental/i.test(input.keyword);
+    const img = this.imageBlock(input, url);
     if (isLodging) {
-      return {
+      const block: Record<string, unknown> = {
         '@context': 'https://schema.org',
         '@type': 'LodgingBusiness',
         name: input.title ?? input.keyword,
@@ -132,6 +169,8 @@ export class SchemaMarkupService {
         dateModified,
         publisher: this.publisherBlock(input),
       };
+      if (img) block.image = img;
+      return block;
     }
     return {
       '@context': 'https://schema.org',
@@ -139,6 +178,7 @@ export class SchemaMarkupService {
       name: input.title ?? input.keyword,
       description: input.metaDescription ?? `Details for ${input.keyword}`,
       brand: { '@type': 'Brand', name: input.siteName },
+      ...(img ? { image: img } : {}),
       offers: {
         '@type': 'Offer',
         url,
@@ -149,11 +189,13 @@ export class SchemaMarkupService {
   }
 
   private buildWebPageSchema(input: SchemaPageInput, url: string): Record<string, unknown> {
+    const lang = (input.language ?? 'en').toLowerCase();
     return {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
       name: input.title ?? input.keyword,
       description: input.metaDescription ?? `Page about ${input.keyword}`,
+      inLanguage: lang,
       url,
     };
   }

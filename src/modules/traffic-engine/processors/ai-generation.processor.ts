@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, TaskType } from '@prisma/client';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PipelineCheckpointService } from '../pipeline-v3/pipeline-checkpoint.service';
@@ -67,6 +67,14 @@ export class AiGenerationProcessor extends WorkerHost {
     }
 
     try {
+      // Route to the lightweight refresh path for REFRESH_TITLE_META tasks
+      if (contentTaskId) {
+        const task = await this.prisma.contentTask.findUnique({ where: { id: contentTaskId }, select: { type: true } });
+        if (task?.type === TaskType.REFRESH_TITLE_META) {
+          await this.pipeline.runRefreshTitleMeta(pageId, contentTaskId);
+          return;
+        }
+      }
       await this.pipeline.run(pageId, contentTaskId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

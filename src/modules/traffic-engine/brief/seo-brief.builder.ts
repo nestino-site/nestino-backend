@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ContentTemplate, Keyword, KeywordIntent, Page, PageStatus, Site } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { KeywordDataProviderService } from '../keyword-research/keyword-data-provider.service';
 import { SemanticExpansionService } from '../intelligence/keyword-intelligence/semantic-expansion.service';
 
 export interface InternalLinkBriefTarget {
@@ -8,6 +9,14 @@ export interface InternalLinkBriefTarget {
   slug: string;
   title: string | null;
   keyword: string;
+}
+
+export interface TemplateFormatting {
+  headingStructure?: unknown;
+  seoRules?: string[];
+  faqStructure?: unknown;
+  formattingInstructions?: string;
+  internalLinkingRules?: string;
 }
 
 export interface SeoBrief {
@@ -23,6 +32,10 @@ export interface SeoBrief {
   competitorOutlineHints: string[];
   internalLinkTargets: InternalLinkBriefTarget[];
   knowledgeFacts?: Record<string, unknown>;
+  serpEntities: string[];
+  hasAiOverview: boolean;
+  hasFaqFeature: boolean;
+  templateFormatting?: TemplateFormatting;
 }
 
 @Injectable()
@@ -30,6 +43,7 @@ export class SeoBriefBuilder {
   constructor(
     private readonly prisma: PrismaService,
     private readonly semanticExpansion: SemanticExpansionService,
+    private readonly serpDataProvider: KeywordDataProviderService,
   ) {}
 
   async build(
@@ -43,18 +57,32 @@ export class SeoBriefBuilder {
     },
   ): Promise<SeoBrief> {
     const intent = keyword.intent;
-    const semanticTopics = await this.semanticExpansion.expand(
-      keyword.keyword,
-      intent,
-      keyword.language,
-    );
+
+    // Fetch SERP snapshot and semantic expansion in parallel
+    const [semanticTopics, serpSnap] = await Promise.all([
+      this.semanticExpansion.expand(keyword.keyword, intent, keyword.language),
+      this.serpDataProvider
+        .getSnapshot(keyword.keyword, keyword.language)
+        .catch(() => null),
+    ]);
 
     const requiredSections = this.extractRequiredSections(options?.template);
-    const paaQuestions = semanticTopics
-      .filter((t) => t.includes('?') || t.toLowerCase().startsWith('how ') || t.toLowerCase().startsWith('what '))
-      .slice(0, 8);
 
-    const competitorOutlineHints = await this.loadSubjectOutlineHints(site.id, keyword.keyword);
+    // Use real PAA from SERP if available, else fall back to heuristic questions
+    let paaQuestions: string[] = serpSnap?.paaQuestions?.length
+      ? serpSnap.paaQuestions.slice(0, 8)
+      : semanticTopics
+          .filter((t) => t.includes('?') || t.toLowerCase().startsWith('how ') || t.toLowerCase().startsWith('what '))
+          .slice(0, 8);
+    if (!paaQuestions.length) {
+      paaQuestions = semanticTopics.slice(0, 6);
+    }
+
+    // Competitor heading hints: SERP organic titles first, then DB ideas
+    const serpCompetitorHints: string[] = (serpSnap?.organicTitles ?? []).slice(0, 6);
+    const dbCompetitorHints = await this.loadSubjectOutlineHints(site.id, keyword.keyword);
+    const competitorOutlineHints = [...new Set([...serpCompetitorHints, ...dbCompetitorHints])].slice(0, 12);
+
     const internalLinkTargets = await this.loadInternalLinkTargets(
       site.id,
       page.id,
@@ -64,6 +92,8 @@ export class SeoBriefBuilder {
     );
 
     const knowledgeFacts = this.extractKnowledgeFacts(site.config);
+    const serpEntities: string[] = serpSnap?.entities ?? [];
+    const templateFormatting = this.extractTemplateFormatting(options?.template);
 
     return {
       siteName: site.name,
@@ -73,11 +103,43 @@ export class SeoBriefBuilder {
       searchIntent: intent,
       targetWordCount: this.targetWordCountForIntent(intent),
       requiredSections,
-      paaQuestions: paaQuestions.length > 0 ? paaQuestions : semanticTopics.slice(0, 6),
+      paaQuestions,
       semanticTopics,
       competitorOutlineHints,
       internalLinkTargets,
       knowledgeFacts,
+      serpEntities,
+      hasAiOverview: serpSnap?.hasAiOverview ?? false,
+      hasFaqFeature: serpSnap?.hasFaqFeature ?? false,
+      templateFormatting,
+    };
+  }
+
+  private extractTemplateFormatting(template?: ContentTemplate | null): TemplateFormatting | undefined {
+    if (!template) return undefined;
+    const seoRulesRaw = template.seoRules;
+    const seoRules = Array.isArray(seoRulesRaw)
+      ? (seoRulesRaw as unknown[]).map((r) => String(r)).filter(Boolean)
+      : typeof seoRulesRaw === 'string'
+        ? [seoRulesRaw]
+        : [];
+    const formattingInstructions =
+      typeof template.formattingInstructions === 'string'
+        ? template.formattingInstructions.trim()
+        : undefined;
+    const internalLinkingRules =
+      typeof template.internalLinkingRules === 'string'
+        ? template.internalLinkingRules.trim()
+        : template.internalLinkingRules && typeof template.internalLinkingRules === 'object'
+          ? JSON.stringify(template.internalLinkingRules).slice(0, 300)
+          : undefined;
+
+    return {
+      headingStructure: template.headingStructure ?? undefined,
+      seoRules: seoRules.length > 0 ? seoRules : undefined,
+      faqStructure: template.faqStructure ?? undefined,
+      formattingInstructions: formattingInstructions || undefined,
+      internalLinkingRules: internalLinkingRules || undefined,
     };
   }
 

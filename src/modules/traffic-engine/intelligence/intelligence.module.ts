@@ -8,8 +8,12 @@ import { IntentScoringService } from './keyword-intelligence/intent-scoring.serv
 import { SemanticExpansionService } from './keyword-intelligence/semantic-expansion.service';
 import { InternalLinkingService } from './internal-linking.service';
 import { KnowledgeBaseService } from './knowledge-base.service';
+import { TopicalClusterService } from './topical-cluster.service';
+import { OriginalityCheckerService } from './originality-checker.service';
+import { KeywordResearchModule } from '../keyword-research/keyword-research.module';
 
 @Module({
+  imports: [KeywordResearchModule],
   providers: [
     KeywordIntentClassifierService,
     ContentScoringService,
@@ -20,6 +24,8 @@ import { KnowledgeBaseService } from './knowledge-base.service';
     ContentCoverageEngineService,
     InternalLinkingService,
     KnowledgeBaseService,
+    TopicalClusterService,
+    OriginalityCheckerService,
   ],
   exports: [
     KeywordIntentClassifierService,
@@ -31,6 +37,8 @@ import { KnowledgeBaseService } from './knowledge-base.service';
     ContentCoverageEngineService,
     InternalLinkingService,
     KnowledgeBaseService,
+    TopicalClusterService,
+    OriginalityCheckerService,
   ],
 })
 export class IntelligenceModule {}

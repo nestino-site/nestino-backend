@@ -151,6 +151,7 @@ export class AiOrchestratorService {
           temperature: active.temperature,
           maxOutputTokens: active.maxOutputTokens,
           timeoutMs,
+          responseFormat: active.responseFormat,
         };
         const res = await client.complete(req);
         let parsedJson: Record<string, unknown> | undefined;

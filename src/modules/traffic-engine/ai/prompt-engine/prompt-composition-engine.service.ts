@@ -10,6 +10,7 @@ import { slimRuntimeContextForPrompt } from './slim-runtime-context';
 import { buildStyleBlock } from './style-block.builder';
 import {
   TRAVEL_ANALYSIS_JSON_HINT,
+  TRAVEL_CONTENT_POLICY_SYSTEM,
   TRAVEL_OUTLINE_JSON_HINT,
   TRAVEL_REWRITE_EDITOR_SYSTEM,
 } from './travel-content-writer.prompt';
@@ -145,20 +146,33 @@ export class PromptCompositionEngineService {
       return brand ? `${TRAVEL_OUTLINE_JSON_HINT}\n\n${brand}` : TRAVEL_OUTLINE_JSON_HINT;
     }
     if (context.type === 'generate') {
-      return this.brandLayer(context, 'draft') ?? '';
+      const brand = this.brandLayer(context, 'draft');
+      // Wire TRAVEL_CONTENT_POLICY_SYSTEM as the system layer for all generate/draft steps
+      return brand ? `${TRAVEL_CONTENT_POLICY_SYSTEM}\n\n${brand}` : TRAVEL_CONTENT_POLICY_SYSTEM;
     }
     return '';
   }
 
   private brandLayer(context: PromptCompositionContext, mode: 'outline' | 'draft'): string {
-    const domain = (context.siteDomain ?? '').toLowerCase();
-    const useVillaSilyan =
-      domain.includes('villasilyan') ||
-      process.env.ENABLE_VILLA_SILYAN_PROMPTS === 'true';
+    const useVillaSilyan = this.isVillaSilyanSite(context);
     if (!useVillaSilyan) {
       return '';
     }
     return mode === 'outline' ? VILLA_SILYAN_OUTLINE_LAYER : VILLA_SILYAN_DRAFT_LAYER;
+  }
+
+  private isVillaSilyanSite(context: PromptCompositionContext): boolean {
+    // Allowlist of site IDs takes precedence (most secure)
+    const allowlistEnv = process.env.VILLA_SILYAN_SITE_IDS?.trim();
+    if (allowlistEnv) {
+      const allowedIds = allowlistEnv.split(',').map((s) => Number(s.trim())).filter(Boolean);
+      if (allowedIds.includes(context.siteId)) return true;
+    }
+    // Fallback: explicit flag for backward compat
+    if (process.env.ENABLE_VILLA_SILYAN_PROMPTS === 'true') return true;
+    // Legacy domain heuristic (weaker — prefer site ID allowlist)
+    const domain = (context.siteDomain ?? '').toLowerCase();
+    return domain.includes('villasilyan');
   }
 
   private fallbackPrompt(context: PromptCompositionContext): BuiltPrompt {
@@ -201,6 +215,77 @@ export class PromptCompositionEngineService {
       return '';
     }
     const r = context.runtimeContext;
+
+    // --- Dynamic word count from brief ---
+    const targetWordCount =
+      typeof r.targetWordCount === 'number' && r.targetWordCount > 0
+        ? r.targetWordCount
+        : 1200;
+    const wordCountMin = Math.round(targetWordCount * 0.85);
+    const wordCountMax = Math.round(targetWordCount * 1.15);
+
+    // --- Required sections from brief/template ---
+    const requiredSections = Array.isArray(r.requiredSections)
+      ? (r.requiredSections as unknown[]).filter((s): s is string => typeof s === 'string').slice(0, 10)
+      : [];
+    const sectionsBlock =
+      requiredSections.length > 0
+        ? `\nRequired sections (cover all of them): ${requiredSections.join(' → ')}`
+        : '';
+
+    // --- Knowledge facts grounding ---
+    const knowledgeFacts = Array.isArray(r.knowledgeFacts)
+      ? (r.knowledgeFacts as unknown[]).filter((s): s is string => typeof s === 'string')
+      : [];
+    const knowledgeBlock =
+      knowledgeFacts.length > 0
+        ? `\n\nKNOWLEDGE FACTS (use these; do not invent new facts not supported here):\n${knowledgeFacts.map((f) => `- ${f}`).join('\n')}`
+        : '';
+
+    // --- Intent-specific writing guidance ---
+    const intent = typeof r.intent === 'string' ? r.intent : 'INFORMATIONAL';
+    const intentGuide = this.intentWritingGuide(intent);
+
+    // --- Entities from SERP to mention ---
+    const serpEntities = Array.isArray(r.serpEntities)
+      ? (r.serpEntities as unknown[]).filter((s): s is string => typeof s === 'string').slice(0, 6)
+      : [];
+    const entitiesBlock =
+      serpEntities.length > 0
+        ? `\nSERP entities to mention (naturally, not forcefully): ${serpEntities.join(', ')}`
+        : '';
+
+    // --- Secondary keywords coverage ---
+    const secondaryKeywords = Array.isArray(r.secondaryKeywords)
+      ? (r.secondaryKeywords as unknown[]).filter((s): s is string => typeof s === 'string').slice(0, 6)
+      : [];
+    const secondaryBlock =
+      secondaryKeywords.length > 0
+        ? `\nSecondary keywords to naturally integrate: ${secondaryKeywords.join(', ')}`
+        : '';
+
+    // --- PAA questions to address ---
+    const paaQuestions = Array.isArray(r.paaQuestions)
+      ? (r.paaQuestions as unknown[]).filter((s): s is string => typeof s === 'string').slice(0, 4)
+      : [];
+    const paaBlock =
+      paaQuestions.length > 0
+        ? `\nPeople Also Ask (answer at least 2 of these): ${paaQuestions.join(' | ')}`
+        : '';
+
+    // --- Template SEO rules & formatting ---
+    const templateSeoRules = Array.isArray(r.seoRules)
+      ? (r.seoRules as unknown[]).filter((s): s is string => typeof s === 'string').slice(0, 5)
+      : [];
+    const seoRulesBlock =
+      templateSeoRules.length > 0
+        ? `\nTemplate SEO rules (follow these): ${templateSeoRules.join('; ')}`
+        : '';
+    const formattingBlock =
+      typeof r.formattingInstructions === 'string' && r.formattingInstructions.trim()
+        ? `\nFormatting instructions: ${r.formattingInstructions.trim()}`
+        : '';
+
     const siteExtras: string[] = [];
     if (typeof r.seo_instructions === 'string' && r.seo_instructions.trim()) {
       siteExtras.push(`**Site-specific SEO instructions (from content task):** ${r.seo_instructions.trim()}`);
@@ -242,7 +327,23 @@ Markdown shape (required): first title line is H1 with "# " only; at least two s
 - Avoid repetitive "The hotel has..." phrasing; use causal linking and traveler-impact framing.
 - For villas, include practical limitation logistics (road condition and/or mobile signal strength).
 
-Length: 900–1400 words. Markdown only; real line breaks (no literal \\n character sequences).${siteExtrasBlock}`;
+Length: ${wordCountMin}–${wordCountMax} words. Markdown only; real line breaks (no literal \\n character sequences).${sectionsBlock}${secondaryBlock}${paaBlock}${entitiesBlock}${seoRulesBlock}${formattingBlock}${knowledgeBlock}
+
+${intentGuide}${siteExtrasBlock}`;
+  }
+
+  private intentWritingGuide(intent: string): string {
+    switch (intent.toUpperCase()) {
+      case 'TRANSACTIONAL':
+        return 'INTENT: TRANSACTIONAL — Lead with what the user can do/buy/book. Include clear CTAs. State prices, offers, or booking steps early. Be concise and action-oriented. FAQ should focus on objections (cancellation, availability, payment).';
+      case 'COMMERCIAL':
+        return 'INTENT: COMMERCIAL INVESTIGATION — The user is comparing options. Include a comparison table or section. Cover pros/cons per option. Name competitors or alternatives explicitly. Help the user decide.';
+      case 'NAVIGATIONAL':
+        return 'INTENT: NAVIGATIONAL — User wants to reach a specific brand/place/page. Be concise. Front-load the answer. Include direct links or paths. Avoid padding.';
+      case 'INFORMATIONAL':
+      default:
+        return 'INTENT: INFORMATIONAL — User wants depth and authoritative answers. Cover the topic comprehensively. Use statistics, examples, sub-topics. Structure with clear H2/H3 hierarchy for scanability. Include FAQ section addressing "people also ask" style questions.';
+    }
   }
 
   private getCacheKey(context: PromptCompositionContext): string {
@@ -269,6 +370,11 @@ Length: 900–1400 words. Markdown only; real line breaks (no literal \\n charac
       JSON.stringify(r.core_benefits ?? null),
       r.seo_instructions,
       r.cta_target,
+      r.intent,
+      r.topic,
+      String(r.targetWordCount ?? ''),
+      JSON.stringify(r.requiredSections ?? null),
+      JSON.stringify(r.secondaryKeywords ?? null),
     ]
       .map((x) => (x == null ? '' : String(x)))
       .join('\u001f');

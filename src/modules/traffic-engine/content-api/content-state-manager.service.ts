@@ -10,6 +10,7 @@ export class ContentStateManagerService {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: {
+        site: true,
         aiGenerationLogs: {
           orderBy: { createdAt: 'desc' },
           take: 20,

@@ -1,4 +1,5 @@
 import { HumanizationLevel, PipelineStep } from '../types/ai-execution.types';
+import { getLocaleTone } from './locale-tone.registry';
 
 export interface StyleBlockConfig {
   tone: string;
@@ -45,10 +46,12 @@ function levelAddendum(level: HumanizationLevel): string {
  * Core humanization rules are always appended (system controls quality).
  */
 export function buildStyleBlock(config: StyleBlockConfig): string {
+  const localeTone = getLocaleTone(config.locale);
   const lines = [
     'Writing Style Rules',
     '---',
     toneLine(config.tone),
+    localeTone,
     `Language / locale: ${config.locale}.`,
     levelAddendum(config.humanizationLevel),
     '---',

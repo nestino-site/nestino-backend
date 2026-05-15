@@ -29,7 +29,10 @@ export class AnthropicProvider implements AiProviderClient {
           model: request.model,
           max_tokens: request.maxOutputTokens ?? 4096,
           temperature: request.temperature ?? 0.3,
-          system: request.prompt.system,
+          // Prepend JSON instruction into system prompt for structured steps
+          system: request.responseFormat === 'json'
+            ? `${request.prompt.system ?? ''}\n\nIMPORTANT: Respond with valid JSON only. No prose, no code fences, no commentary.`.trim()
+            : request.prompt.system,
           messages: [{ role: 'user', content: request.prompt.user }],
         }),
         signal: controller.signal,

@@ -20,6 +20,7 @@ import { PublishService } from '../publishing/publish.service';
 import { InternalLinkingService } from '../intelligence/internal-linking.service';
 import { GeoScoreResult, GeoScoringService } from '../seo-strategy/geo-scoring.service';
 import { SchemaMarkupService } from '../seo-strategy/schema-markup.service';
+import { OriginalityCheckerService } from '../intelligence/originality-checker.service';
 
 /** Merge `contentTask.payload` (POST body) with site context for v3 generate prompts. */
 function mergeContentTaskRuntimeContext(
@@ -58,6 +59,7 @@ export class TrafficEnginePipelineService {
     private readonly schemaMarkupService: SchemaMarkupService,
     private readonly publishService: PublishService,
     private readonly internalLinking: InternalLinkingService,
+    private readonly originalityChecker: OriginalityCheckerService,
   ) {}
 
   async run(pageId: number, contentTaskId?: number): Promise<void> {
@@ -133,6 +135,13 @@ export class TrafficEnginePipelineService {
         if (!validation.passed) {
           throw new Error(
             `POLICY_VIOLATION:${validation.violations.map((v) => v.code).join(',')}`,
+          );
+        }
+        // Originality n-gram check vs. existing site pages
+        const originalityResult = await this.originalityChecker.check(page.siteId, draft, pageId);
+        if (!originalityResult.passed) {
+          throw new Error(
+            `ORIGINALITY_CHECK_FAILED:overlap=${(originalityResult.overlapRatio * 100).toFixed(1)}%:matched=${originalityResult.matchedSlug ?? 'unknown'}`,
           );
         }
         await this.saveCheckpoint(pageId, completedSteps, 'validate', true);
@@ -299,24 +308,37 @@ export class TrafficEnginePipelineService {
         }
 
         const minSeoScore = config.runtimeConfig.minSeoCheckScore ?? 50;
+        // Multi-signal deterministic SEO gate
+        const seoViolations: string[] = [];
         if (seoResult.score < minSeoScore) {
-          throw new Error(
-            `SEO_CHECK_SCORE_BELOW_THRESHOLD:${seoResult.score}<${minSeoScore}`,
-          );
+          seoViolations.push(`score:${seoResult.score}<${minSeoScore}`);
+        }
+        if (!seoResult.passed) {
+          seoViolations.push('llm_check_not_passed');
+        }
+        // Primary keyword must appear in H1
+        const primaryKw = cluster.primaryKeyword.toLowerCase();
+        const h1Line = finalContent.match(/^#\s+(.+)$/m);
+        if (h1Line && !h1Line[1].toLowerCase().includes(primaryKw)) {
+          seoViolations.push('keyword_not_in_h1');
+        }
+        // Meta title/description length checks
+        const pageForGate = await this.prisma.page.findUnique({
+          where: { id: pageId },
+          select: { metaTitle: true, metaDescription: true },
+        });
+        if (pageForGate?.metaTitle) {
+          const mtLen = pageForGate.metaTitle.length;
+          if (mtLen < 30 || mtLen > 65) seoViolations.push(`meta_title_length:${mtLen}`);
+        }
+        if (pageForGate?.metaDescription) {
+          const mdLen = pageForGate.metaDescription.length;
+          if (mdLen < 80 || mdLen > 165) seoViolations.push(`meta_desc_length:${mdLen}`);
+        }
+        if (seoViolations.length > 0) {
+          throw new Error(`SEO_GATE_FAILED:${seoViolations.join(',')}`);
         }
         await this.saveCheckpoint(pageId, completedSteps, 'seo_check', true);
-      }
-
-      if (!completedSteps.has('final_geo_schema')) {
-        await this.setStatus(pageId, PipelineStatus.GEO_SCORING, contentTaskId, 'final_geo_schema');
-        const refreshed = await this.prisma.page.findUnique({
-          where: { id: pageId },
-          include: { site: true },
-        });
-        if (refreshed) {
-          geoScore = await this.persistGeoAndSchema(refreshed, finalContent, cluster);
-        }
-        await this.saveCheckpoint(pageId, completedSteps, 'final_geo_schema', true);
       }
 
       const pillarPageId = await this.resolvePillarPageId(page.siteId, page.keyword.keyword);
@@ -336,6 +358,19 @@ export class TrafficEnginePipelineService {
         );
         finalContent = linkResult.content;
         await this.saveCheckpoint(pageId, completedSteps, 'internal_linking', true);
+      }
+
+      // final_geo_schema runs AFTER internal linking so schema/GEO reflect the full final body
+      if (!completedSteps.has('final_geo_schema')) {
+        await this.setStatus(pageId, PipelineStatus.GEO_SCORING, contentTaskId, 'final_geo_schema');
+        const refreshed = await this.prisma.page.findUnique({
+          where: { id: pageId },
+          include: { site: true },
+        });
+        if (refreshed) {
+          geoScore = await this.persistGeoAndSchema(refreshed, finalContent, cluster);
+        }
+        await this.saveCheckpoint(pageId, completedSteps, 'final_geo_schema', true);
       }
 
       finalContent = cleanMarkdownOutput(finalContent);
@@ -412,13 +447,16 @@ export class TrafficEnginePipelineService {
       slug: string;
       title: string | null;
       metaDescription: string | null;
+      language?: string;
       createdAt: Date;
       updatedAt: Date;
-      site: { domain: string; name: string };
+      site: { domain: string; name: string; config?: unknown };
     },
     content: string,
     cluster: KeywordClusterData,
   ) {
+    const siteConfig = (page.site.config ?? {}) as Record<string, unknown>;
+    const authorPersona = siteConfig.authorPersona as { name?: string; url?: string; sameAs?: string[] } | undefined;
     return {
       slug: page.slug,
       title: page.title,
@@ -428,8 +466,10 @@ export class TrafficEnginePipelineService {
       intent: cluster.intent,
       domain: page.site.domain,
       siteName: page.site.name,
+      language: (page.language ?? 'en').toLowerCase(),
       datePublished: page.createdAt,
       dateModified: page.updatedAt,
+      authorPersona: authorPersona ?? null,
     };
   }
 
@@ -439,9 +479,10 @@ export class TrafficEnginePipelineService {
       slug: string;
       title: string | null;
       metaDescription: string | null;
+      language?: string;
       createdAt: Date;
       updatedAt: Date;
-      site: { domain: string; name: string };
+      site: { domain: string; name: string; config?: unknown };
     },
     finalContent: string,
     cluster: KeywordClusterData,
@@ -528,6 +569,59 @@ export class TrafficEnginePipelineService {
 
   async buildClusterForKeyword(primaryKeywordId: number, siteId: number): Promise<KeywordClusterData> {
     return this.clusterBuilder.buildCluster(primaryKeywordId, siteId);
+  }
+
+  /**
+   * Lightweight path for REFRESH_TITLE_META tasks.
+   * Re-generates only title, metaTitle, metaDescription, and H1 using the seo_check model.
+   * Does not regenerate the body or run the full pipeline.
+   */
+  async runRefreshTitleMeta(pageId: number, contentTaskId?: number): Promise<void> {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { site: true, keyword: true },
+    });
+    if (!page?.keyword || !page.finalContent) {
+      throw new UnprocessableEntityException('Page, keyword, or finalContent missing for refresh');
+    }
+
+    await this.setStatus(pageId, PipelineStatus.SEO_CHECKING, contentTaskId, 'refresh_title_meta');
+
+    const cluster = await this.clusterBuilder.buildCluster(page.keyword.id, page.siteId);
+    const config = await this.siteConfigService.getForPage(pageId);
+
+    const seoResult = await this.seoCheckService.check(
+      pageId,
+      page.siteId,
+      page.finalContent,
+      cluster,
+      page.keyword.priority,
+      cluster.intent,
+    );
+
+    if (seoResult.improvedContent) {
+      // Extract new H1 and meta from improved content for title/meta update only
+      const h1Match = seoResult.improvedContent.match(/^#\s+(.+)$/m);
+      const newTitle = h1Match ? h1Match[1].trim() : undefined;
+
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: {
+          ...(newTitle ? { title: newTitle, metaTitle: newTitle.slice(0, 60) } : {}),
+          pipelineStatus: PipelineStatus.READY,
+        },
+      });
+    } else {
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: { pipelineStatus: PipelineStatus.READY },
+      });
+    }
+
+    await this.markTaskCompleted(contentTaskId);
+    if (config.runtimeConfig.minSeoCheckScore) {
+      this.logger.log({ msg: 'refresh_title_meta_done', pageId, seoScore: seoResult.score });
+    }
   }
 
   private validateMarkdownStructure(content: string): string[] {

@@ -4,8 +4,10 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SeoBriefBuilder } from '../brief/seo-brief.builder';
 import { SiteConfigRecord } from '../config/config.types';
 import { KnowledgeBaseService } from '../intelligence/knowledge-base.service';
+import { TopicalClusterService } from '../intelligence/topical-cluster.service';
 import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
+import { OutlineSchema, safeParse } from '../ai/schemas/structured-output.schemas';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
 
 export interface GenerationResult {
@@ -21,6 +23,7 @@ export class GenerationService {
     private readonly aiExecution: AiExecutionService,
     private readonly briefBuilder: SeoBriefBuilder,
     private readonly knowledgeBase: KnowledgeBaseService,
+    private readonly topicalCluster: TopicalClusterService,
   ) {}
 
   async generate(
@@ -56,6 +59,11 @@ export class GenerationService {
       pillarPageId: subject?.pillarPageId ?? null,
     });
 
+    // Enrich topical cluster from SERP entities (non-blocking; fire-and-forget)
+    this.topicalCluster
+      .enrichFromSerp(siteId, page.keyword.keyword, page.keyword.language)
+      .catch(() => null);
+
     const clusterContext = this.buildClusterContext(cluster);
     let mergedRuntime = this.knowledgeBase.mergeIntoRuntime(page.site, {
       ...runtimeContext,
@@ -65,6 +73,13 @@ export class GenerationService {
       requiredSections: brief.requiredSections,
       paaQuestions: brief.paaQuestions,
       internalLinkTargets: brief.internalLinkTargets,
+      serpEntities: brief.serpEntities,
+      hasAiOverview: brief.hasAiOverview,
+      hasFaqFeature: brief.hasFaqFeature,
+      // Template formatting fields for prompt injection
+      templateFormattingInstructions: brief.templateFormatting?.formattingInstructions,
+      templateSeoRules: brief.templateFormatting?.seoRules,
+      templateInternalLinkingRules: brief.templateFormatting?.internalLinkingRules,
     });
 
     const outlineOutput = await this.aiExecution.execute({
@@ -78,10 +93,16 @@ export class GenerationService {
     });
 
     let outline: Record<string, unknown>;
-    try {
-      outline = JSON.parse(outlineOutput.text) as Record<string, unknown>;
-    } catch {
-      outline = { h2s: [], raw: outlineOutput.text };
+    const parsedOutline = safeParse(OutlineSchema, outlineOutput.text);
+    if (parsedOutline) {
+      outline = parsedOutline as Record<string, unknown>;
+    } else {
+      // Fallback: try raw JSON parse, then degrade gracefully
+      try {
+        outline = JSON.parse(outlineOutput.text) as Record<string, unknown>;
+      } catch {
+        outline = { h2s: [], raw: outlineOutput.text };
+      }
     }
 
     mergedRuntime = {

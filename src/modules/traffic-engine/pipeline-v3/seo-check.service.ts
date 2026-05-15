@@ -3,6 +3,7 @@ import { KeywordIntent, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
+import { SeoCheckSchema, safeParse } from '../ai/schemas/structured-output.schemas';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
 
 export interface SeoCheckResult {
@@ -55,11 +56,16 @@ export class SeoCheckService {
       maxOutputTokens: 1000,
     });
 
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(evalOutput.text) as Record<string, unknown>;
-    } catch {
-      parsed = {};
+    const validated = safeParse(SeoCheckSchema, evalOutput.text);
+    let parsed: Record<string, unknown>;
+    if (validated) {
+      parsed = validated as Record<string, unknown>;
+    } else {
+      try {
+        parsed = JSON.parse(evalOutput.text) as Record<string, unknown>;
+      } catch {
+        parsed = {};
+      }
     }
 
     const passed = parsed.passed === true;

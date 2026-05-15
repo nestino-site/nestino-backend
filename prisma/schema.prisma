@@ -71,6 +71,7 @@ enum TaskType {
   GENERATE_META
   GENERATE_SCHEMA
   GENERATE_IMAGE
+  REFRESH_TITLE_META
 }
 
 enum AiProvider {
@@ -196,6 +197,7 @@ model Site {
   keywordClusters        KeywordCluster[]
   subjects               Subject[]
   ideaTasks              IdeaTask[]
+  topicalClusters        TopicalCluster[]
 
   @@index([domain])
   @@map("sites")
@@ -279,7 +281,8 @@ model Page {
   seoMetrics       SeoMetric[]
   aiGenerationLogs AiGenerationLog[]
   pageKeywords     PageKeyword[]
-  pillarSubjects   Subject[]     @relation("SubjectPillar")
+  pillarSubjects   Subject[]         @relation("SubjectPillar")
+  topicalClusters  TopicalCluster[]  @relation("TopicalClusterPillar")
 
   @@unique([siteId, slug, language])
   @@index([siteId, language, status])
@@ -633,4 +636,48 @@ model IdeaTask {
   @@index([subjectId])
   @@index([ideaId])
   @@map("idea_tasks")
+}
+
+model TopicalCluster {
+  id          Int      @id @default(autoincrement())
+  siteId      Int
+  name        String
+  pillarSlug  String?
+  pillarPageId Int?
+  topics      String[]
+  entities    String[]
+  coverageGap String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  site         Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  pillarPage   Page? @relation("TopicalClusterPillar", fields: [pillarPageId], references: [id], onDelete: SetNull)
+
+  @@index([siteId])
+  @@map("topical_clusters")
+}
+
+model SerpSnapshot {
+  id             Int      @id @default(autoincrement())
+  keyword        String
+  language       String
+  country        String   @default("us")
+  organicTitles  String[]
+  organicSnippets String[]
+  organicLinks   String[]
+  paaQuestions   String[]
+  relatedSearches String[]
+  entities       String[]
+  searchVolume   Int?
+  difficulty     Float?
+  hasAiOverview  Boolean  @default(false)
+  hasFaqFeature  Boolean  @default(false)
+  hasVideoFeature Boolean @default(false)
+  hasImagePack   Boolean  @default(false)
+  rawData        Json?
+  capturedAt     DateTime @default(now())
+
+  @@unique([keyword, language, country])
+  @@index([keyword, language])
+  @@map("serp_snapshots")
 }

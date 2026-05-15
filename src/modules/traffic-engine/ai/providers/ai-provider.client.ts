@@ -8,6 +8,8 @@ export interface AiCompletionRequest {
   temperature?: number;
   maxOutputTokens?: number;
   timeoutMs: number;
+  /** When 'json', request structured JSON output from the provider. */
+  responseFormat?: 'json' | 'text';
 }
 
 export interface AiCompletionResponse {

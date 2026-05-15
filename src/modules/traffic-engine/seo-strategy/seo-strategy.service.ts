@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { CannibalizationStatus } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common';
+import { CannibalizationStatus, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SchemaMarkupService } from './schema-markup.service';
 
@@ -36,6 +36,8 @@ export interface KeywordOrphanItem {
 
 @Injectable()
 export class SeoStrategyService {
+  private readonly logger = new Logger(SeoStrategyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly schemaMarkupService: SchemaMarkupService,
@@ -222,6 +224,94 @@ export class SeoStrategyService {
     });
 
     return schema;
+  }
+
+  /**
+   * For each quick-win query (position 5–20, low CTR), create a REFRESH_TITLE_META
+   * ContentTask so the pipeline can surgically rewrite title/meta without full regen.
+   * Skips pages that already have a pending/queued refresh task within 14 days.
+   */
+  async autoEnqueueQuickWins(siteId: number): Promise<number> {
+    const quickWins = await this.findQuickWins(siteId);
+    const cooldownDays = Number(process.env.REWRITE_COOLDOWN_DAYS ?? 14);
+    const cooldownCutoff = new Date();
+    cooldownCutoff.setDate(cooldownCutoff.getDate() - cooldownDays);
+
+    let enqueued = 0;
+    for (const win of quickWins) {
+      if (!win.pageId) continue;
+      const existing = await this.prisma.contentTask.findFirst({
+        where: {
+          pageId: win.pageId,
+          type: TaskType.REFRESH_TITLE_META,
+          status: { in: [TaskStatus.QUEUED, TaskStatus.PROCESSING] },
+          createdAt: { gte: cooldownCutoff },
+        },
+      });
+      if (existing) continue;
+
+      await this.prisma.contentTask.create({
+        data: {
+          siteId,
+          pageId: win.pageId,
+          type: TaskType.REFRESH_TITLE_META,
+          status: TaskStatus.QUEUED,
+          payload: {
+            query: win.query,
+            avgPosition: win.avgPosition,
+            ctrGap: win.ctrGap,
+            impressions: win.impressions,
+          },
+        },
+      });
+      enqueued++;
+    }
+    this.logger.log({ msg: 'quick_wins_enqueued', siteId, count: enqueued });
+    return enqueued;
+  }
+
+  /**
+   * For detected cannibalization losers, create a REWRITE_CONTENT task on the loser pages.
+   * Only for pages where position difference is significant (loser > winner + 3).
+   */
+  async autoEnqueueCannibalizationTasks(siteId: number): Promise<number> {
+    const cannibs = await this.findCannibalization(siteId);
+    let enqueued = 0;
+
+    for (const item of cannibs) {
+      if (item.recommendedAction.startsWith('monitor')) continue;
+      for (const loser of item.loserPages) {
+        const positionGap = loser.avgPosition - (item.loserPages.length > 0 ? 0 : loser.avgPosition);
+        if (positionGap < 3) continue;
+
+        const existing = await this.prisma.contentTask.findFirst({
+          where: {
+            pageId: loser.pageId,
+            type: { in: [TaskType.REWRITE_CONTENT, TaskType.GENERATE_CONTENT] },
+            status: { in: [TaskStatus.QUEUED, TaskStatus.PROCESSING] },
+          },
+        });
+        if (existing) continue;
+
+        await this.prisma.contentTask.create({
+          data: {
+            siteId,
+            pageId: loser.pageId,
+            type: TaskType.REWRITE_CONTENT,
+            status: TaskStatus.QUEUED,
+            payload: {
+              reason: 'cannibalization',
+              query: item.query,
+              winnerPageId: item.winnerPageId,
+              recommendedAction: item.recommendedAction,
+            },
+          },
+        });
+        enqueued++;
+      }
+    }
+    this.logger.log({ msg: 'cannibalization_tasks_enqueued', siteId, count: enqueued });
+    return enqueued;
   }
 
   private expectedCtr(avgPosition: number): number {

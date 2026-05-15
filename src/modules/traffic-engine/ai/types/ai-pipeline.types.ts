@@ -8,6 +8,8 @@ export interface AiPipelineStepConfig {
   temperature?: number;
   maxOutputTokens?: number;
   timeoutMs?: number;
+  /** Force JSON structured output for this step. */
+  responseFormat?: 'json' | 'text';
 }
 
 export interface AiPipelineConfig {

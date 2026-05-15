@@ -78,6 +78,11 @@ export class AiExecutionService {
       budgetAction,
     });
 
+    // JSON mode for structured steps: outline generation, analysis, and seo_check
+    const jsonSteps: string[] = ['analyze', 'seo_check'];
+    const isOutlineStep = input.step === 'generate' && input.runtimeContext.mode === 'outline';
+    const useJsonFormat = jsonSteps.includes(input.step) || isOutlineStep;
+
     const stepCfg: AiPipelineStepConfig = {
       stepKey: input.step,
       provider: this.resolveProviderFromModel(model),
@@ -85,6 +90,7 @@ export class AiExecutionService {
       promptTemplateId: `${input.step}_${promptContext.version}`,
       timeoutMs: input.timeoutMs ?? 120_000,
       maxOutputTokens: input.maxOutputTokens ?? 1500,
+      responseFormat: useJsonFormat ? 'json' : 'text',
     };
 
     const startedAt = Date.now();
