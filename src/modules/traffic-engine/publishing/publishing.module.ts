@@ -1,5 +1,4 @@
-import { Module } from '@nestjs/common';
-import { TrafficEngineBullQueuesModule } from '../traffic-engine-bull.module';
+import { Module, forwardRef } from '@nestjs/common';
 import { ContentTasksModule } from '../content-tasks/content-tasks.module';
 import { WebhookRetryProcessor } from '../processors/webhook-retry.processor';
 import { PageHeroCdnService } from './page-hero-cdn.service';
@@ -9,7 +8,7 @@ import { WebhookRetryScheduler } from './webhook-retry.scheduler';
 import { ClinicWebhookController } from './clinic-webhook.controller';
 
 @Module({
-  imports: [TrafficEngineBullQueuesModule, ContentTasksModule],
+  imports: [forwardRef(() => ContentTasksModule)],
   providers: [
     PublishService,
     PageHeroCdnService,

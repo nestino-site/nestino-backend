@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
 import { BriefModule } from '../brief/brief.module';
 import { ConfigModule } from '../config/config.module';
@@ -20,7 +20,7 @@ import { TrafficEnginePipelineService } from './traffic-engine-pipeline.service'
     BriefModule,
     IntelligenceModule,
     SeoStrategyModule,
-    PublishingModule,
+    forwardRef(() => PublishingModule),
   ],
   providers: [
     PipelineCheckpointService,
