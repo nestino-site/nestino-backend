@@ -13,7 +13,7 @@ import { SubjectsService } from '../../subjects/services/subjects.service';
 import { IdeaValidationService, ParsedIdeaDraft } from '../idea-validation.service';
 import { buildIdeaGenerationPrompt } from './idea-generation.prompt';
 
-const DEFAULT_GEMINI_MODEL = process.env.AI_IDEA_GENERATION_MODEL ?? 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = process.env.AI_IDEA_GENERATION_MODEL ?? 'gemini-3.1-flash-lite';
 
 @Injectable()
 export class IdeaGenerationService {
