@@ -1,17 +1,15 @@
 # Next.js SEO Integration (Backend)
 
-See the full integration guide in the frontend app:
+**Full frontend guide:** [Doc/front integration/NEXTJS_INTEGRATION.md](../../../Doc/front%20integration/NEXTJS_INTEGRATION.md)
 
-**[traffic-engine-frontend/docs/NEXTJS_INTEGRATION.md](../../traffic-engine-frontend/docs/NEXTJS_INTEGRATION.md)**
+## Backend capabilities
 
-## Backend changes summary
+- **Content API v2.1** — `htmlContent` (Markdown → HTML), `generatedImageCdnUrl`, SEO fields, JSON-LD
+- **Publish** — hero WebP to `IMAGE_UPLOADS_DIR/pages/{pageId}/hero.webp` when `CDN_BASE_URL` is set
+- **Webhooks** — HMAC-signed publish events; failures stored in `webhook_deliveries` and retried via BullMQ
+- **Site-scoped routes** — `GET /content/pages`, `GET /content/by-slug/*path` (`X-Site-Api-Key` + `X-Site-Id`)
 
-- **Content API v2.1** — `htmlContent` (Markdown → HTML via `markdown-it`), `generatedImageCdnUrl`
-- **Publish** — uploads hero WebP to `IMAGE_UPLOADS_DIR/pages/{pageId}/hero.webp` when `CDN_BASE_URL` is set
-- **Webhooks** — failed deliveries stored in `webhook_deliveries`, retried via BullMQ cron
-- **Site-scoped routes** — `GET /content/pages`, `GET /content/by-slug/*path` (headers: `X-Site-Api-Key`, `X-Site-Id`)
-
-## Webhook payload (includes `language` for locale revalidation)
+## Webhook payload
 
 ```json
 {
@@ -23,3 +21,5 @@ See the full integration guide in the frontend app:
   "timestamp": 1710000000000
 }
 ```
+
+Header: `X-Publish-Signature: sha256=<hmac-sha256 of raw body>`.
