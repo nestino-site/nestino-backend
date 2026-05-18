@@ -4,6 +4,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalHttpExceptionFilter } from './common/filters/global-http-exception.filter';
 
+function normalizeOrigin(origin: string): string {
+  return origin.replace(/\/+$/, '');
+}
+
 function parseCorsOrigins(): string[] | boolean {
   const raw = process.env.CORS_ORIGINS?.trim();
   if (!raw) {
@@ -18,7 +22,10 @@ function parseCorsOrigins(): string[] | boolean {
   if (raw === '*') {
     return true;
   }
-  return raw.split(',').map((o) => o.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((o) => normalizeOrigin(o.trim()))
+    .filter(Boolean);
 }
 
 async function bootstrap(): Promise<void> {
