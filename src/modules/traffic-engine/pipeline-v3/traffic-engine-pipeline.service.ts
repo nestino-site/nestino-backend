@@ -22,6 +22,7 @@ import { GeoScoreResult, GeoScoringService } from '../seo-strategy/geo-scoring.s
 import { SchemaMarkupService } from '../seo-strategy/schema-markup.service';
 import { OriginalityCheckerService } from '../intelligence/originality-checker.service';
 import { ErrorTrackerService } from '../observability/error-tracker.service';
+import { ensureKeywordInH1, h1ContainsKeyword } from './seo-gate.utils';
 
 /** Merge `contentTask.payload` (POST body) with site context for v3 generate prompts. */
 function mergeContentTaskRuntimeContext(
@@ -89,7 +90,11 @@ export class TrafficEnginePipelineService {
     const cluster = await this.clusterBuilder.buildCluster(page.keyword.id, page.siteId);
     const priority = page.keyword.priority;
 
-    let draft = page.rawDraft ? cleanMarkdownOutput(page.rawDraft) : '';
+    const isResume = checkpoint !== null && completedSteps.has('generate');
+    const persistedSource = isResume
+      ? (page.finalContent ?? page.rawDraft ?? '')
+      : (page.rawDraft ?? '');
+    let draft = persistedSource ? cleanMarkdownOutput(persistedSource) : '';
     let outline = (page.outline as Record<string, unknown> | null) ?? { h2s: [] };
     let analysis: AnalysisResult | null = null;
     let geoScore: GeoScoreResult | null =
@@ -309,6 +314,22 @@ export class TrafficEnginePipelineService {
           finalContent = seoResult.improvedContent;
         }
 
+        if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
+          const autoFixed = ensureKeywordInH1(finalContent, cluster.primaryKeyword);
+          if (autoFixed) {
+            finalContent = autoFixed;
+            await this.prisma.page.update({
+              where: { id: pageId },
+              data: {
+                finalContent: autoFixed,
+                rawDraft: autoFixed,
+                wordCount: autoFixed.split(/\s+/).filter(Boolean).length,
+              },
+            });
+            this.logger.log({ msg: 'seo_gate_h1_auto_fixed', pageId });
+          }
+        }
+
         const minSeoScore = config.runtimeConfig.minSeoCheckScore ?? 50;
         // Multi-signal deterministic SEO gate
         const seoViolations: string[] = [];
@@ -318,11 +339,11 @@ export class TrafficEnginePipelineService {
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
         }
-        // Primary keyword must appear in H1
-        const primaryKw = cluster.primaryKeyword.toLowerCase();
-        const h1Line = finalContent.match(/^#\s+(.+)$/m);
-        if (h1Line && !h1Line[1].toLowerCase().includes(primaryKw)) {
-          seoViolations.push('keyword_not_in_h1');
+        if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
+          const h1Line = finalContent.match(/^#\s+(.+)$/m);
+          if (h1Line) {
+            seoViolations.push('keyword_not_in_h1');
+          }
         }
         // Meta title/description length checks
         const pageForGate = await this.prisma.page.findUnique({

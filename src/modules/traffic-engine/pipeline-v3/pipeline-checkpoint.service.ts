@@ -36,6 +36,14 @@ const PIPELINE_STEP_ORDER: PipelineStep[] = [
   'final_geo_schema',
 ];
 
+const COMPLETE_PIPELINE_FROM_STEPS: PipelineStep[] = [
+  'seo_check',
+  'internal_linking',
+  'final_geo_schema',
+];
+
+export { PIPELINE_STEP_ORDER, COMPLETE_PIPELINE_FROM_STEPS };
+
 @Injectable()
 export class PipelineCheckpointService {
   constructor(
@@ -63,9 +71,6 @@ export class PipelineCheckpointService {
     await this.redis.client.del(this.key(pageId));
   }
 
-  /**
-   * Remove `fromStep` and all later steps so the pipeline can resume from that step.
-   */
   async rewindToStep(pageId: number, fromStep: PipelineStep): Promise<PipelineCheckpoint> {
     const existing = (await this.load(pageId)) ?? this.defaultCheckpointBefore(fromStep);
     const stepsToRemove = new Set(this.stepsFrom(fromStep));
@@ -89,6 +94,15 @@ export class PipelineCheckpointService {
     });
 
     return checkpoint;
+  }
+
+  /** First pipeline step not yet in `completedSteps`, or null if all steps are done. */
+  firstIncompleteStep(completedSteps: PipelineStep[]): PipelineStep | null {
+    return PIPELINE_STEP_ORDER.find((step) => !completedSteps.includes(step)) ?? null;
+  }
+
+  isValidCompletePipelineFromStep(step: string): step is PipelineStep {
+    return COMPLETE_PIPELINE_FROM_STEPS.includes(step as PipelineStep);
   }
 
   private async loadFromPage(pageId: number): Promise<PipelineCheckpoint | null> {

@@ -14,7 +14,10 @@ import { ContentLanguage, PageStatus, PipelineStatus } from '@prisma/client';
 import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ContentTasksService } from '../../content-tasks/services/content-tasks.service';
-import { PipelineCheckpointService } from '../../pipeline-v3/pipeline-checkpoint.service';
+import {
+  PipelineCheckpointService,
+  PipelineStep,
+} from '../../pipeline-v3/pipeline-checkpoint.service';
 import { PublishService } from '../../publishing/publish.service';
 import { AssignPageKeywordDto } from '../dto/assign-page-keyword.dto';
 import { CreatePageDto } from '../dto/create-page.dto';
@@ -119,6 +122,84 @@ export class PagesController {
       contentTaskId: task.id,
       resumedFrom: 'image_generation',
       checkpointLastStep: checkpoint.lastStep,
+    };
+  }
+
+  /**
+   * Finish remaining pipeline steps without re-running content or hero image generation.
+   * Resumes from the first incomplete checkpoint step, or from an explicit `fromStep`.
+   */
+  @Post(':id/complete-pipeline')
+  async completePipeline(
+    @ParseIntParam('id') pageId: number,
+    @Query('fromStep') fromStep?: string,
+  ) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { keyword: true },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+    if (!page.keyword) {
+      throw new UnprocessableEntityException('Page must have a keyword to complete the pipeline');
+    }
+    if (!page.rawDraft && !page.finalContent) {
+      throw new UnprocessableEntityException(
+        'Page has no generated content yet — use generate-content instead',
+      );
+    }
+
+    const eligibleStatuses: PipelineStatus[] = [
+      PipelineStatus.PARTIALLY_COMPLETED,
+      PipelineStatus.FAILED,
+    ];
+    if (!eligibleStatuses.includes(page.pipelineStatus)) {
+      throw new UnprocessableEntityException(
+        `Page pipeline status ${page.pipelineStatus} is not eligible for complete-pipeline`,
+      );
+    }
+
+    let checkpoint = await this.pipelineCheckpoint.load(pageId);
+    if (!checkpoint) {
+      throw new UnprocessableEntityException(
+        'No pipeline checkpoint found — use generate-content or retry-image-generation',
+      );
+    }
+
+    if (fromStep !== undefined && fromStep !== '') {
+      if (!this.pipelineCheckpoint.isValidCompletePipelineFromStep(fromStep)) {
+        throw new UnprocessableEntityException(
+          `Invalid fromStep "${fromStep}" — allowed: seo_check, internal_linking, final_geo_schema`,
+        );
+      }
+      checkpoint = await this.pipelineCheckpoint.rewindToStep(
+        pageId,
+        fromStep as PipelineStep,
+      );
+    }
+
+    const resumedFrom =
+      this.pipelineCheckpoint.firstIncompleteStep(checkpoint.completedSteps) ?? 'finalize';
+    const skippedSteps = [...checkpoint.completedSteps];
+
+    await this.prisma.page.update({
+      where: { id: pageId },
+      data: { pipelineStatus: PipelineStatus.PARTIALLY_COMPLETED },
+    });
+
+    const task = await this.contentTasks.create({
+      siteId: page.siteId,
+      keywordId: page.keywordId,
+      pageId: page.id,
+    });
+
+    return {
+      pageId,
+      contentTaskId: task.id,
+      resumedFrom,
+      checkpointLastStep: checkpoint.lastStep,
+      skippedSteps,
     };
   }
 

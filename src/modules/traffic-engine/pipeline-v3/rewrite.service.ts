@@ -39,7 +39,7 @@ export class RewriteService {
         rewriteInstructions: [
           'Rewrite pass: readability and flow ONLY. Do not add new facts, stats, addresses, or hotels. Do not strip experience signals (numbers, limitations, local anchors, guest-style lines).',
           `Reference scores (do not invent content to fix them): genericContent=${analysis.genericContentScore}, experience=${analysis.experienceScore}, informationGain=${analysis.informationGainScore}, eeatSignal=${analysis.eeatSignalScore}.`,
-          `Keyword "${cluster.primaryKeyword}" — keep natural placement; optional light touch if awkward; no stuffing.`,
+          `Primary keyword "${cluster.primaryKeyword}" MUST appear verbatim (case-insensitive) in the H1 heading.`,
           `Missing keywords (rephrase only if already implied; do not add claims): ${analysis.missingKeywords.join(', ') || '(none)'}`,
           'Output clean Markdown only (no HTML, no JSON, no escaped \\n sequences).',
         ].join('\n'),

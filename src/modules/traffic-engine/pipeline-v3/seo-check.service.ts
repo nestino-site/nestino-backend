@@ -5,6 +5,7 @@ import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
 import { SeoCheckSchema, safeParse } from '../ai/schemas/structured-output.schemas';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
+import { collectDeterministicSeoIssues } from './seo-gate.utils';
 
 export interface SeoCheckResult {
   passed: boolean;
@@ -71,13 +72,27 @@ export class SeoCheckService {
     const passed = parsed.passed === true;
     const rawScore = typeof parsed.score === 'number' ? parsed.score : 0;
     const score = Math.max(0, Math.min(100, Math.round(rawScore)));
-    const issues = Array.isArray(parsed.issues)
+    const llmIssues = Array.isArray(parsed.issues)
       ? parsed.issues.filter((item): item is string => typeof item === 'string')
       : [];
     const googleChecklist =
       parsed.googleChecklist && typeof parsed.googleChecklist === 'object'
         ? (parsed.googleChecklist as Record<string, boolean>)
         : undefined;
+
+    const deterministicIssues = collectDeterministicSeoIssues(
+      finalContent,
+      cluster.primaryKeyword,
+      { metaTitle: page.metaTitle, metaDescription: page.metaDescription },
+    );
+    const issues = [...new Set([...llmIssues, ...deterministicIssues])];
+    if (deterministicIssues.length > 0) {
+      this.logger.log({
+        msg: 'seo_check_deterministic_issues',
+        pageId,
+        issues: deterministicIssues,
+      });
+    }
 
     // ── Phase 2: Fix content when issues are identified ────────────────────
     let improvedContent: string | null = null;
