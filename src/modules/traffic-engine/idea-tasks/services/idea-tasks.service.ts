@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,8 @@ import { CreateIdeaTaskDto } from '../dto/create-idea-task.dto';
 
 @Injectable()
 export class IdeaTasksService {
+  private readonly logger = new Logger(IdeaTasksService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly contentTasksService: ContentTasksService,
@@ -141,6 +144,14 @@ export class IdeaTasksService {
       if (error instanceof ForbiddenException) {
         throw error;
       }
+      this.logger.error({
+        msg: 'create_from_idea_failed',
+        ideaId,
+        errorType: error?.constructor?.name,
+        errorCode: (error as Prisma.PrismaClientKnownRequestError)?.code,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        meta: (error as Prisma.PrismaClientKnownRequestError)?.meta,
+      });
       throw PrismaErrorMapper.toHttpException(error);
     }
   }
