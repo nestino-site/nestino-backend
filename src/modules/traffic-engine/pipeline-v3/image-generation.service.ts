@@ -8,7 +8,7 @@ interface ImagenPredictResponse {
   }>;
 }
 
-const DEFAULT_IMAGEN_MODEL = 'imagen-3.0-generate';
+const DEFAULT_IMAGEN_MODEL = 'imagen-4.0-generate-001';
 
 @Injectable()
 export class ImageGenerationService {
@@ -60,11 +60,15 @@ export class ImageGenerationService {
   }
 
   private imagenParameters(): Record<string, unknown> {
-    return {
+    const params: Record<string, unknown> = {
       sampleCount: 1,
       aspectRatio: process.env.IMAGEN_ASPECT_RATIO?.trim() || '16:9',
-      outputMimeType: process.env.IMAGEN_OUTPUT_MIME_TYPE?.trim() || 'image/jpeg',
     };
+    const imageSize = process.env.IMAGEN_IMAGE_SIZE?.trim();
+    if (imageSize) {
+      params.imageSize = imageSize;
+    }
+    return params;
   }
 
   private async generateWithImagen(prompt: string): Promise<string | null> {
@@ -74,15 +78,16 @@ export class ImageGenerationService {
     }
 
     const model = this.imagenModel();
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:predict` +
-      `?key=${encodeURIComponent(key)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:predict`;
 
     this.logger.log({ msg: 'imagen_generate_start', model, promptLength: prompt.length });
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': key,
+      },
       body: JSON.stringify({
         instances: [{ prompt }],
         parameters: this.imagenParameters(),

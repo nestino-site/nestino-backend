@@ -340,6 +340,19 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | Full pipeline restart (discard checkpoint) | `POST /pages/:id/generate-content?resetCheckpoint=true` |
 | Resume pipeline without resetting checkpoint | `POST /pages/:id/generate-content` (creates new task, uses Redis checkpoint) |
 
+**Hero image generation (backend env — Railway):**
+
+Imagen 3 models are shut down on the Gemini API. Hero images use **Imagen 4** via `GOOGLE_AI_API_KEY`.
+
+| Variable | Required | Default / notes |
+|----------|----------|-----------------|
+| `GOOGLE_AI_API_KEY` | Yes | Gemini API key from [Google AI Studio](https://aistudio.google.com/) |
+| `IMAGEN_MODEL` | No | `imagen-4.0-generate-001` (alternatives: `imagen-4.0-fast-generate-001`, `imagen-4.0-ultra-generate-001`) |
+| `IMAGEN_ASPECT_RATIO` | No | `16:9` |
+| `IMAGEN_IMAGE_SIZE` | No | `1K` or `2K` (Standard/Ultra only) |
+
+If image retry fails with HTTP 404 on the model name, update or remove `IMAGEN_MODEL` so it is not set to legacy `imagen-3.0-*` values.
+
 ### Content read / preview
 
 | Method | Path | Auth |
