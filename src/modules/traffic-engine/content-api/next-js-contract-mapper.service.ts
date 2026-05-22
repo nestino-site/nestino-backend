@@ -147,26 +147,6 @@ export class NextJsContractMapperService {
       };
     }
 
-    const cdnBase = process.env.CDN_BASE_URL?.trim();
-    if (cdnBase) {
-      const cdnUrl = `${cdnBase.replace(/\/$/, '')}/pages/${page.id}/hero.webp`;
-      return {
-        url: cdnUrl,
-        alt: page.title ?? page.metaTitle ?? null,
-        width: 1200,
-        height: 630,
-      };
-    }
-
-    if (page.generatedImageBase64) {
-      return {
-        url: null,
-        alt: page.title ?? null,
-        width: null,
-        height: null,
-      };
-    }
-
     return { url: null, alt: null, width: null, height: null };
   }
 

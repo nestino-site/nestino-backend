@@ -84,15 +84,15 @@ export class SchemaMarkupService {
     return this.publisherBlock(input);
   }
 
-  private imageBlock(input: SchemaPageInput, url: string): Record<string, unknown> | undefined {
-    const cdnBase = process.env.CDN_BASE_URL?.trim();
-    const imageUrl = input.imageUrl ?? (cdnBase ? undefined : undefined);
+  private imageBlock(input: SchemaPageInput, _url: string): Record<string, unknown> | undefined {
+    const imageUrl = input.imageUrl;
     if (!imageUrl) return undefined;
     return {
       '@type': 'ImageObject',
       url: imageUrl,
       contentUrl: imageUrl,
-      ...(cdnBase ? { width: 1200, height: 630 } : {}),
+      width: 1200,
+      height: 630,
       caption: input.title ?? input.keyword,
     };
   }

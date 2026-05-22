@@ -11,7 +11,7 @@ interface SitemapPageRow {
   title: string | null;
   updatedAt: Date;
   publishedAt: Date | null;
-  generatedImageBase64: string | null;
+  generatedImageCdnUrl: string | null;
 }
 
 @Injectable()
@@ -42,7 +42,7 @@ export class SitemapService {
           title: true,
           updatedAt: true,
           publishedAt: true,
-          generatedImageBase64: true,
+          generatedImageCdnUrl: true,
         },
       });
 
@@ -114,7 +114,6 @@ Sitemap: ${base}/sitemap.xml
     pages: SitemapPageRow[],
     slugToAlternates: Map<string, Array<{ language: string; slug: string }>>,
   ): string {
-    const cdnBase = process.env.CDN_BASE_URL?.trim();
     const urls = pages
       .map((p) => {
         const loc = this.buildLoc(base, p.slug);
@@ -134,12 +133,11 @@ Sitemap: ${base}/sitemap.xml
             `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${this.escapeXml(loc)}"/>`
           : '';
 
-        // Image entry
+        // Image entry — use the CDN URL stored on the page after upload
         let imageBlock = '';
-        if (cdnBase && p.id) {
-          const imgUrl = `${cdnBase.replace(/\/$/, '')}/pages/${p.id}/hero.webp`;
+        if (p.generatedImageCdnUrl) {
           const imgTitle = p.title ?? p.slug;
-          imageBlock = `\n    <image:image>\n      <image:loc>${this.escapeXml(imgUrl)}</image:loc>\n      <image:title>${this.escapeXml(imgTitle)}</image:title>\n    </image:image>`;
+          imageBlock = `\n    <image:image>\n      <image:loc>${this.escapeXml(p.generatedImageCdnUrl)}</image:loc>\n      <image:title>${this.escapeXml(imgTitle)}</image:title>\n    </image:image>`;
         }
 
         return `  <url>
