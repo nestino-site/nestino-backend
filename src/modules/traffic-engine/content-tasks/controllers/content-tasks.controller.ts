@@ -21,4 +21,9 @@ export class ContentTasksController {
   findOne(@ParseIntParam('id') id: number) {
     return this.contentTasksService.findOne(id);
   }
+
+  @Post(':id/retry')
+  retry(@ParseIntParam('id') id: number) {
+    return this.contentTasksService.retryFailedTask(id);
+  }
 }

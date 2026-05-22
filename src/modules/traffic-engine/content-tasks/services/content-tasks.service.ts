@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ContentTask, Prisma, TaskStatus, TaskType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper';
@@ -90,5 +90,32 @@ export class ContentTasksService {
       throw new NotFoundException(`ContentTask ${id} not found`);
     }
     return task;
+  }
+
+  async retryFailedTask(taskId: number): Promise<ContentTask> {
+    const task = await this.findOne(taskId);
+    if (task.status !== TaskStatus.FAILED) {
+      throw new UnprocessableEntityException(
+        `ContentTask ${taskId} is not failed (status=${task.status})`,
+      );
+    }
+    if (!task.pageId) {
+      throw new UnprocessableEntityException(`ContentTask ${taskId} has no pageId`);
+    }
+
+    const updated = await this.prisma.contentTask.update({
+      where: { id: taskId },
+      data: {
+        status: TaskStatus.QUEUED,
+        errorLog: null,
+        failedAt: null,
+        lockedAt: null,
+        lockedBy: null,
+        currentStep: null,
+      },
+    });
+
+    await this.enqueueAiJobBestEffort(task.pageId, taskId);
+    return updated;
   }
 }

@@ -8,7 +8,7 @@ interface ImagenPredictResponse {
   }>;
 }
 
-const DEFAULT_IMAGEN_MODEL = 'imagen-3.0-generate-002';
+const DEFAULT_IMAGEN_MODEL = 'imagen-3.0-generate';
 
 @Injectable()
 export class ImageGenerationService {
@@ -59,6 +59,14 @@ export class ImageGenerationService {
     return process.env.IMAGEN_MODEL?.trim() || DEFAULT_IMAGEN_MODEL;
   }
 
+  private imagenParameters(): Record<string, unknown> {
+    return {
+      sampleCount: 1,
+      aspectRatio: process.env.IMAGEN_ASPECT_RATIO?.trim() || '16:9',
+      outputMimeType: process.env.IMAGEN_OUTPUT_MIME_TYPE?.trim() || 'image/jpeg',
+    };
+  }
+
   private async generateWithImagen(prompt: string): Promise<string | null> {
     const key = process.env.GOOGLE_AI_API_KEY;
     if (!key) {
@@ -77,11 +85,17 @@ export class ImageGenerationService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{ prompt }],
-        parameters: { sampleCount: 1 },
+        parameters: this.imagenParameters(),
       }),
     });
     if (!res.ok) {
       const errText = await res.text();
+      this.logger.error({
+        msg: 'imagen_generate_failed',
+        model,
+        status: res.status,
+        error: errText.slice(0, 300),
+      });
       throw new Error(`Imagen HTTP ${res.status}: ${errText.slice(0, 200)}`);
     }
 

@@ -10,7 +10,7 @@ import {
   UnprocessableEntityException,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ContentLanguage, PageStatus } from '@prisma/client';
+import { ContentLanguage, PageStatus, PipelineStatus } from '@prisma/client';
 import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ContentTasksService } from '../../content-tasks/services/content-tasks.service';
@@ -65,6 +65,61 @@ export class PagesController {
       keywordId: page.keywordId,
       pageId: page.id,
     });
+  }
+
+  /**
+   * Retry hero image generation and remaining pipeline steps without rerunning content generation.
+   * Rewinds the checkpoint to just before image_generation and enqueues a new ContentTask.
+   */
+  @Post(':id/retry-image-generation')
+  async retryImageGeneration(@ParseIntParam('id') pageId: number) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { keyword: true },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+    if (!page.keyword) {
+      throw new UnprocessableEntityException('Page must have a keyword to retry image generation');
+    }
+    if (!page.rawDraft && !page.finalContent) {
+      throw new UnprocessableEntityException(
+        'Page has no generated content yet — use generate-content instead',
+      );
+    }
+
+    const retryableStatuses: PipelineStatus[] = [
+      PipelineStatus.PARTIALLY_COMPLETED,
+      PipelineStatus.FAILED,
+      PipelineStatus.READY,
+    ];
+    const imageMissing = !page.generatedImageBase64 && !page.generatedImageCdnUrl;
+    if (!retryableStatuses.includes(page.pipelineStatus) && !imageMissing) {
+      throw new UnprocessableEntityException(
+        `Page pipeline status ${page.pipelineStatus} is not eligible for image retry`,
+      );
+    }
+
+    const checkpoint = await this.pipelineCheckpoint.rewindToStep(pageId, 'image_generation');
+
+    await this.prisma.page.update({
+      where: { id: pageId },
+      data: { pipelineStatus: PipelineStatus.PARTIALLY_COMPLETED },
+    });
+
+    const task = await this.contentTasks.create({
+      siteId: page.siteId,
+      keywordId: page.keywordId,
+      pageId: page.id,
+    });
+
+    return {
+      pageId,
+      contentTaskId: task.id,
+      resumedFrom: 'image_generation',
+      checkpointLastStep: checkpoint.lastStep,
+    };
   }
 
   /**
