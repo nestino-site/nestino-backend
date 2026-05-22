@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
+import { ObservabilityModule } from '../observability/observability.module';
 import { SubjectsModule } from '../subjects/subjects.module';
 import { ContentIdeasController } from './controllers/content-ideas.controller';
 import { IdeaGenerationService } from './idea-generation/idea-generation.service';
@@ -8,7 +9,7 @@ import { IdeaGenerationProcessor } from '../processors/idea-generation.processor
 import { ContentIdeasService } from './services/content-ideas.service';
 
 @Module({
-  imports: [AiModule, SubjectsModule],
+  imports: [AiModule, SubjectsModule, ObservabilityModule],
   controllers: [ContentIdeasController],
   providers: [
     ContentIdeasService,

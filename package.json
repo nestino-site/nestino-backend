@@ -9,7 +9,9 @@
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "telegram:test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-telegram-alert.ts",
+    "test:classifier": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/observability/error-classifier.service.spec.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

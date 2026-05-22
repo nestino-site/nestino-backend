@@ -21,6 +21,7 @@ import { InternalLinkingService } from '../intelligence/internal-linking.service
 import { GeoScoreResult, GeoScoringService } from '../seo-strategy/geo-scoring.service';
 import { SchemaMarkupService } from '../seo-strategy/schema-markup.service';
 import { OriginalityCheckerService } from '../intelligence/originality-checker.service';
+import { ErrorTrackerService } from '../observability/error-tracker.service';
 
 /** Merge `contentTask.payload` (POST body) with site context for v3 generate prompts. */
 function mergeContentTaskRuntimeContext(
@@ -60,6 +61,7 @@ export class TrafficEnginePipelineService {
     private readonly publishService: PublishService,
     private readonly internalLinking: InternalLinkingService,
     private readonly originalityChecker: OriginalityCheckerService,
+    private readonly errorTracker: ErrorTrackerService,
   ) {}
 
   async run(pageId: number, contentTaskId?: number): Promise<void> {
@@ -402,6 +404,14 @@ export class TrafficEnginePipelineService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error({ msg: 'pipeline_v3_failed', pageId, message });
+      const checkpoint = await this.checkpointService.load(pageId);
+      this.errorTracker.track(error, {
+        pageId,
+        siteId: page.siteId,
+        siteDomain: page.site.domain,
+        step: checkpoint?.lastStep ?? 'unknown',
+        source: 'pipeline',
+      });
       const status = draft ? PipelineStatus.PARTIALLY_COMPLETED : PipelineStatus.FAILED;
       await this.prisma.page.update({
         where: { id: pageId },

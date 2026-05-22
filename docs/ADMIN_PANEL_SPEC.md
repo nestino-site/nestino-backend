@@ -675,4 +675,41 @@ curl -s "$BASE/subjects?siteId=SITE_ID" -H "Authorization: Bearer $TOKEN" | jq
 
 ---
 
+## 14. Telegram billing alerts (ops)
+
+When an AI provider rejects a request for **billing, quota, or payment** reasons (OpenAI, Anthropic, Google Gemini/Imagen), the backend sends a Telegram message to the configured ops chat.
+
+### Environment (Railway + local `.env` — do not commit secrets)
+
+| Variable | Description |
+|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
+| `TELEGRAM_CHAT_ID` | Group or user chat id (groups are negative, e.g. `-5255113334`) |
+| `TELEGRAM_ALERTS_ENABLED` | Set `false` to disable; default on when token + chat id are set |
+| `TELEGRAM_BILLING_ALERT_COOLDOWN_SEC` | Per-provider cooldown (default `3600`) |
+
+### Bot setup
+
+1. Create bot via @BotFather → `/newbot`
+2. Add the bot to your ops Telegram group
+3. Set `TELEGRAM_CHAT_ID` to the group id (use `getUpdates` after sending a message in the group if needed)
+
+### Verify connection
+
+```bash
+cd apps/traffic-engine-backend
+# TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env or shell
+npm run telegram:test
+```
+
+Expect a test message in the group and `OK: message sent (message_id=...)` in the terminal.
+
+### Classifier unit check
+
+```bash
+npm run test:classifier
+```
+
+---
+
 **Handoff:** Point the frontend agent at this file + Swagger. Implement MVP screens in §9 first, then SEO dashboards in §9.13.

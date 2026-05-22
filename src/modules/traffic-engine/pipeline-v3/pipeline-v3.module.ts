@@ -4,6 +4,7 @@ import { BriefModule } from '../brief/brief.module';
 import { ConfigModule } from '../config/config.module';
 import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { PublishingModule } from '../publishing/publishing.module';
+import { ObservabilityModule } from '../observability/observability.module';
 import { SeoStrategyModule } from '../seo-strategy/seo-strategy.module';
 import { AnalysisService } from './analysis.service';
 import { GenerationService } from './generation.service';
@@ -20,6 +21,7 @@ import { TrafficEnginePipelineService } from './traffic-engine-pipeline.service'
     BriefModule,
     IntelligenceModule,
     SeoStrategyModule,
+    ObservabilityModule,
     forwardRef(() => PublishingModule),
   ],
   providers: [

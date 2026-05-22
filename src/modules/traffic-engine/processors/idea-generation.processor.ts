@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { IdeaGenerationService } from '../content-ideas/idea-generation/idea-generation.service';
+import { ErrorTrackerService } from '../observability/error-tracker.service';
 import { IdeaGenerationJobPayload } from '../content-ideas/services/content-ideas.service';
 import {
   TRAFFIC_ENGINE_IDEA_GENERATION_QUEUE,
@@ -13,7 +14,10 @@ import {
 export class IdeaGenerationProcessor extends WorkerHost {
   private readonly logger = new Logger(IdeaGenerationProcessor.name);
 
-  constructor(private readonly ideaGenerationService: IdeaGenerationService) {
+  constructor(
+    private readonly ideaGenerationService: IdeaGenerationService,
+    private readonly errorTracker: ErrorTrackerService,
+  ) {
     super();
   }
 
@@ -44,6 +48,11 @@ export class IdeaGenerationProcessor extends WorkerHost {
         subjectId,
         jobId: job.id,
         error: message,
+      });
+      this.errorTracker.track(error, {
+        subjectId,
+        step: 'idea_generation',
+        source: 'idea_generation',
       });
       throw error;
     }
