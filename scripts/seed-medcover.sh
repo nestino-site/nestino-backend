@@ -169,7 +169,7 @@ upsert_site_config() {
         generate: "gpt-4o",
         analyze: "gpt-4o",
         rewrite: "gpt-4o-mini",
-        image_generation: "dall-e-3",
+        image_generation: "imagen-3.0-generate-002",
         seo_check: "gpt-4o-mini",
         rules: {
           highPriority: "gpt-4o",

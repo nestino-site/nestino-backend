@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { KeywordIntent } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { AiExecutionService } from '../ai/execution/ai-execution.service';
 
 interface ImagenPredictResponse {
   predictions?: Array<{
@@ -9,12 +8,13 @@ interface ImagenPredictResponse {
   }>;
 }
 
+const DEFAULT_IMAGEN_MODEL = 'imagen-3.0-generate-002';
+
 @Injectable()
 export class ImageGenerationService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly aiExecution: AiExecutionService,
-  ) {}
+  private readonly logger = new Logger(ImageGenerationService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
 
   async generate(
     pageId: number,
@@ -24,25 +24,12 @@ export class ImageGenerationService {
     priority: number,
     intent: KeywordIntent,
   ): Promise<{ imagePrompt: string; generatedImageBase64: string | null }> {
-    const promptOutput = await this.aiExecution.execute({
-      step: 'image_generation',
-      siteId,
-      pageId,
-      priority,
-      intent,
-      runtimeContext: {
-        keyword,
-        finalContent,
-      },
-      maxOutputTokens: 300,
-    });
+    void siteId;
+    void priority;
+    void intent;
 
-    const imagePrompt = promptOutput.text.trim();
-    let generatedImageBase64: string | null = null;
-
-    if (imagePrompt) {
-      generatedImageBase64 = await this.generateWithImagen(imagePrompt);
-    }
+    const imagePrompt = this.buildImagenPrompt(keyword, finalContent);
+    const generatedImageBase64 = await this.generateWithImagen(imagePrompt);
 
     await this.prisma.page.update({
       where: { id: pageId },
@@ -55,15 +42,36 @@ export class ImageGenerationService {
     return { imagePrompt, generatedImageBase64 };
   }
 
+  /**
+   * Build the Imagen prompt locally — no OpenAI/Anthropic LLM hop.
+   * Imagen receives the prompt directly via Google Generative Language API.
+   */
+  private buildImagenPrompt(keyword: string, finalContent: string): string {
+    const context = finalContent.replace(/\s+/g, ' ').trim().slice(0, 1500);
+    return (
+      `Photorealistic editorial hero image for "${keyword}". ` +
+      `Professional quality, natural lighting, wide composition, no text overlay, no logos, no watermarks. ` +
+      `Article context: ${context}`
+    );
+  }
+
+  private imagenModel(): string {
+    return process.env.IMAGEN_MODEL?.trim() || DEFAULT_IMAGEN_MODEL;
+  }
+
   private async generateWithImagen(prompt: string): Promise<string | null> {
     const key = process.env.GOOGLE_AI_API_KEY;
     if (!key) {
       throw new Error('GOOGLE_AI_API_KEY is not configured');
     }
 
+    const model = this.imagenModel();
     const url =
-      'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict' +
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:predict` +
       `?key=${encodeURIComponent(key)}`;
+
+    this.logger.log({ msg: 'imagen_generate_start', model, promptLength: prompt.length });
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,6 +87,12 @@ export class ImageGenerationService {
 
     const data = (await res.json()) as ImagenPredictResponse;
     const base64 = data.predictions?.[0]?.bytesBase64Encoded;
-    return typeof base64 === 'string' && base64.length > 0 ? base64 : null;
+    if (typeof base64 !== 'string' || base64.length === 0) {
+      this.logger.warn({ msg: 'imagen_empty_response', model });
+      return null;
+    }
+
+    this.logger.log({ msg: 'imagen_generate_done', model, bytes: base64.length });
+    return base64;
   }
 }
