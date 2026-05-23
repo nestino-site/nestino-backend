@@ -17,6 +17,6 @@ import { ClinicWebhookController } from './clinic-webhook.controller';
     WebhookRetryScheduler,
   ],
   controllers: [ClinicWebhookController],
-  exports: [PublishService, WebhookDeliveryService],
+  exports: [PublishService, PageHeroCdnService, WebhookDeliveryService],
 })
 export class PublishingModule {}

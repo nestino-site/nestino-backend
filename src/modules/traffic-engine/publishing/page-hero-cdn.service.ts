@@ -13,6 +13,13 @@ function initCloudinary(): void {
   cloudinary.config();
 }
 
+export interface HeroCdnUploadResult {
+  pageId: number;
+  uploaded: boolean;
+  cdnUrl: string | null;
+  skippedReason: string | null;
+}
+
 @Injectable()
 export class PageHeroCdnService {
   private readonly logger = new Logger(PageHeroCdnService.name);
@@ -31,8 +38,22 @@ export class PageHeroCdnService {
    * persist generatedImageCdnUrl on the Page row.
    */
   async uploadHeroOnPublish(pageId: number): Promise<string | null> {
+    const result = await this.retryHeroUpload(pageId);
+    return result.cdnUrl;
+  }
+
+  /**
+   * Upload (or re-upload) the stored base64 hero to Cloudinary.
+   * Returns structured status for admin retry flows.
+   */
+  async retryHeroUpload(pageId: number): Promise<HeroCdnUploadResult> {
     if (!isCloudinaryConfigured()) {
-      return null;
+      return {
+        pageId,
+        uploaded: false,
+        cdnUrl: null,
+        skippedReason: 'cloudinary_not_configured',
+      };
     }
 
     const page = await this.prisma.page.findUnique({
@@ -41,7 +62,12 @@ export class PageHeroCdnService {
     });
 
     if (!page?.generatedImageBase64) {
-      return page?.generatedImageCdnUrl ?? null;
+      return {
+        pageId,
+        uploaded: false,
+        cdnUrl: page?.generatedImageCdnUrl ?? null,
+        skippedReason: 'no_base64_image',
+      };
     }
 
     try {
@@ -58,11 +84,16 @@ export class PageHeroCdnService {
       });
 
       this.logger.log({ msg: 'hero_cdn_uploaded', pageId, cdnUrl });
-      return cdnUrl;
+      return { pageId, uploaded: true, cdnUrl, skippedReason: null };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn({ msg: 'hero_cdn_upload_failed', pageId, error: message });
-      return null;
+      return {
+        pageId,
+        uploaded: false,
+        cdnUrl: null,
+        skippedReason: `upload_failed:${message}`,
+      };
     }
   }
 

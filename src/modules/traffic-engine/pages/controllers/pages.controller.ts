@@ -18,6 +18,7 @@ import {
   PipelineCheckpointService,
   PipelineStep,
 } from '../../pipeline-v3/pipeline-checkpoint.service';
+import { PageHeroCdnService } from '../../publishing/page-hero-cdn.service';
 import { PublishService } from '../../publishing/publish.service';
 import { AssignPageKeywordDto } from '../dto/assign-page-keyword.dto';
 import { CreatePageDto } from '../dto/create-page.dto';
@@ -34,6 +35,7 @@ export class PagesController {
     private readonly contentTasks: ContentTasksService,
     private readonly pipelineCheckpoint: PipelineCheckpointService,
     private readonly publishService: PublishService,
+    private readonly pageHeroCdn: PageHeroCdnService,
   ) {}
 
   @Post()
@@ -201,6 +203,35 @@ export class PagesController {
       checkpointLastStep: checkpoint.lastStep,
       skippedSteps,
     };
+  }
+
+  /**
+   * Upload (or re-upload) the stored base64 hero image to Cloudinary without republishing.
+   * Use when publish succeeded but CDN upload was skipped or failed.
+   */
+  @Post(':id/retry-hero-cdn')
+  async retryHeroCdn(@ParseIntParam('id') pageId: number) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      select: { id: true, status: true },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+
+    const result = await this.pageHeroCdn.retryHeroUpload(pageId);
+
+    if (result.skippedReason === 'no_base64_image') {
+      throw new UnprocessableEntityException(
+        'Page has no stored hero image — use retry-image-generation first',
+      );
+    }
+
+    if (result.uploaded && page.status === PageStatus.PUBLISHED) {
+      await this.publishService.triggerUpdateWebhook(pageId);
+    }
+
+    return result;
   }
 
   /**
