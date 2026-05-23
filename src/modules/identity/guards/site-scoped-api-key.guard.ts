@@ -8,6 +8,7 @@ import {
 import type { Request } from 'express';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SITE_API_KEY_HEADER, SITE_ID_HEADER } from '../identity.constants';
+import { SiteApiKeyAuthCacheService } from '../services/site-api-key-auth-cache.service';
 import { SiteApiKeyService } from '../services/site-api-key.service';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class SiteScopedApiKeyGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
     private readonly siteApiKeyService: SiteApiKeyService,
+    private readonly authCache: SiteApiKeyAuthCacheService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,6 +31,12 @@ export class SiteScopedApiKeyGuard implements CanActivate {
       throw new ForbiddenException('Missing X-Site-Id header or siteId query parameter');
     }
 
+    const cachedSiteId = await this.authCache.getScopedSiteId(apiKey, siteId);
+    if (cachedSiteId === siteId) {
+      req.siteId = siteId;
+      return true;
+    }
+
     const site = await this.prisma.site.findUnique({
       where: { id: siteId },
       select: { id: true, contentApiKeyHash: true },
@@ -37,11 +45,19 @@ export class SiteScopedApiKeyGuard implements CanActivate {
       throw new NotFoundException(`Site ${siteId} not found`);
     }
 
-    const valid = await this.siteApiKeyService.verify(apiKey, site.contentApiKeyHash);
-    if (!valid) {
+    const verification = await this.siteApiKeyService.verifyDetailed(apiKey, site.contentApiKeyHash);
+    if (!verification.valid) {
       throw new ForbiddenException('Invalid site API key');
     }
 
+    if (verification.upgradedHash) {
+      await this.prisma.site.update({
+        where: { id: siteId },
+        data: { contentApiKeyHash: verification.upgradedHash },
+      });
+    }
+
+    await this.authCache.setScopedSiteId(apiKey, siteId);
     req.siteId = site.id;
     return true;
   }

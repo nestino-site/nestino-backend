@@ -7,20 +7,56 @@ export interface GeneratedSiteApiKey {
   hash: string;
 }
 
+export interface SiteApiKeyVerifyResult {
+  valid: boolean;
+  /** When bcrypt verified successfully, caller should persist HMAC hash. */
+  upgradedHash?: string;
+}
+
 @Injectable()
 export class SiteApiKeyService {
   constructor(private readonly passwordService: PasswordService) {}
 
   async generateWithHash(): Promise<GeneratedSiteApiKey> {
     const plaintext = randomBytes(32).toString('base64url');
-    const hash = await this.passwordService.hash(plaintext);
-    return { plaintext, hash };
+    try {
+      const hash = this.passwordService.hmacSign(plaintext);
+      return { plaintext, hash };
+    } catch {
+      const hash = await this.passwordService.hash(plaintext);
+      return { plaintext, hash };
+    }
   }
 
   async verify(plaintext: string, hash: string | null | undefined): Promise<boolean> {
+    const result = await this.verifyDetailed(plaintext, hash);
+    return result.valid;
+  }
+
+  async verifyDetailed(
+    plaintext: string,
+    hash: string | null | undefined,
+  ): Promise<SiteApiKeyVerifyResult> {
     if (!plaintext || !hash) {
-      return false;
+      return { valid: false };
     }
-    return this.passwordService.compare(plaintext, hash);
+
+    if (this.passwordService.isHmacHash(hash)) {
+      return { valid: this.passwordService.hmacVerify(plaintext, hash) };
+    }
+
+    const valid = await this.passwordService.compare(plaintext, hash);
+    if (!valid) {
+      return { valid: false };
+    }
+
+    try {
+      return {
+        valid: true,
+        upgradedHash: this.passwordService.hmacSign(plaintext),
+      };
+    } catch {
+      return { valid: true };
+    }
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PageStatus } from '@prisma/client';
 import { PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { contentPageSelect } from './content-page.select';
 
 @Injectable()
 export class ContentStateManagerService {
@@ -10,13 +11,7 @@ export class ContentStateManagerService {
   async getState(pageId: number) {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
-      include: {
-        site: true,
-        aiGenerationLogs: {
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        },
-      },
+      select: contentPageSelect,
     });
     if (!page) {
       throw new NotFoundException(`Page ${pageId} not found`);
@@ -35,13 +30,7 @@ export class ContentStateManagerService {
     const normalized = slug.startsWith('/') ? slug : `/${slug}`;
     const page = await this.prisma.page.findFirst({
       where: { siteId, slug: normalized },
-      include: {
-        site: true,
-        aiGenerationLogs: {
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        },
-      },
+      select: contentPageSelect,
     });
     if (!page) {
       throw new NotFoundException(`Page with slug ${normalized} not found`);

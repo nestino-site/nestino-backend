@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PageStatus, PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { ContentCacheService } from '../content-api/content-cache.service';
+import { ContentRenderService } from '../content-api/content-render.service';
 import { PageHeroCdnService } from './page-hero-cdn.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 
@@ -28,6 +30,8 @@ export class PublishService {
     private readonly prisma: PrismaService,
     private readonly pageHeroCdn: PageHeroCdnService,
     private readonly webhookDelivery: WebhookDeliveryService,
+    private readonly contentCache: ContentCacheService,
+    private readonly contentRender: ContentRenderService,
   ) {}
 
   async publishPage(pageId: number): Promise<PublishResult> {
@@ -54,10 +58,19 @@ export class PublishService {
 
     await this.pageHeroCdn.uploadHeroOnPublish(pageId);
 
+    const rendered = this.contentRender.renderFromMarkdown(page.finalContent);
+    const renderedFields = this.contentRender.toJsonFields(rendered);
+
     await this.prisma.page.update({
       where: { id: pageId },
-      data: { status: PageStatus.PUBLISHED, publishedAt: new Date() },
+      data: {
+        status: PageStatus.PUBLISHED,
+        publishedAt: new Date(),
+        ...renderedFields,
+      },
     });
+
+    await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
 
     this.logger.log({ msg: 'page_published', pageId, siteId: page.siteId, slug: page.slug });
 
@@ -94,6 +107,8 @@ export class PublishService {
     if (!page?.site.publishWebhookUrl || page.status !== PageStatus.PUBLISHED) {
       return;
     }
+
+    await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
 
     await this.webhookDelivery.enqueue(
       page.siteId,

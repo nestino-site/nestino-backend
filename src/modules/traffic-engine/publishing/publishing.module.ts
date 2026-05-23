@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { ContentApiModule } from '../content-api/content-api.module';
 import { ContentTasksModule } from '../content-tasks/content-tasks.module';
 import { WebhookRetryProcessor } from '../processors/webhook-retry.processor';
 import { PageHeroCdnService } from './page-hero-cdn.service';
@@ -8,7 +9,7 @@ import { WebhookRetryScheduler } from './webhook-retry.scheduler';
 import { ClinicWebhookController } from './clinic-webhook.controller';
 
 @Module({
-  imports: [forwardRef(() => ContentTasksModule)],
+  imports: [forwardRef(() => ContentTasksModule), ContentApiModule],
   providers: [
     PublishService,
     PageHeroCdnService,

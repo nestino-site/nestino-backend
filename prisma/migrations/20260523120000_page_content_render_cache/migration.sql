@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "htmlContent" TEXT;
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "tableOfContents" JSONB;
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "faq" JSONB;

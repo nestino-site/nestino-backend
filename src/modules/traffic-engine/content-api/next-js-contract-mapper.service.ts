@@ -1,18 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Page, PipelineStatus, Site } from '@prisma/client';
+import { PipelineStatus } from '@prisma/client';
 import { HreflangService } from '../seo-strategy/hreflang.service';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
-import { MarkdownHtmlService } from './markdown-html.service';
-
-type PageWithDetails = Page & {
-  site: Site;
-  aiGenerationLogs: Array<{
-    model: string;
-    cost: unknown;
-    stepKey: string;
-    createdAt: Date;
-  }>;
-};
+import { ContentPageRecord } from './content-page.select';
+import { ContentRenderService } from './content-render.service';
 
 export interface BreadcrumbItem {
   name: string;
@@ -42,34 +33,37 @@ export interface HeroImage {
 export class NextJsContractMapperService {
   constructor(
     private readonly hreflang: HreflangService,
-    private readonly markdownHtml: MarkdownHtmlService,
+    private readonly contentRender: ContentRenderService,
   ) {}
 
-  async toContract(page: PageWithDetails) {
-    const [hreflangAlternates] = await Promise.all([
-      this.hreflang.getAlternatesForPage(page.id),
-    ]);
+  async toContract(page: ContentPageRecord) {
+    const hreflangAlternates = await this.hreflang.getAlternatesForPageData(page, page.site);
     const latestLog = page.aiGenerationLogs[0];
     const status = this.mapStatus(page.pipelineStatus);
     const totalCost = page.aiGenerationLogs.reduce((sum, log) => sum + Number(log.cost), 0);
 
     const finalContent = page.finalContent != null ? cleanMarkdownOutput(page.finalContent) : null;
-    const htmlContent = finalContent ? this.markdownHtml.toHtml(finalContent) : null;
+    const rendered =
+      page.htmlContent != null
+        ? {
+            htmlContent: page.htmlContent,
+            tableOfContents: this.parseToc(page.tableOfContents),
+            faq: this.parseFaq(page.faq),
+          }
+        : this.contentRender.renderFromMarkdown(finalContent);
+
     const base = this.normalizeDomain(page.site.domain);
     const canonical = this.buildUrl(base, page.slug);
     const heroImage = this.extractHeroImage(page);
-    const tableOfContents = finalContent ? this.buildToc(finalContent) : [];
-    const faq = finalContent ? this.extractFaq(finalContent) : [];
     const breadcrumbs = this.buildBreadcrumbs(page, page.site);
 
     return {
-      version: '2.1',
+      version: '2.2',
       status,
 
       // Core content
-      draft: page.rawDraft != null ? cleanMarkdownOutput(page.rawDraft) : null,
       finalContent,
-      htmlContent,
+      htmlContent: rendered.htmlContent,
       wordCount: page.wordCount,
       language: page.language,
       publishedAt: page.publishedAt?.toISOString() ?? null,
@@ -100,9 +94,9 @@ export class NextJsContractMapperService {
       },
 
       // Structural content
-      tableOfContents,
+      tableOfContents: rendered.tableOfContents,
       breadcrumbs,
-      faq,
+      faq: rendered.faq,
 
       // Image
       heroImage,
@@ -137,7 +131,34 @@ export class NextJsContractMapperService {
     };
   }
 
-  private extractHeroImage(page: PageWithDetails): HeroImage {
+  private parseToc(value: unknown): TocItem[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter(
+      (item): item is TocItem =>
+        typeof item === 'object' &&
+        item != null &&
+        typeof (item as TocItem).level === 'number' &&
+        typeof (item as TocItem).text === 'string' &&
+        typeof (item as TocItem).anchor === 'string',
+    );
+  }
+
+  private parseFaq(value: unknown): FaqItem[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter(
+      (item): item is FaqItem =>
+        typeof item === 'object' &&
+        item != null &&
+        typeof (item as FaqItem).question === 'string' &&
+        typeof (item as FaqItem).answer === 'string',
+    );
+  }
+
+  private extractHeroImage(page: ContentPageRecord): HeroImage {
     if (page.generatedImageCdnUrl) {
       return {
         url: page.generatedImageCdnUrl,
@@ -150,58 +171,12 @@ export class NextJsContractMapperService {
     return { url: null, alt: null, width: null, height: null };
   }
 
-  private buildToc(content: string): TocItem[] {
-    const lines = content.split('\n');
-    const items: TocItem[] = [];
-    let position = 0;
-    for (const line of lines) {
-      const h2 = line.match(/^##\s+(.+)$/);
-      const h3 = line.match(/^###\s+(.+)$/);
-      if (h2) {
-        items.push({
-          level: 2,
-          text: h2[1].trim(),
-          anchor: this.slugifyHeading(h2[1]),
-        });
-        position++;
-      } else if (h3) {
-        items.push({
-          level: 3,
-          text: h3[1].trim(),
-          anchor: this.slugifyHeading(h3[1]),
-        });
-        position++;
-      }
-      if (position >= 20) break;
-    }
-    return items;
-  }
-
-  private extractFaq(content: string): FaqItem[] {
-    const faqItems: FaqItem[] = [];
-    const faqSectionMatch = content.match(/##\s+(?:FAQ|Frequently Asked Questions)[^\n]*([\s\S]*?)(?=\n##|\s*$)/i);
-    if (!faqSectionMatch) return faqItems;
-
-    const section = faqSectionMatch[1];
-    const qBlocks = section.split(/\n###\s+/).filter(Boolean);
-    for (const block of qBlocks) {
-      const lines = block.trim().split('\n');
-      if (lines.length < 2) continue;
-      const question = lines[0].replace(/^\?+/, '').trim();
-      const answer = lines.slice(1).join('\n').trim();
-      if (question && answer) {
-        faqItems.push({ question, answer });
-      }
-      if (faqItems.length >= 8) break;
-    }
-    return faqItems;
-  }
-
-  private buildBreadcrumbs(page: PageWithDetails, site: Site): BreadcrumbItem[] {
+  private buildBreadcrumbs(
+    page: ContentPageRecord,
+    site: ContentPageRecord['site'],
+  ): BreadcrumbItem[] {
     const base = this.normalizeDomain(site.domain);
-    const crumbs: BreadcrumbItem[] = [
-      { name: 'Home', slug: base, position: 1 },
-    ];
+    const crumbs: BreadcrumbItem[] = [{ name: 'Home', slug: base, position: 1 }];
 
     const slugParts = page.slug.replace(/^\//, '').split('/');
     let accumulated = '';
@@ -219,14 +194,6 @@ export class NextJsContractMapperService {
 
   private prettySlugPart(part: string): string {
     return part.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  private slugifyHeading(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .slice(0, 60);
   }
 
   private normalizeDomain(domain: string): string {

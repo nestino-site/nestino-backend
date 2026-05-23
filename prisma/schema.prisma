@@ -250,6 +250,9 @@ model Page {
   outline              Json?
   rawDraft             String?               @db.Text
   finalContent         String?               @db.Text
+  htmlContent          String?               @db.Text
+  tableOfContents      Json?
+  faq                  Json?
   imagePrompt          String?               @db.Text
   generatedImageBase64 String?               @db.Text
   generatedImageCdnUrl String?

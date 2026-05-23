@@ -9,6 +9,7 @@ import { IdentityAuthService } from './services/identity-auth.service';
 import { IdentityBootstrapService } from './services/identity-bootstrap.service';
 import { IdentityJwtService } from './services/identity-jwt.service';
 import { PasswordService } from './services/password.service';
+import { SiteApiKeyAuthCacheService } from './services/site-api-key-auth-cache.service';
 import { SiteApiKeyService } from './services/site-api-key.service';
 
 @Global()
@@ -17,6 +18,7 @@ import { SiteApiKeyService } from './services/site-api-key.service';
   providers: [
     PasswordService,
     SiteApiKeyService,
+    SiteApiKeyAuthCacheService,
     IdentityJwtService,
     IdentityAuthService,
     IdentityBootstrapService,

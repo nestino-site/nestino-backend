@@ -1,10 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { PageStatus } from '@prisma/client';
+import { ContentLanguage, PageStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 export interface HreflangAlternate {
   hreflang: string;
   href: string;
+}
+
+export interface HreflangPageInput {
+  id: number;
+  siteId: number;
+  slug: string;
+  language: ContentLanguage | string;
+}
+
+export interface HreflangSiteInput {
+  domain: string;
 }
 
 @Injectable()
@@ -19,7 +30,13 @@ export class HreflangService {
     if (!page) {
       return [];
     }
+    return this.getAlternatesForPageData(page, page.site);
+  }
 
+  async getAlternatesForPageData(
+    page: HreflangPageInput,
+    site: HreflangSiteInput,
+  ): Promise<HreflangAlternate[]> {
     const siblings = await this.prisma.page.findMany({
       where: {
         siteId: page.siteId,
@@ -27,9 +44,10 @@ export class HreflangService {
         status: PageStatus.PUBLISHED,
         id: { not: page.id },
       },
+      select: { id: true, language: true, slug: true },
     });
 
-    const base = this.normalizeDomain(page.site.domain);
+    const base = this.normalizeDomain(site.domain);
     const alternates: HreflangAlternate[] = [
       {
         hreflang: this.languageToHreflang(page.language),
