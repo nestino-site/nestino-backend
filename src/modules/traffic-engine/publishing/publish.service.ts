@@ -19,6 +19,9 @@ export interface PublishResult {
   published: boolean;
   webhookFired: boolean;
   webhookStatus?: number;
+  webhookError?: string;
+  webhookQueuedForRetry?: boolean;
+  webhookSkippedReason?: 'no_webhook_url';
   skippedReason?: string;
 }
 
@@ -98,29 +101,49 @@ export class PublishService {
       slug: page.slug,
     });
 
-    let webhookFired = false;
-    let webhookStatus: number | undefined;
-
-    if (page.site.publishWebhookUrl) {
-      const result = await this.webhookDelivery.enqueue(
-        page.siteId,
-        pageId,
-        page.site.publishWebhookUrl,
-        page.site.publishWebhookSecret ?? '',
-        {
-          pageId,
-          slug: page.slug,
-          siteId: page.siteId,
-          language: page.language,
-          event: webhookEvent,
-          timestamp: Date.now(),
-        },
-      );
-      webhookFired = result.delivered;
-      webhookStatus = result.status;
+    const webhookUrl = page.site.publishWebhookUrl?.trim();
+    if (!webhookUrl) {
+      this.logger.warn({ msg: 'publish_webhook_skipped', pageId, reason: 'no_webhook_url' });
+      return {
+        published: true,
+        webhookFired: false,
+        webhookSkippedReason: 'no_webhook_url',
+      };
     }
 
-    return { published: true, webhookFired, webhookStatus };
+    const result = await this.webhookDelivery.enqueue(
+      page.siteId,
+      pageId,
+      webhookUrl,
+      page.site.publishWebhookSecret ?? '',
+      {
+        pageId,
+        slug: page.slug,
+        siteId: page.siteId,
+        language: page.language,
+        event: webhookEvent,
+        timestamp: Date.now(),
+      },
+    );
+
+    if (!result.delivered) {
+      this.logger.warn({
+        msg: 'publish_webhook_not_delivered',
+        pageId,
+        url: webhookUrl,
+        status: result.status,
+        error: result.error,
+        queuedForRetry: result.queuedForRetry,
+      });
+    }
+
+    return {
+      published: true,
+      webhookFired: result.delivered,
+      webhookStatus: result.status,
+      webhookError: result.error,
+      webhookQueuedForRetry: result.queuedForRetry,
+    };
   }
 
   async triggerUpdateWebhook(pageId: number): Promise<void> {

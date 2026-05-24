@@ -6,7 +6,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { PublishWebhookPayload } from './publish.service';
 
 const RETRY_BASE_MS = Number(process.env.WEBHOOK_RETRY_BASE_MS ?? 60_000);
-const TIMEOUT_MS = Number(process.env.PUBLISH_WEBHOOK_TIMEOUT_MS ?? 5000);
+const TIMEOUT_MS = Number(process.env.PUBLISH_WEBHOOK_TIMEOUT_MS ?? 15_000);
 
 @Injectable()
 export class WebhookDeliveryService {
@@ -24,7 +24,7 @@ export class WebhookDeliveryService {
     url: string,
     secret: string,
     payload: PublishWebhookPayload,
-  ): Promise<{ delivered: boolean; status?: number }> {
+  ): Promise<{ delivered: boolean; status?: number; error?: string; queuedForRetry?: boolean }> {
     const body = JSON.stringify(payload);
     const signature = this.buildSignature(secret, body);
 
@@ -56,7 +56,7 @@ export class WebhookDeliveryService {
       lastStatus: result.status,
     });
 
-    return result;
+    return { ...result, queuedForRetry: true };
   }
 
   async processPendingBatch(limit = 20): Promise<number> {

@@ -317,6 +317,9 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
   "published": true,
   "webhookFired": true,
   "webhookStatus": 200,
+  "webhookError": "optional — e.g. HTTP 401 or timeout message when webhookFired is false",
+  "webhookQueuedForRetry": false,
+  "webhookSkippedReason": "optional: no_webhook_url — site has no publishWebhookUrl configured",
   "skippedReason": "optional: pipeline_not_ready:GENERATING | missing_final_content | page_not_found"
 }
 ```
