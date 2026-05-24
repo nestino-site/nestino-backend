@@ -22,6 +22,7 @@ export interface PublishResult {
   webhookError?: string;
   webhookQueuedForRetry?: boolean;
   webhookSkippedReason?: 'no_webhook_url';
+  webhookUrl?: string;
   skippedReason?: string;
 }
 
@@ -143,6 +144,7 @@ export class PublishService {
       webhookStatus: result.status,
       webhookError: result.error,
       webhookQueuedForRetry: result.queuedForRetry,
+      ...(result.delivered ? {} : { webhookUrl }),
     };
   }
 

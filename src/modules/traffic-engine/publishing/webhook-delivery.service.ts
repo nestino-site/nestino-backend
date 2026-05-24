@@ -153,8 +153,16 @@ export class WebhookDeliveryService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn({ msg: 'publish_webhook_failed', url, error: message, pageId: payload.pageId });
-      return { delivered: false, error: message };
+      const cause =
+        error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined;
+      const detail = cause && !message.includes(cause) ? `${message} (${cause})` : message;
+      this.logger.warn({
+        msg: 'publish_webhook_failed',
+        url,
+        error: detail,
+        pageId: payload.pageId,
+      });
+      return { delivered: false, error: detail };
     }
   }
 }
