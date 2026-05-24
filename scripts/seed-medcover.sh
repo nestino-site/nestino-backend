@@ -12,6 +12,7 @@ AI_BUDGET_LIMIT="${AI_BUDGET_LIMIT:-500}"
 QUALITY_THRESHOLD="${QUALITY_THRESHOLD:-75}"
 UPSERT_EXISTING="${UPSERT_EXISTING:-true}"
 SKIP_SITE_CONFIG_ON_ERROR="${SKIP_SITE_CONFIG_ON_ERROR:-false}"
+SKIP_KEY_ROTATION="${SKIP_KEY_ROTATION:-false}"
 
 if [[ -z "${BASE_URL}" ]]; then
   echo "Usage: BASE_URL=https://your-traffic-engine.railway.app ADMIN_PASSWORD=... $0" >&2
@@ -583,10 +584,45 @@ create_subjects() {
 
   SUBJECT_SPAIN_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
     "Spain Country Guide" \
-    "Country hub for IVF in Spain with MedCover Truth Score, costs, clinics, legal context, and patient interview data." \
+    "Country hub for IVF in Spain with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Top-rated egg donation destination." \
     '["ivf spain","ivf in spain cost"]' \
     '["ivf clinics spain","egg donation spain","ivf abroad spain","spain fertility treatment"]' \
     COMMERCIAL Spain "" "Rank for Spain IVF destination searches and become the parent hub for Spain pages." MEDICAL 12)")"
+
+  SUBJECT_GREECE_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
+    "Greece Country Guide" \
+    "Country hub for IVF in Greece with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Mediterranean care destination." \
+    '["ivf greece","ivf in greece cost"]' \
+    '["ivf clinics greece","egg donation greece","ivf abroad greece","athens ivf"]' \
+    COMMERCIAL Greece "" "Rank for Greece IVF destination searches and become the parent hub for Greece pages." MEDICAL 12)")"
+
+  SUBJECT_CZECH_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
+    "Czech Republic Country Guide" \
+    "Country hub for IVF in Czech Republic with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Affordable and experienced destination." \
+    '["ivf czech republic","ivf in czech republic cost"]' \
+    '["ivf clinics prague","egg donation czech republic","ivf abroad czech republic","prague ivf"]' \
+    COMMERCIAL "Czech Republic" "" "Rank for Czech Republic IVF destination searches and become the parent hub for Czech pages." MEDICAL 12)")"
+
+  SUBJECT_TURKEY_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
+    "Turkey Country Guide" \
+    "Country hub for IVF in Turkey with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Growing success rates destination." \
+    '["ivf turkey","ivf in turkey cost"]' \
+    '["ivf clinics istanbul","egg donation turkey","ivf abroad turkey","istanbul ivf"]' \
+    COMMERCIAL Turkey "" "Rank for Turkey IVF destination searches and become the parent hub for Turkey pages." MEDICAL 12)")"
+
+  SUBJECT_PORTUGAL_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
+    "Portugal Country Guide" \
+    "Country hub for IVF in Portugal with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Atlantic coast option destination." \
+    '["ivf portugal","ivf in portugal cost"]' \
+    '["ivf clinics lisbon","egg donation portugal","ivf abroad portugal","lisbon ivf"]' \
+    COMMERCIAL Portugal "" "Rank for Portugal IVF destination searches and become the parent hub for Portugal pages." MEDICAL 12)")"
+
+  SUBJECT_NORTH_MACEDONIA_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A_ID}" \
+    "North Macedonia Country Guide" \
+    "Country hub for IVF in North Macedonia with MedCover Truth Score, costs, clinics, legal context, and patient interview data. Budget-friendly destination." \
+    '["ivf north macedonia","ivf in north macedonia cost"]' \
+    '["ivf clinics skopje","fertility clinic north macedonia","ivf abroad north macedonia","skopje ivf"]' \
+    COMMERCIAL "North Macedonia" "" "Rank for North Macedonia IVF destination searches and become the parent hub for North Macedonia pages." MEDICAL 12)")"
 
   SUBJECT_BARCELONA_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
     "Barcelona City Guide" \
@@ -669,7 +705,12 @@ main() {
   patch_ai_pipeline "${SITE_ID}"
   create_templates
   create_subjects "${SITE_ID}"
-  CONTENT_API_KEY="$(rotate_content_api_key "${SITE_ID}")"
+  if [[ "${SKIP_KEY_ROTATION}" == "true" ]]; then
+    log "Skipping content API key rotation (SKIP_KEY_ROTATION=true)"
+    CONTENT_API_KEY="(unchanged — rotation skipped)"
+  else
+    CONTENT_API_KEY="$(rotate_content_api_key "${SITE_ID}")"
+  fi
 
   cat <<SUMMARY
 
@@ -694,6 +735,11 @@ Templates:
 
 Subjects:
   Spain Country Guide=${SUBJECT_SPAIN_ID}
+  Greece Country Guide=${SUBJECT_GREECE_ID}
+  Czech Republic Country Guide=${SUBJECT_CZECH_ID}
+  Turkey Country Guide=${SUBJECT_TURKEY_ID}
+  Portugal Country Guide=${SUBJECT_PORTUGAL_ID}
+  North Macedonia Country Guide=${SUBJECT_NORTH_MACEDONIA_ID}
   Barcelona City Guide=${SUBJECT_BARCELONA_ID}
   Madrid City Guide=${SUBJECT_MADRID_ID}
   Spain IVF Cost 2026=${SUBJECT_COST_ID}

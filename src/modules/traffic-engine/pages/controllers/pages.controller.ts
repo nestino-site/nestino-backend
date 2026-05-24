@@ -235,8 +235,8 @@ export class PagesController {
   }
 
   /**
-   * Manually publish a page (or retry a failed webhook).
-   * Works for both autoPublish=true sites (retry) and autoPublish=false sites (manual review flow).
+   * Publish a page, re-publish after edits, or retry a failed webhook.
+   * Already-published pages are re-rendered and the frontend receives a page.updated webhook.
    */
   @Post(':id/publish')
   async publishPage(@ParseIntParam('id') pageId: number) {

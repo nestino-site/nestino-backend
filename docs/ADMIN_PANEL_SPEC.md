@@ -317,7 +317,7 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
   "published": true,
   "webhookFired": true,
   "webhookStatus": 200,
-  "skippedReason": "optional: already_published | pipeline_not_ready:GENERATING | page_not_found"
+  "skippedReason": "optional: pipeline_not_ready:GENERATING | missing_final_content | page_not_found"
 }
 ```
 

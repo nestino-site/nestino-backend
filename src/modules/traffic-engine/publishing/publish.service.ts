@@ -44,15 +44,31 @@ export class PublishService {
       return { published: false, webhookFired: false, skippedReason: 'page_not_found' };
     }
 
-    if (page.status === PageStatus.PUBLISHED) {
-      return { published: false, webhookFired: false, skippedReason: 'already_published' };
+    const isRepublish = page.status === PageStatus.PUBLISHED;
+    const hasPublishableContent = Boolean(page.finalContent?.trim());
+
+    if (!isRepublish && page.pipelineStatus !== PipelineStatus.READY) {
+      const canPublishPartial =
+        page.pipelineStatus === PipelineStatus.PARTIALLY_COMPLETED && hasPublishableContent;
+      if (!canPublishPartial) {
+        return {
+          published: false,
+          webhookFired: false,
+          skippedReason: `pipeline_not_ready:${page.pipelineStatus}`,
+        };
+      }
+      this.logger.warn({
+        msg: 'publish_with_partial_pipeline',
+        pageId,
+        pipelineStatus: page.pipelineStatus,
+      });
     }
 
-    if (page.pipelineStatus !== PipelineStatus.READY) {
+    if (!hasPublishableContent) {
       return {
         published: false,
         webhookFired: false,
-        skippedReason: `pipeline_not_ready:${page.pipelineStatus}`,
+        skippedReason: 'missing_final_content',
       };
     }
 
@@ -72,7 +88,15 @@ export class PublishService {
 
     await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
 
-    this.logger.log({ msg: 'page_published', pageId, siteId: page.siteId, slug: page.slug });
+    const webhookEvent: PublishWebhookPayload['event'] = isRepublish
+      ? 'page.updated'
+      : 'page.published';
+    this.logger.log({
+      msg: isRepublish ? 'page_republished' : 'page_published',
+      pageId,
+      siteId: page.siteId,
+      slug: page.slug,
+    });
 
     let webhookFired = false;
     let webhookStatus: number | undefined;
@@ -88,7 +112,7 @@ export class PublishService {
           slug: page.slug,
           siteId: page.siteId,
           language: page.language,
-          event: 'page.published',
+          event: webhookEvent,
           timestamp: Date.now(),
         },
       );
