@@ -23,6 +23,7 @@ export interface PublishResult {
   webhookQueuedForRetry?: boolean;
   webhookSkippedReason?: 'no_webhook_url';
   webhookUrl?: string;
+  configuredWebhookUrl?: string;
   skippedReason?: string;
 }
 
@@ -112,6 +113,16 @@ export class PublishService {
       };
     }
 
+    const hasWebhookSecret = Boolean(page.site.publishWebhookSecret?.trim());
+    if (!hasWebhookSecret) {
+      this.logger.warn({
+        msg: 'publish_webhook_missing_secret',
+        pageId,
+        siteId: page.siteId,
+        url: webhookUrl,
+      });
+    }
+
     const result = await this.webhookDelivery.enqueue(
       page.siteId,
       pageId,
@@ -131,7 +142,12 @@ export class PublishService {
       this.logger.warn({
         msg: 'publish_webhook_not_delivered',
         pageId,
-        url: webhookUrl,
+        siteId: page.siteId,
+        slug: page.slug,
+        event: webhookEvent,
+        configuredUrl: webhookUrl,
+        deliveryUrl: result.deliveryUrl,
+        attemptUrls: result.attemptUrls,
         status: result.status,
         error: result.error,
         queuedForRetry: result.queuedForRetry,
@@ -144,7 +160,9 @@ export class PublishService {
       webhookStatus: result.status,
       webhookError: result.error,
       webhookQueuedForRetry: result.queuedForRetry,
-      ...(result.delivered ? {} : { webhookUrl }),
+      ...(result.delivered
+        ? {}
+        : { webhookUrl: result.deliveryUrl ?? webhookUrl, configuredWebhookUrl: webhookUrl }),
     };
   }
 

@@ -4,9 +4,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WebhookDeliveryStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { PublishWebhookPayload } from './publish.service';
+import { formatFetchError, resolveWebhookDeliveryUrl } from './webhook-url.util';
 
 const RETRY_BASE_MS = Number(process.env.WEBHOOK_RETRY_BASE_MS ?? 60_000);
 const TIMEOUT_MS = Number(process.env.PUBLISH_WEBHOOK_TIMEOUT_MS ?? 15_000);
+
+export interface WebhookDeliveryAttemptResult {
+  delivered: boolean;
+  status?: number;
+  error?: string;
+  queuedForRetry?: boolean;
+  deliveryUrl?: string;
+  configuredUrl?: string;
+  attemptUrls?: string[];
+}
 
 @Injectable()
 export class WebhookDeliveryService {
@@ -24,11 +35,11 @@ export class WebhookDeliveryService {
     url: string,
     secret: string,
     payload: PublishWebhookPayload,
-  ): Promise<{ delivered: boolean; status?: number; error?: string; queuedForRetry?: boolean }> {
+  ): Promise<WebhookDeliveryAttemptResult> {
     const body = JSON.stringify(payload);
     const signature = this.buildSignature(secret, body);
 
-    const result = await this.attemptDelivery(url, body, signature, payload);
+    const result = await this.attemptDelivery(url, body, signature, payload, secret.length > 0);
 
     if (result.delivered) {
       return result;
@@ -52,8 +63,11 @@ export class WebhookDeliveryService {
     this.logger.warn({
       msg: 'webhook_queued_for_retry',
       pageId,
-      url,
+      configuredUrl: url,
+      deliveryUrl: result.deliveryUrl,
+      attemptUrls: result.attemptUrls,
       lastStatus: result.status,
+      error: result.error,
     });
 
     return { ...result, queuedForRetry: true };
@@ -70,14 +84,19 @@ export class WebhookDeliveryService {
       orderBy: { nextRetryAt: 'asc' },
     });
 
-    // Prisma doesn't support field comparison in where easily — filter in app
     const eligible = pending.filter((d) => d.attempts < d.maxAttempts);
     let processed = 0;
 
     for (const delivery of eligible) {
       const payload = delivery.payload as unknown as PublishWebhookPayload;
       const body = JSON.stringify(payload);
-      const result = await this.attemptDelivery(delivery.url, body, delivery.signature, payload);
+      const result = await this.attemptDelivery(
+        delivery.url,
+        body,
+        delivery.signature,
+        payload,
+        delivery.signature.length > 0,
+      );
 
       if (result.delivered) {
         await this.prisma.webhookDelivery.update({
@@ -114,11 +133,68 @@ export class WebhookDeliveryService {
   }
 
   private async attemptDelivery(
+    configuredUrl: string,
+    body: string,
+    signature: string,
+    payload: PublishWebhookPayload,
+    hasSecret: boolean,
+  ): Promise<WebhookDeliveryAttemptResult> {
+    const { primaryUrl, fallbackUrls, normalizedFrom } = resolveWebhookDeliveryUrl(configuredUrl);
+    const attemptUrls = [primaryUrl, ...fallbackUrls.filter((u) => u !== primaryUrl)];
+
+    this.logger.log({
+      msg: 'publish_webhook_attempt',
+      pageId: payload.pageId,
+      siteId: payload.siteId,
+      event: payload.event,
+      slug: payload.slug,
+      configuredUrl,
+      normalizedFrom: normalizedFrom !== primaryUrl ? { from: normalizedFrom, to: primaryUrl } : undefined,
+      attemptUrls,
+      hasSecret,
+      timeoutMs: TIMEOUT_MS,
+    });
+
+    let lastResult: WebhookDeliveryAttemptResult = {
+      delivered: false,
+      configuredUrl,
+      attemptUrls,
+    };
+
+    for (const deliveryUrl of attemptUrls) {
+      const result = await this.postWebhook(deliveryUrl, body, signature, payload);
+      lastResult = {
+        ...result,
+        deliveryUrl,
+        configuredUrl,
+        attemptUrls,
+      };
+
+      if (result.delivered) {
+        return lastResult;
+      }
+
+      this.logger.warn({
+        msg: 'publish_webhook_attempt_failed',
+        pageId: payload.pageId,
+        deliveryUrl,
+        status: result.status,
+        error: result.error,
+        willTryFallback: deliveryUrl !== attemptUrls[attemptUrls.length - 1],
+      });
+    }
+
+    return lastResult;
+  }
+
+  private async postWebhook(
     url: string,
     body: string,
     signature: string,
     payload: PublishWebhookPayload,
   ): Promise<{ delivered: boolean; status?: number; error?: string }> {
+    const startedAt = Date.now();
+
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -129,40 +205,72 @@ export class WebhookDeliveryService {
           'Content-Type': 'application/json',
           'X-Publish-Signature': signature,
           'X-Publish-Timestamp': String(payload.timestamp),
+          'User-Agent': 'Nestino-TrafficEngine-Webhook/1.0',
         },
         body,
+        redirect: 'follow',
         signal: controller.signal,
       });
 
       clearTimeout(timer);
 
+      const durationMs = Date.now() - startedAt;
+      const responseUrl = response.url;
+      let responseSnippet: string | undefined;
+
+      if (!response.ok) {
+        try {
+          responseSnippet = (await response.text()).slice(0, 200);
+        } catch {
+          responseSnippet = undefined;
+        }
+      }
+
       if (response.ok) {
         this.logger.log({
           msg: 'publish_webhook_sent',
           url,
+          responseUrl: responseUrl !== url ? responseUrl : undefined,
           status: response.status,
+          durationMs,
           pageId: payload.pageId,
+          event: payload.event,
         });
         return { delivered: true, status: response.status };
       }
 
+      this.logger.warn({
+        msg: 'publish_webhook_http_error',
+        url,
+        responseUrl: responseUrl !== url ? responseUrl : undefined,
+        status: response.status,
+        durationMs,
+        pageId: payload.pageId,
+        responseSnippet,
+      });
+
       return {
         delivered: false,
         status: response.status,
-        error: `HTTP ${response.status}`,
+        error: `HTTP ${response.status}${responseSnippet ? `: ${responseSnippet}` : ''}`,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const cause =
-        error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined;
-      const detail = cause && !message.includes(cause) ? `${message} (${cause})` : message;
+      const durationMs = Date.now() - startedAt;
+      const formatted = formatFetchError(error);
+
       this.logger.warn({
         msg: 'publish_webhook_failed',
         url,
-        error: detail,
         pageId: payload.pageId,
+        event: payload.event,
+        durationMs,
+        error: formatted.message,
+        causeCode: formatted.causeCode,
+        causeMessage: formatted.causeMessage,
+        aborted: formatted.aborted,
       });
-      return { delivered: false, error: detail };
+
+      return { delivered: false, error: formatted.message };
     }
   }
 }
