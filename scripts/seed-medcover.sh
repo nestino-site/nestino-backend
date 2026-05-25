@@ -195,7 +195,7 @@ upsert_site_config() {
       runtimeConfig: {
         enableAnalysis: true,
         enableRewrite: true,
-        enableImageGeneration: false,
+        enableImageGeneration: true,
         enableSeoCheck: true,
         maxRetries: 3
       }
