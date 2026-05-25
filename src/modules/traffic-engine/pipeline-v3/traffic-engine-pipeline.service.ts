@@ -22,7 +22,16 @@ import { GeoScoreResult, GeoScoringService } from '../seo-strategy/geo-scoring.s
 import { SchemaMarkupService } from '../seo-strategy/schema-markup.service';
 import { OriginalityCheckerService } from '../intelligence/originality-checker.service';
 import { ErrorTrackerService } from '../observability/error-tracker.service';
-import { ensureKeywordInH1, h1ContainsKeyword } from './seo-gate.utils';
+import {
+  clampMetaDescription,
+  clampMetaTitle,
+  ensureKeywordInH1,
+  h1ContainsKeyword,
+  META_DESC_MAX,
+  META_DESC_MIN,
+  META_TITLE_MAX,
+  META_TITLE_MIN,
+} from './seo-gate.utils';
 
 /** Merge `contentTask.payload` (POST body) with site context for v3 generate prompts. */
 function mergeContentTaskRuntimeContext(
@@ -345,18 +354,47 @@ export class TrafficEnginePipelineService {
             seoViolations.push('keyword_not_in_h1');
           }
         }
-        // Meta title/description length checks
-        const pageForGate = await this.prisma.page.findUnique({
+        // Meta title/description length checks (auto-clamp before gate, like H1 fix)
+        let pageForGate = await this.prisma.page.findUnique({
           where: { id: pageId },
           select: { metaTitle: true, metaDescription: true },
         });
+        if (pageForGate) {
+          const metaUpdates: { metaTitle?: string; metaDescription?: string } = {};
+          if (pageForGate.metaTitle) {
+            const clampedTitle = clampMetaTitle(pageForGate.metaTitle);
+            if (clampedTitle !== pageForGate.metaTitle) {
+              metaUpdates.metaTitle = clampedTitle;
+            }
+          }
+          if (pageForGate.metaDescription) {
+            const clampedDesc = clampMetaDescription(pageForGate.metaDescription);
+            if (clampedDesc !== pageForGate.metaDescription) {
+              metaUpdates.metaDescription = clampedDesc;
+            }
+          }
+          if (Object.keys(metaUpdates).length > 0) {
+            await this.prisma.page.update({ where: { id: pageId }, data: metaUpdates });
+            pageForGate = { ...pageForGate, ...metaUpdates };
+            this.logger.log({
+              msg: 'seo_gate_meta_auto_fixed',
+              pageId,
+              metaTitleLength: pageForGate.metaTitle?.length,
+              metaDescriptionLength: pageForGate.metaDescription?.length,
+            });
+          }
+        }
         if (pageForGate?.metaTitle) {
           const mtLen = pageForGate.metaTitle.length;
-          if (mtLen < 30 || mtLen > 65) seoViolations.push(`meta_title_length:${mtLen}`);
+          if (mtLen < META_TITLE_MIN || mtLen > META_TITLE_MAX) {
+            seoViolations.push(`meta_title_length:${mtLen}`);
+          }
         }
         if (pageForGate?.metaDescription) {
           const mdLen = pageForGate.metaDescription.length;
-          if (mdLen < 80 || mdLen > 165) seoViolations.push(`meta_desc_length:${mdLen}`);
+          if (mdLen < META_DESC_MIN || mdLen > META_DESC_MAX) {
+            seoViolations.push(`meta_desc_length:${mdLen}`);
+          }
         }
         if (seoViolations.length > 0) {
           throw new Error(`SEO_GATE_FAILED:${seoViolations.join(',')}`);
@@ -638,7 +676,7 @@ export class TrafficEnginePipelineService {
       await this.prisma.page.update({
         where: { id: pageId },
         data: {
-          ...(newTitle ? { title: newTitle, metaTitle: newTitle.slice(0, 60) } : {}),
+          ...(newTitle ? { title: newTitle, metaTitle: clampMetaTitle(newTitle) } : {}),
           pipelineStatus: PipelineStatus.READY,
         },
       });

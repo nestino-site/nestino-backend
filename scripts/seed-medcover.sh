@@ -638,6 +638,76 @@ create_subjects() {
     '["egg donation madrid","ivf clinic madrid","madrid ivf cost","ivf spain madrid"]' \
     COMMERCIAL Spain Madrid "Capture city-level Madrid IVF intent and link to clinic profiles." MEDICAL 8)")"
 
+  SUBJECT_VALENCIA_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Valencia City Guide" \
+    "City guide for IVF in Valencia with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf valencia","fertility clinic valencia"]' \
+    '["egg donation valencia","ivf clinic valencia","valencia ivf cost","ivf spain valencia"]' \
+    COMMERCIAL Spain Valencia "Capture city-level Valencia IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_ATHENS_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Athens City Guide" \
+    "City guide for IVF in Athens with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf athens","fertility clinic athens"]' \
+    '["egg donation athens","ivf clinic athens","athens ivf cost","ivf greece athens"]' \
+    COMMERCIAL Greece Athens "Capture city-level Athens IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_THESSALONIKI_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Thessaloniki City Guide" \
+    "City guide for IVF in Thessaloniki with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf thessaloniki","fertility clinic thessaloniki"]' \
+    '["ivf clinic thessaloniki","thessaloniki ivf cost","ivf greece thessaloniki"]' \
+    COMMERCIAL Greece Thessaloniki "Capture city-level Thessaloniki IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_PRAGUE_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Prague City Guide" \
+    "City guide for IVF in Prague with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf prague","fertility clinic prague"]' \
+    '["egg donation prague","ivf clinic prague","prague ivf cost","ivf czech republic prague"]' \
+    COMMERCIAL "Czech Republic" Prague "Capture city-level Prague IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_BRNO_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Brno City Guide" \
+    "City guide for IVF in Brno with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf brno","fertility clinic brno"]' \
+    '["ivf clinic brno","brno ivf cost","ivf czech republic brno"]' \
+    COMMERCIAL "Czech Republic" Brno "Capture city-level Brno IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_ISTANBUL_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Istanbul City Guide" \
+    "City guide for IVF in Istanbul with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf istanbul","fertility clinic istanbul"]' \
+    '["egg donation istanbul","ivf clinic istanbul","istanbul ivf cost","ivf turkey istanbul"]' \
+    COMMERCIAL Turkey Istanbul "Capture city-level Istanbul IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_ANKARA_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Ankara City Guide" \
+    "City guide for IVF in Ankara with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf ankara","fertility clinic ankara"]' \
+    '["ivf clinic ankara","ankara ivf cost","ivf turkey ankara"]' \
+    COMMERCIAL Turkey Ankara "Capture city-level Ankara IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_LISBON_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Lisbon City Guide" \
+    "City guide for IVF in Lisbon with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf lisbon","fertility clinic lisbon"]' \
+    '["egg donation lisbon","ivf clinic lisbon","lisbon ivf cost","ivf portugal lisbon"]' \
+    COMMERCIAL Portugal Lisbon "Capture city-level Lisbon IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_PORTO_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Porto City Guide" \
+    "City guide for IVF in Porto with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf porto","fertility clinic porto"]' \
+    '["ivf clinic porto","porto ivf cost","ivf portugal porto"]' \
+    COMMERCIAL Portugal Porto "Capture city-level Porto IVF intent and link to clinic profiles." MEDICAL 8)")"
+
+  SUBJECT_SKOPJE_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_A2_ID}" \
+    "Skopje City Guide" \
+    "City guide for IVF in Skopje with tracked clinics, logistics, costs, and patient insights." \
+    '["ivf skopje","fertility clinic skopje"]' \
+    '["ivf clinic skopje","skopje ivf cost","ivf north macedonia skopje"]' \
+    COMMERCIAL "North Macedonia" Skopje "Capture city-level Skopje IVF intent and link to clinic profiles." MEDICAL 8)")"
+
   SUBJECT_COST_ID="$(upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_D_ID}" \
     "Spain IVF Cost 2026" \
     "Cost transparency page for Spain IVF costs, add-ons, travel, hidden fees, and all-in scenarios for 2026." \
@@ -742,6 +812,16 @@ Subjects:
   North Macedonia Country Guide=${SUBJECT_NORTH_MACEDONIA_ID}
   Barcelona City Guide=${SUBJECT_BARCELONA_ID}
   Madrid City Guide=${SUBJECT_MADRID_ID}
+  Valencia City Guide=${SUBJECT_VALENCIA_ID}
+  Athens City Guide=${SUBJECT_ATHENS_ID}
+  Thessaloniki City Guide=${SUBJECT_THESSALONIKI_ID}
+  Prague City Guide=${SUBJECT_PRAGUE_ID}
+  Brno City Guide=${SUBJECT_BRNO_ID}
+  Istanbul City Guide=${SUBJECT_ISTANBUL_ID}
+  Ankara City Guide=${SUBJECT_ANKARA_ID}
+  Lisbon City Guide=${SUBJECT_LISBON_ID}
+  Porto City Guide=${SUBJECT_PORTO_ID}
+  Skopje City Guide=${SUBJECT_SKOPJE_ID}
   Spain IVF Cost 2026=${SUBJECT_COST_ID}
   Spain vs USA IVF Comparison=${SUBJECT_COMPARE_ID}
   IVF Treatment Entity=${SUBJECT_IVF_ID}

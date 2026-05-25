@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {
+  clampMetaDescription,
+  clampMetaTitle,
   collectDeterministicSeoIssues,
   ensureKeywordInH1,
   extractH1Text,
@@ -34,6 +36,18 @@ function run(): void {
     metaDescription: 'Too short',
   });
   assert.ok(descIssues.some((i) => i.includes('Meta description length')));
+
+  const longTitle =
+    'IVF in Barcelona 2026 — Clinics, Real Costs & Verified Data | MedCover';
+  assert.equal(longTitle.length, 70);
+  const clampedTitle = clampMetaTitle(longTitle);
+  assert.ok(clampedTitle.length >= 30 && clampedTitle.length <= 65);
+  assert.ok(!clampedTitle.includes('| MedCover'));
+
+  const longDesc = `${'word '.repeat(50)}`.trim();
+  assert.ok(longDesc.length > 165);
+  const clampedDesc = clampMetaDescription(longDesc);
+  assert.ok(clampedDesc.length >= 80 && clampedDesc.length <= 165);
 
   console.log('seo-gate.utils.spec: all assertions passed');
 }
