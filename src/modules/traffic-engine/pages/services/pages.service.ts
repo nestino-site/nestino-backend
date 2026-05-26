@@ -4,6 +4,7 @@ import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { CreatePageDto } from '../dto/create-page.dto';
 import { UpdatePageDto } from '../dto/update-page.dto';
+import { PageListItem, pageListSelect } from '../page-list.select';
 
 @Injectable()
 export class PagesService {
@@ -29,14 +30,26 @@ export class PagesService {
     }
   }
 
-  async findBySite(siteId: number, status?: PageStatus, language?: ContentLanguage): Promise<Page[]> {
+  async findBySite(
+    siteId: number,
+    status?: PageStatus,
+    language?: ContentLanguage,
+    page = 1,
+    limit = 50,
+  ): Promise<PageListItem[]> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 200);
+
     return this.prisma.page.findMany({
       where: {
         siteId,
         ...(status ? { status } : {}),
         ...(language ? { language } : {}),
       },
+      select: pageListSelect,
       orderBy: { createdAt: 'desc' },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     });
   }
 

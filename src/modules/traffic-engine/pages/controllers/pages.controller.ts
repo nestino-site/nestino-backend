@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Patch,
@@ -247,10 +248,12 @@ export class PagesController {
   @Get()
   findBySite(
     @Query('siteId', ParseIntPipe) siteId: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('status') status?: PageStatus,
     @Query('language') language?: ContentLanguage,
   ) {
-    return this.pagesService.findBySite(siteId, status, language);
+    return this.pagesService.findBySite(siteId, status, language, page, limit);
   }
 
   @Get(':id')

@@ -1,7 +1,9 @@
-import { Controller, Get, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, NotFoundException, Req, Res } from '@nestjs/common';
 import { PageStatus, PipelineStatus } from '@prisma/client';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import sharp from 'sharp';
 import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
+import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { SiteApiKey } from '../../../identity/decorators/site-api-key.decorator';
 import { SiteScopedApiKey } from '../../../identity/decorators/site-scoped-api-key.decorator';
 import { ContentCacheService } from '../content-cache.service';
@@ -16,6 +18,7 @@ export class ContentApiController {
     private readonly stateManager: ContentStateManagerService,
     private readonly mapper: NextJsContractMapperService,
     private readonly contentCache: ContentCacheService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get('pages')
@@ -75,6 +78,42 @@ export class ContentApiController {
     }
 
     return response;
+  }
+
+  @Get(':pageId/hero-image')
+  @SiteApiKey()
+  async getHeroImage(
+    @ParseIntParam('pageId') pageId: number,
+    @Res({ passthrough: false }) res: Response,
+  ) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      select: {
+        generatedImageCdnUrl: true,
+        generatedImageBase64: true,
+      },
+    });
+
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+
+    if (page.generatedImageCdnUrl) {
+      return res.redirect(302, page.generatedImageCdnUrl);
+    }
+
+    if (!page.generatedImageBase64) {
+      throw new NotFoundException(`Page ${pageId} has no hero image`);
+    }
+
+    const webpBuffer = await sharp(Buffer.from(page.generatedImageBase64, 'base64'))
+      .resize({ width: 1200, withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    return res.send(webpBuffer);
   }
 
   @Get(':pageId/logs')

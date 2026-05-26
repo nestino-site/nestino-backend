@@ -293,6 +293,7 @@ model Page {
   @@unique([siteId, slug, language])
   @@index([siteId, language, status])
   @@index([siteId, publishedAt])
+  @@index([siteId, createdAt])
   @@map("pages")
 }
 

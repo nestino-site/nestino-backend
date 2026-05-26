@@ -16,6 +16,7 @@ export const contentPageSelect = {
   wordCount: true,
   imagePrompt: true,
   generatedImageCdnUrl: true,
+  generatedImageBase64: true,
   htmlContent: true,
   tableOfContents: true,
   faq: true,

@@ -62,6 +62,8 @@ export class NextJsContractMapperService {
       status,
 
       // Core content
+      pageId: page.id,
+      hasHeroImage: Boolean(page.generatedImageCdnUrl || page.generatedImageBase64),
       finalContent,
       htmlContent: rendered.htmlContent,
       wordCount: page.wordCount,
