@@ -304,6 +304,7 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | `PATCH` | `/pages/:id` | 🔐 | `UpdatePageDto` |
 | `POST` | `/pages/:id/generate-content` | 🔐 | `?resetCheckpoint=true` to restart pipeline from scratch |
 | `POST` | `/pages/:id/retry-image-generation` | 🔐 | Resume from `image_generation` when content exists but hero image failed |
+| `POST` | `/pages/:id/regenerate-hero-image` | 🔐 | Replace hero image synchronously when quality is poor; optional `?uploadCdn=false` to skip Cloudinary |
 | `POST` | `/pages/:id/complete-pipeline` | 🔐 | Finish downstream steps (SEO → linking → READY) without re-running image; optional `?fromStep=seo_check` |
 | `POST` | `/pages/:id/publish` | 🔐 | Returns `PublishResult` |
 | `POST` | `/pages/:id/keywords` | 🔐 | Assign cluster keyword |
@@ -340,6 +341,7 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | Scenario | Endpoint |
 |----------|----------|
 | Image step failed, content draft exists (`PARTIALLY_COMPLETED`) | `POST /pages/:id/retry-image-generation` |
+| Hero image exists but looks bad — new Imagen sample, no content rerun | `POST /pages/:id/regenerate-hero-image` |
 | Image done, SEO/linking/schema failed — finish without new hero image | `POST /pages/:id/complete-pipeline` (optional `?fromStep=seo_check`) |
 | Failed content task row in admin list | `POST /content-tasks/:id/retry` |
 | Full pipeline restart (discard checkpoint) | `POST /pages/:id/generate-content?resetCheckpoint=true` |
@@ -584,7 +586,7 @@ NEXT_PUBLIC_API_BASE_URL=https://nestino-backend-production.up.railway.app/api/v
 - Tabs: Content (markdown preview) | Meta | Pipeline | Logs | Keywords
 - Pipeline stepper UI mapped to `pipelineStatus`
 - Poll while processing
-- Buttons: Regenerate (`generate-content?resetCheckpoint=true`), Retry image (`retry-image-generation`), **Complete pipeline** (`complete-pipeline`), Publish
+- Buttons: Regenerate (`generate-content?resetCheckpoint=true`), Retry image (`retry-image-generation`), **Regenerate hero** (`regenerate-hero-image`), **Complete pipeline** (`complete-pipeline`), Publish
 - Show `PublishResult` toast (webhook fired or skipped reason)
 
 ### 9.12 Content tasks

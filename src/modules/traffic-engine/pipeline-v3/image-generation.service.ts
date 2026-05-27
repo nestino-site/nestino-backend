@@ -43,15 +43,48 @@ export class ImageGenerationService {
   }
 
   /**
+   * Generate a new hero image for an existing page (same content, new Imagen sample).
+   * Clears the CDN URL until a fresh upload is performed.
+   */
+  async regenerateHeroImage(
+    pageId: number,
+    finalContent: string,
+    keyword: string,
+  ): Promise<{ imagePrompt: string; generatedImageBase64: string | null }> {
+    const imagePrompt = this.buildImagenPrompt(keyword, finalContent, { vary: true });
+    const generatedImageBase64 = await this.generateWithImagen(imagePrompt);
+
+    await this.prisma.page.update({
+      where: { id: pageId },
+      data: {
+        imagePrompt,
+        generatedImageBase64,
+        generatedImageCdnUrl: null,
+      },
+    });
+
+    return { imagePrompt, generatedImageBase64 };
+  }
+
+  /**
    * Build the Imagen prompt locally — no OpenAI/Anthropic LLM hop.
    * Imagen receives the prompt directly via Google Generative Language API.
    */
-  private buildImagenPrompt(keyword: string, finalContent: string): string {
+  private buildImagenPrompt(
+    keyword: string,
+    finalContent: string,
+    options?: { vary?: boolean },
+  ): string {
     const context = finalContent.replace(/\s+/g, ' ').trim().slice(0, 1500);
+    const variation =
+      options?.vary === true
+        ? ' Distinct fresh composition and scene — avoid repeating prior framing.'
+        : '';
     return (
       `Photorealistic editorial hero image for "${keyword}". ` +
-      `Professional quality, natural lighting, wide composition, no text overlay, no logos, no watermarks. ` +
-      `Article context: ${context}`
+      `Professional quality, natural lighting, wide composition, no text overlay, no logos, no watermarks.` +
+      variation +
+      ` Article context: ${context}`
     );
   }
 

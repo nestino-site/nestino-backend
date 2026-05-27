@@ -20,6 +20,7 @@ import {
   PipelineStep,
 } from '../../pipeline-v3/pipeline-checkpoint.service';
 import { PageHeroCdnService } from '../../publishing/page-hero-cdn.service';
+import { ImageGenerationService } from '../../pipeline-v3/image-generation.service';
 import { PublishService } from '../../publishing/publish.service';
 import { AssignPageKeywordDto } from '../dto/assign-page-keyword.dto';
 import { CreatePageDto } from '../dto/create-page.dto';
@@ -37,6 +38,7 @@ export class PagesController {
     private readonly pipelineCheckpoint: PipelineCheckpointService,
     private readonly publishService: PublishService,
     private readonly pageHeroCdn: PageHeroCdnService,
+    private readonly imageGeneration: ImageGenerationService,
   ) {}
 
   @Post()
@@ -203,6 +205,61 @@ export class PagesController {
       resumedFrom,
       checkpointLastStep: checkpoint.lastStep,
       skippedSteps,
+    };
+  }
+
+  /**
+   * Replace the hero image with a new Imagen generation (synchronous).
+   * Use when the existing image quality is poor. Does not re-run content or pipeline steps.
+   */
+  @Post(':id/regenerate-hero-image')
+  async regenerateHeroImage(
+    @ParseIntParam('id') pageId: number,
+    @Query('uploadCdn') uploadCdn?: string,
+  ) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { keyword: true },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+    if (!page.keyword) {
+      throw new UnprocessableEntityException('Page must have a keyword to regenerate hero image');
+    }
+
+    const content = page.finalContent ?? page.rawDraft;
+    if (!content) {
+      throw new UnprocessableEntityException(
+        'Page has no generated content yet — use generate-content first',
+      );
+    }
+
+    const { imagePrompt, generatedImageBase64 } = await this.imageGeneration.regenerateHeroImage(
+      pageId,
+      content,
+      page.keyword.keyword,
+    );
+
+    if (!generatedImageBase64) {
+      throw new UnprocessableEntityException('Hero image generation returned no image');
+    }
+
+    const shouldUploadCdn = uploadCdn !== 'false' && uploadCdn !== '0';
+    let cdnResult: Awaited<ReturnType<PageHeroCdnService['retryHeroUpload']>> | null = null;
+    if (shouldUploadCdn) {
+      cdnResult = await this.pageHeroCdn.retryHeroUpload(pageId);
+      if (page.status === PageStatus.PUBLISHED && cdnResult.uploaded) {
+        await this.publishService.triggerUpdateWebhook(pageId);
+      }
+    }
+
+    return {
+      pageId,
+      imagePrompt,
+      generatedImageBase64: true,
+      previousCdnUrlCleared: true,
+      cdn: cdnResult,
     };
   }
 
