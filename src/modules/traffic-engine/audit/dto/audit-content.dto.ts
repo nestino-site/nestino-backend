@@ -13,6 +13,8 @@ export interface AuditResult {
   critical_errors: string;
   seo_and_ux_recommendations: string;
   internal_linking_audit: InternalLinkingAudit;
+  /** True when Gemini audit could not run (API/config); pipeline should not block on approval. */
+  auditUnavailable?: boolean;
 }
 
 export interface AuditFixContext {

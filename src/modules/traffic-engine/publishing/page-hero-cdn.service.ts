@@ -3,6 +3,27 @@ import { v2 as cloudinary } from 'cloudinary';
 import sharp from 'sharp';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
+function formatUploadError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const err = error as { message?: string; error?: { message?: string } };
+    if (typeof err.message === 'string' && err.message.length > 0) {
+      return err.message;
+    }
+    if (typeof err.error?.message === 'string' && err.error.message.length > 0) {
+      return err.error.message;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
+
 function isCloudinaryConfigured(): boolean {
   return !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
 }
@@ -86,7 +107,7 @@ export class PageHeroCdnService {
       this.logger.log({ msg: 'hero_cdn_uploaded', pageId, cdnUrl });
       return { pageId, uploaded: true, cdnUrl, skippedReason: null };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = formatUploadError(error);
       this.logger.warn({ msg: 'hero_cdn_upload_failed', pageId, error: message });
       return {
         pageId,

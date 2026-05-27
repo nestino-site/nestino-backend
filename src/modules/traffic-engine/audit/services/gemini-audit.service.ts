@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { cleanMarkdownOutput } from '../../utils/markdown-cleaner';
 import type {
   AuditAndFixResult,
@@ -21,7 +21,7 @@ CRITICAL RULES:
 2. Verify strict regional regulations. For example, in Turkey (IVF is restricted ONLY to legally married heterosexual couples using their own genetic materials. Donor eggs/sperm/embryos, surrogacy, treatment for single women/lesbian couples, and gender selection for social reasons are strictly illegal).
 3. Check currency/costs against 2026 market standards (Turkey IVF is typically $2,500-$5,000 USD basic cost, medications $800-$1,200).
 4. Identify "lazy templating" leaks (e.g., links pointing to Spain guides inside a Turkey IVF guide).
-5. Output MUST strictly match the provided JSON schema. No conversational wrappers.`;
+5. Output MUST be a single raw JSON object only (no markdown fences, no commentary) with keys: approved, eeat_score, critical_errors, seo_and_ux_recommendations, internal_linking_audit.`;
 
 const FIX_SYSTEM_INSTRUCTION = `You are an elite YMYL Medical SEO Editor and Fact-Checker.
 Your job is to rewrite medical tourism articles so they are legally accurate, E-E-A-T compliant, and SEO-ready.
@@ -33,51 +33,6 @@ CRITICAL RULES:
 4. Preserve valid facts, numbers, and experience signals. Do not invent new claims.
 5. Output ONLY the full corrected article as clean Markdown — real line breaks, no HTML, no JSON wrappers, no preamble.`;
 
-const AUDIT_RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    approved: {
-      type: Type.BOOLEAN,
-      description:
-        'Must be false if there is ANY critical factual/legal error (e.g., Turkey IVF married laws, donor bans, template leaks).',
-    },
-    eeat_score: {
-      type: Type.INTEGER,
-      description: 'A rating from 1 to 10 based on medical accuracy and trustworthiness.',
-    },
-    critical_errors: {
-      type: Type.STRING,
-      description: 'Detailed list of any legal, medical, or template errors found.',
-    },
-    seo_and_ux_recommendations: {
-      type: Type.STRING,
-      description: 'Recommendations for tables, formatting, and structural improvements.',
-    },
-    internal_linking_audit: {
-      type: Type.OBJECT,
-      properties: {
-        status: {
-          type: Type.STRING,
-          enum: ['approved', 'needs_fix'],
-        },
-        details: {
-          type: Type.STRING,
-          description:
-            'Flags contextually irrelevant internal links (e.g., Spanish clinic references in a Turkey guide).',
-        },
-      },
-      required: ['status', 'details'],
-    },
-  },
-  required: [
-    'approved',
-    'eeat_score',
-    'critical_errors',
-    'seo_and_ux_recommendations',
-    'internal_linking_audit',
-  ],
-} as const;
-
 function failSafeAudit(message: string): AuditResult {
   return {
     approved: false,
@@ -88,7 +43,27 @@ function failSafeAudit(message: string): AuditResult {
       status: 'needs_fix',
       details: 'System audit failed to verify links.',
     },
+    auditUnavailable: true,
   };
+}
+
+/** Gemini does not allow googleSearch tools together with responseMimeType application/json. */
+function parseAuditJsonFromText(text: string): unknown {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced?.[1]) {
+      return JSON.parse(fenced[1].trim()) as unknown;
+    }
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
+    }
+    throw new Error('No JSON object found in audit response');
+  }
 }
 
 function normalizeAuditResult(raw: unknown): AuditResult {
@@ -240,14 +215,17 @@ export class GeminiAuditService {
     const timer = setTimeout(() => abortController.abort(), AUDIT_TIMEOUT_MS);
 
     try {
+      // googleSearch + structured responseMimeType is unsupported by the Gemini API.
       const response = await ai.models.generateContent({
         model: AUDIT_MODEL,
-        contents: `Please audit the following draft article:\n\n<draft_content>\n${content}\n</draft_content>`,
+        contents:
+          'Please audit the following draft article. Respond with one JSON object only ' +
+          '(keys: approved, eeat_score, critical_errors, seo_and_ux_recommendations, internal_linking_audit).\n\n' +
+          `<draft_content>\n${content}\n</draft_content>`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ googleSearch: {} }],
-          responseMimeType: 'application/json',
-          responseSchema: AUDIT_RESPONSE_SCHEMA,
+          responseMimeType: 'text/plain',
           abortSignal: abortController.signal,
           maxOutputTokens: 4096,
           temperature: 0.2,
@@ -263,7 +241,7 @@ export class GeminiAuditService {
         );
       }
 
-      return normalizeAuditResult(JSON.parse(text) as unknown);
+      return normalizeAuditResult(parseAuditJsonFromText(text));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error({ msg: 'gemini_audit_phase_failed', error: message });

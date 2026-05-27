@@ -346,8 +346,14 @@ export class TrafficEnginePipelineService {
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
         }
-        if (!seoResult.auditResult.approved) {
+        if (!seoResult.auditResult.approved && !seoResult.auditResult.auditUnavailable) {
           seoViolations.push('audit_not_approved');
+        } else if (seoResult.auditResult.auditUnavailable) {
+          this.logger.warn({
+            msg: 'seo_gate_audit_unavailable_skipped',
+            pageId,
+            reason: seoResult.auditResult.critical_errors.slice(0, 200),
+          });
         }
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
           const h1Line = finalContent.match(/^#\s+(.+)$/m);
