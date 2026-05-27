@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Page" ADD COLUMN "contentAuditResult" JSONB;
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "contentAuditResult" JSONB;
