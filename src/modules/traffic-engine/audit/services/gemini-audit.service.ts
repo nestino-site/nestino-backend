@@ -109,9 +109,9 @@ export class GeminiAuditService {
    * Audits draft content with Gemini 2.5 Pro, Google Search Grounding, and structured JSON output.
    */
   async auditContent(draftContent: string): Promise<AuditResult> {
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    const apiKey = process.env.GOOGLE_AI_API_KEY?.trim();
     if (!apiKey) {
-      return failSafeAudit('Audit failed due to system error: GEMINI_API_KEY is not configured');
+      return failSafeAudit('Audit failed due to system error: GOOGLE_AI_API_KEY is not configured');
     }
 
     const ai = new GoogleGenAI({ apiKey });
