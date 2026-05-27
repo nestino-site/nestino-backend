@@ -319,9 +319,7 @@ export class TrafficEnginePipelineService {
             ),
           config.runtimeConfig.maxRetries,
         );
-        if (seoResult.improvedContent) {
-          finalContent = seoResult.improvedContent;
-        }
+        finalContent = seoResult.finalContent;
 
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
           const autoFixed = ensureKeywordInH1(finalContent, cluster.primaryKeyword);
@@ -347,6 +345,9 @@ export class TrafficEnginePipelineService {
         }
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
+        }
+        if (!seoResult.auditResult.approved) {
+          seoViolations.push('audit_not_approved');
         }
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
           const h1Line = finalContent.match(/^#\s+(.+)$/m);
@@ -666,11 +667,12 @@ export class TrafficEnginePipelineService {
       cluster,
       page.keyword.priority,
       cluster.intent,
+      true,
     );
 
     if (seoResult.improvedContent) {
       // Extract new H1 and meta from improved content for title/meta update only
-      const h1Match = seoResult.improvedContent.match(/^#\s+(.+)$/m);
+      const h1Match = seoResult.finalContent.match(/^#\s+(.+)$/m);
       const newTitle = h1Match ? h1Match[1].trim() : undefined;
 
       await this.prisma.page.update({

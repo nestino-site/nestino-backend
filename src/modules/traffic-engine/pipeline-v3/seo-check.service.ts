@@ -6,15 +6,24 @@ import { GeminiAuditService } from '../audit/services/gemini-audit.service';
 import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
 import { SeoCheckSchema, safeParse } from '../ai/schemas/structured-output.schemas';
-import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
 import { collectDeterministicSeoIssues } from './seo-gate.utils';
+
+const SKIPPED_AUDIT_RESULT: AuditResult = {
+  approved: true,
+  eeat_score: 0,
+  critical_errors: '',
+  seo_and_ux_recommendations: 'YMYL audit skipped (lightweight SEO check).',
+  internal_linking_audit: { status: 'approved', details: 'N/A — lightweight mode' },
+};
 
 export interface SeoCheckResult {
   passed: boolean;
   score: number;
   issues: string[];
   googleChecklist?: Record<string, boolean>;
-  /** Non-null when SEO issues were found and a fix pass was applied. */
+  /** Authoritative markdown after audit-and-fix (always set). */
+  finalContent: string;
+  /** Non-null when content was rewritten by audit fix pass. */
   improvedContent: string | null;
   auditResult: AuditResult;
 }
@@ -36,42 +45,30 @@ export class SeoCheckService {
     cluster: KeywordClusterData,
     priority: number,
     intent: KeywordIntent,
+    lightweight = false,
   ): Promise<SeoCheckResult> {
     const page = await this.prisma.page.findUnique({ where: { id: pageId } });
     if (!page) {
       throw new Error('Page not found for seo_check');
     }
 
-    // ── Phase 1: SEO eval + YMYL Gemini audit (single pipeline step, parallel) ──
-    const [evalOutput, auditResult] = await Promise.all([
-      this.aiExecution.execute({
-        step: 'seo_check',
-        siteId,
-        pageId,
-        priority,
-        intent,
-        runtimeContext: {
-          finalContent,
-          keyword: cluster.primaryKeyword,
-          metaDescription: page.metaDescription,
-          title: page.title,
-          schemaMarkup: page.schemaMarkup,
-          geoScore: page.geoScore,
-          geoScorePillars: page.geoScorePillars,
-        },
-        maxOutputTokens: 1000,
-      }),
-      this.geminiAudit.auditContent(finalContent),
-    ]);
-
-    if (!auditResult.approved) {
-      this.logger.warn({
-        msg: 'content_audit_not_approved',
-        pageId,
-        eeat_score: auditResult.eeat_score,
-        critical_errors: auditResult.critical_errors.slice(0, 500),
-      });
-    }
+    const evalOutput = await this.aiExecution.execute({
+      step: 'seo_check',
+      siteId,
+      pageId,
+      priority,
+      intent,
+      runtimeContext: {
+        finalContent,
+        keyword: cluster.primaryKeyword,
+        metaDescription: page.metaDescription,
+        title: page.title,
+        schemaMarkup: page.schemaMarkup,
+        geoScore: page.geoScore,
+        geoScorePillars: page.geoScorePillars,
+      },
+      maxOutputTokens: 1000,
+    });
 
     const validated = safeParse(SeoCheckSchema, evalOutput.text);
     let parsed: Record<string, unknown>;
@@ -110,59 +107,56 @@ export class SeoCheckService {
       });
     }
 
-    // ── Phase 2: Fix content when issues are identified ────────────────────
-    let improvedContent: string | null = null;
-
-    if (issues.length > 0) {
-      this.logger.log({
-        msg: 'seo_check_fix_pass_started',
-        pageId,
-        score,
-        issueCount: issues.length,
-      });
-
-      const seoFixInstructions = [
-        'SEO improvement pass — address the following Google SEO issues before publishing.',
-        `Current SEO score: ${score}/100. Target: 80+.`,
-        `Issues to fix:\n${issues.map((i) => `  - ${i}`).join('\n')}`,
-        `Keyword "${cluster.primaryKeyword}": must appear in the H1 and in the opening paragraph.`,
-        'Google Helpful Content rules: every section must answer a real user question with concrete, specific information.',
-        'E-E-A-T: keep all existing experience signals (numbers, limitations, local anchors, guest-style observations). Do not remove them.',
-        'Preserve all existing facts, figures, and claims. Do not invent new ones.',
-        'Output clean Markdown only — real line breaks, no HTML, no JSON, no escaped \\n.',
-      ].join('\n');
-
-      const fixOutput = await this.aiExecution.execute({
-        step: 'rewrite',
-        siteId,
-        pageId,
-        priority,
-        intent,
-        runtimeContext: {
-          draftText: finalContent,
-          keyword: cluster.primaryKeyword,
-          secondaryKeywords: cluster.secondaryKeywords.map((k) => k.keyword),
-          semanticTopics: cluster.semanticTopics,
-          analyzeJson: {
-            issues: [seoFixInstructions, ...issues],
-            missingKeywords: [],
-            score,
-          },
+    if (lightweight) {
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: {
+          seoCheckScore: score,
+          seoCheckPassed: passed,
+          seoCheckIssues: ({
+            issues,
+            googleChecklist: googleChecklist ?? {},
+          } as unknown) as Prisma.InputJsonValue,
         },
-        maxOutputTokens: 2600,
       });
 
-      improvedContent = cleanMarkdownOutput(fixOutput.text);
+      if (!passed) {
+        this.logger.warn({ msg: 'seo_check_not_passed', pageId, score, issues, lightweight: true });
+      }
 
-      this.logger.log({
-        msg: 'seo_check_fix_pass_completed',
+      return {
+        passed,
+        score,
+        issues,
+        googleChecklist,
+        finalContent,
+        improvedContent: null,
+        auditResult: SKIPPED_AUDIT_RESULT,
+      };
+    }
+
+    // ── Full path: YMYL audit + fix (authoritative finalContent) ─────────────
+    const auditAndFix = await this.geminiAudit.auditAndImproveContent(finalContent, {
+      keyword: cluster.primaryKeyword,
+      seoIssues: issues,
+      seoScore: score,
+    });
+
+    const { auditResult } = auditAndFix;
+    const authoritativeContent = auditAndFix.finalContent;
+
+    if (!auditResult.approved) {
+      this.logger.warn({
+        msg: 'content_audit_not_approved',
         pageId,
-        wordCount: improvedContent.split(/\s+/).filter(Boolean).length,
+        eeat_score: auditResult.eeat_score,
+        fixAttempts: auditAndFix.fixAttempts,
+        contentChanged: auditAndFix.contentChanged,
+        critical_errors: auditResult.critical_errors.slice(0, 500),
       });
     }
 
-    // ── Persist results ────────────────────────────────────────────────────
-    const contentToSave = improvedContent ?? finalContent;
+    const wordCount = authoritativeContent.split(/\s+/).filter(Boolean).length;
     await this.prisma.page.update({
       where: { id: pageId },
       data: {
@@ -172,14 +166,14 @@ export class SeoCheckService {
           issues,
           googleChecklist: googleChecklist ?? {},
         } as unknown) as Prisma.InputJsonValue,
-        contentAuditResult: auditResult as unknown as Prisma.InputJsonValue,
-        ...(improvedContent
-          ? {
-              finalContent: contentToSave,
-              rawDraft: contentToSave,
-              wordCount: contentToSave.split(/\s+/).filter(Boolean).length,
-            }
-          : {}),
+        contentAuditResult: {
+          ...auditResult,
+          contentChanged: auditAndFix.contentChanged,
+          fixAttempts: auditAndFix.fixAttempts,
+        } as unknown as Prisma.InputJsonValue,
+        finalContent: authoritativeContent,
+        rawDraft: authoritativeContent,
+        wordCount,
       },
     });
 
@@ -189,10 +183,18 @@ export class SeoCheckService {
         pageId,
         score,
         issues,
-        contentImproved: improvedContent !== null,
+        contentImproved: auditAndFix.contentChanged,
       });
     }
 
-    return { passed, score, issues, googleChecklist, improvedContent, auditResult };
+    return {
+      passed,
+      score,
+      issues,
+      googleChecklist,
+      finalContent: authoritativeContent,
+      improvedContent: auditAndFix.contentChanged ? authoritativeContent : null,
+      auditResult,
+    };
   }
 }

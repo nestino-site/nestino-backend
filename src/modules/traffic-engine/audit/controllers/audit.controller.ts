@@ -5,6 +5,7 @@ import {
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { AuditContentDto } from '../dto/audit-content.dto';
@@ -18,31 +19,55 @@ export class AuditController {
   ) {}
 
   /**
-   * Manual YMYL content audit for a page. Does not persist results (pipeline seo_check does).
-   * Optional body.content overrides DB content for spot-checking drafts.
+   * Manual YMYL audit-and-fix. Always persists the best finalContent and contentAuditResult.
+   * Optional body.content overrides DB content for the audit input.
    */
   @Post(':id/audit')
   async auditPage(@ParseIntParam('id') pageId: number, @Body() dto: AuditContentDto) {
     const contentFromBody = dto.content?.trim();
+    let content: string;
+
     if (contentFromBody) {
-      return this.geminiAudit.auditContent(contentFromBody);
+      content = contentFromBody;
+    } else {
+      const page = await this.prisma.page.findUnique({
+        where: { id: pageId },
+        select: { id: true, finalContent: true, rawDraft: true },
+      });
+      if (!page) {
+        throw new NotFoundException(`Page ${pageId} not found`);
+      }
+      const fromDb = (page.finalContent ?? page.rawDraft)?.trim();
+      if (!fromDb) {
+        throw new UnprocessableEntityException(
+          'Page has no content to audit — provide content in the request body or generate content first',
+        );
+      }
+      content = fromDb;
     }
 
-    const page = await this.prisma.page.findUnique({
+    const result = await this.geminiAudit.auditAndImproveContent(content);
+    const wordCount = result.finalContent.split(/\s+/).filter(Boolean).length;
+
+    await this.prisma.page.update({
       where: { id: pageId },
-      select: { id: true, finalContent: true, rawDraft: true },
+      data: {
+        finalContent: result.finalContent,
+        rawDraft: result.finalContent,
+        wordCount,
+        contentAuditResult: {
+          ...result.auditResult,
+          contentChanged: result.contentChanged,
+          fixAttempts: result.fixAttempts,
+        } as unknown as Prisma.InputJsonValue,
+      },
     });
-    if (!page) {
-      throw new NotFoundException(`Page ${pageId} not found`);
-    }
 
-    const content = (page.finalContent ?? page.rawDraft)?.trim();
-    if (!content) {
-      throw new UnprocessableEntityException(
-        'Page has no content to audit — provide content in the request body or generate content first',
-      );
-    }
-
-    return this.geminiAudit.auditContent(content);
+    return {
+      ...result.auditResult,
+      finalContent: result.finalContent,
+      contentChanged: result.contentChanged,
+      fixAttempts: result.fixAttempts,
+    };
   }
 }

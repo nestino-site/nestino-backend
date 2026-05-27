@@ -15,6 +15,20 @@ export interface AuditResult {
   internal_linking_audit: InternalLinkingAudit;
 }
 
+export interface AuditFixContext {
+  keyword?: string;
+  seoIssues?: string[];
+  seoScore?: number;
+}
+
+export interface AuditAndFixResult {
+  auditResult: AuditResult;
+  /** Authoritative markdown for pipeline and DB — equals input when no fix was needed. */
+  finalContent: string;
+  contentChanged: boolean;
+  fixAttempts: number;
+}
+
 export class AuditContentDto {
   @IsOptional()
   @IsString()
