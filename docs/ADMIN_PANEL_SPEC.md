@@ -306,6 +306,7 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | `POST` | `/pages/:id/retry-image-generation` | 🔐 | Resume from `image_generation` when content exists but hero image failed |
 | `POST` | `/pages/:id/regenerate-hero-image` | 🔐 | Replace hero image synchronously when quality is poor; optional `?uploadCdn=false` to skip Cloudinary |
 | `POST` | `/pages/:id/complete-pipeline` | 🔐 | Finish downstream steps (SEO → linking → READY) without re-running image; optional `?fromStep=seo_check`, `?skipYmylAudit=true` to skip Gemini YMYL audit |
+| `POST` | `/pages/:id/mark-content-ready` | 🔐 | Set `pipelineStatus=READY` when content exists — audit not approved is OK (human review) |
 | `POST` | `/pages/:id/publish` | 🔐 | Returns `PublishResult` |
 | `POST` | `/pages/:id/keywords` | 🔐 | Assign cluster keyword |
 | `GET` | `/pages/:id/keywords` | 🔐 | — |

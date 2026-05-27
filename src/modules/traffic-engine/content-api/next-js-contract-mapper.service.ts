@@ -39,7 +39,7 @@ export class NextJsContractMapperService {
   async toContract(page: ContentPageRecord) {
     const hreflangAlternates = await this.hreflang.getAlternatesForPageData(page, page.site);
     const latestLog = page.aiGenerationLogs[0];
-    const status = this.mapStatus(page.pipelineStatus);
+    const status = this.mapStatus(page.pipelineStatus, Boolean(page.finalContent?.trim()));
     const totalCost = page.aiGenerationLogs.reduce((sum, log) => sum + Number(log.cost), 0);
 
     const finalContent = page.finalContent != null ? cleanMarkdownOutput(page.finalContent) : null;
@@ -210,10 +210,22 @@ export class NextJsContractMapperService {
     return `${base}${path}`;
   }
 
-  private mapStatus(status: PipelineStatus): string {
-    if (status === PipelineStatus.READY) return 'ready';
-    if (status === PipelineStatus.FAILED) return 'failed';
-    if (status === PipelineStatus.PARTIALLY_COMPLETED) return 'partially_completed';
+  private mapStatus(status: PipelineStatus, hasFinalContent: boolean): string {
+    if (status === PipelineStatus.READY) {
+      return 'ready';
+    }
+    if (
+      hasFinalContent &&
+      (status === PipelineStatus.PARTIALLY_COMPLETED || status === PipelineStatus.FAILED)
+    ) {
+      return 'ready';
+    }
+    if (status === PipelineStatus.FAILED) {
+      return 'failed';
+    }
+    if (status === PipelineStatus.PARTIALLY_COMPLETED) {
+      return 'partially_completed';
+    }
     return status.toLowerCase();
   }
 

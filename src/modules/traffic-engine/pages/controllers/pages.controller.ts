@@ -297,6 +297,73 @@ export class PagesController {
   }
 
   /**
+   * Mark page content ready for human review / publish without waiting on YMYL audit approval.
+   * Sets pipelineStatus to READY when finalContent exists (audit remains advisory in contentAuditResult).
+   */
+  @Post(':id/mark-content-ready')
+  async markContentReady(@ParseIntParam('id') pageId: number) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      select: {
+        id: true,
+        finalContent: true,
+        rawDraft: true,
+        contentAuditResult: true,
+        pipelineStatus: true,
+      },
+    });
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+
+    const content = page.finalContent ?? page.rawDraft;
+    if (!content?.trim()) {
+      throw new UnprocessableEntityException(
+        'Page has no content to mark ready — generate content first',
+      );
+    }
+
+    const existingAudit =
+      page.contentAuditResult && typeof page.contentAuditResult === 'object'
+        ? (page.contentAuditResult as Record<string, unknown>)
+        : {};
+
+    await this.prisma.page.update({
+      where: { id: pageId },
+      data: {
+        pipelineStatus: PipelineStatus.READY,
+        contentAuditResult: {
+          ...existingAudit,
+          humanMarkedReady: true,
+          humanMarkedReadyAt: new Date().toISOString(),
+        },
+        pipelineCheckpoint: {
+          completedSteps: [
+            'generate',
+            'validate',
+            'analyze',
+            'rewrite',
+            'image_generation',
+            'seo_check',
+            'internal_linking',
+            'final_geo_schema',
+          ],
+          lastStep: 'final_geo_schema',
+          draftSaved: true,
+        },
+      },
+    });
+
+    await this.pipelineCheckpoint.clear(pageId);
+
+    return {
+      pageId,
+      pipelineStatus: PipelineStatus.READY,
+      message: 'Content marked ready for human review and publish',
+    };
+  }
+
+  /**
    * Publish a page, re-publish after edits, or retry a failed webhook.
    * Already-published pages are re-rendered and the frontend receives a page.updated webhook.
    */

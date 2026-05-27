@@ -7,7 +7,6 @@ import { ContentPolicyEngineService } from '../intelligence/content-policy-engin
 import { ClusterBuilderService } from '../intelligence/keyword-intelligence/cluster-builder.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
-import { hasBlockingAuditFailure } from '../audit/dto/audit-content.dto';
 import { AnalysisResult, AnalysisService } from './analysis.service';
 import { GenerationService } from './generation.service';
 import { ImageGenerationService } from './image-generation.service';
@@ -355,28 +354,15 @@ export class TrafficEnginePipelineService {
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
         }
-        if (
-          hasBlockingAuditFailure(seoResult.auditResult) &&
-          !seoResult.initiallyApproved
-        ) {
-          seoViolations.push('audit_not_approved');
-        } else if (seoResult.initiallyApproved && !seoResult.auditResult.approved) {
+        // YMYL audit is advisory only — human review decides publish; never block pipeline on approved flag.
+        if (!seoResult.auditResult.approved) {
           this.logger.warn({
-            msg: 'seo_gate_audit_human_review_pass',
+            msg: 'seo_gate_audit_advisory',
             pageId,
+            approved: seoResult.auditResult.approved,
+            initiallyApproved: seoResult.initiallyApproved ?? false,
             eeat_score: seoResult.auditResult.eeat_score,
-          });
-        } else if (seoResult.auditResult.auditUnavailable) {
-          this.logger.warn({
-            msg: 'seo_gate_audit_unavailable_skipped',
-            pageId,
-            reason: seoResult.auditResult.critical_errors.slice(0, 200),
-          });
-        } else if (!seoResult.auditResult.approved) {
-          this.logger.warn({
-            msg: 'seo_gate_audit_soft_pass',
-            pageId,
-            eeat_score: seoResult.auditResult.eeat_score,
+            critical_errors: seoResult.auditResult.critical_errors.slice(0, 300),
           });
         }
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {

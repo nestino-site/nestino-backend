@@ -127,10 +127,13 @@ export class ContentApiController {
   }
 
   private wrapPipelineStatus(pipelineStatus: PipelineStatus, body: ContentContract) {
-    if (
-      pipelineStatus !== PipelineStatus.READY &&
-      pipelineStatus !== PipelineStatus.FAILED
-    ) {
+    const contentReady =
+      body.status === 'ready' ||
+      pipelineStatus === PipelineStatus.READY ||
+      (Boolean(body.finalContent?.trim()) &&
+        (pipelineStatus === PipelineStatus.PARTIALLY_COMPLETED ||
+          pipelineStatus === PipelineStatus.FAILED));
+    if (!contentReady) {
       return {
         ...body,
         httpStatus: HttpStatus.ACCEPTED,
