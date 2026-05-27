@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { AiModule } from '../ai/ai.module';
 import { BriefModule } from '../brief/brief.module';
 import { ConfigModule } from '../config/config.module';
@@ -16,6 +17,7 @@ import { TrafficEnginePipelineService } from './traffic-engine-pipeline.service'
 
 @Module({
   imports: [
+    AuditModule,
     ConfigModule,
     AiModule,
     BriefModule,

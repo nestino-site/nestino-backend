@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { AuditModule } from './audit/audit.module';
 import { ConfigModule } from './config/config.module';
 import { ContentApiModule } from './content-api/content-api.module';
 import { ContentPreviewModule } from './content-preview/content-preview.module';
@@ -48,6 +49,7 @@ import { TrafficEngineBullQueuesModule } from './traffic-engine-bull.module';
     EvaluationModule,
     SchedulingModule,
     PromptDebugModule,
+    AuditModule,
   ],
 })
 export class TrafficEngineModule {}

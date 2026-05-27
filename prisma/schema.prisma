@@ -262,6 +262,7 @@ model Page {
   seoCheckScore        Int?
   seoCheckPassed       Boolean?
   seoCheckIssues       Json?
+  contentAuditResult   Json?
   geoScore             Float?
   geoScorePillars      Json?
   cannibalizationStatus CannibalizationStatus @default(NONE)

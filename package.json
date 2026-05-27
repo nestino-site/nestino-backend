@@ -18,6 +18,7 @@
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.6.0",
     "@googlemaps/google-maps-services-js": "^3.4.2",
     "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.8",

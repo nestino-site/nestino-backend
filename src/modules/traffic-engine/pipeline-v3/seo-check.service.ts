@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KeywordIntent, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AuditResult } from '../audit/dto/audit-content.dto';
+import { GeminiAuditService } from '../audit/services/gemini-audit.service';
 import { AiExecutionService } from '../ai/execution/ai-execution.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
 import { SeoCheckSchema, safeParse } from '../ai/schemas/structured-output.schemas';
@@ -14,6 +16,7 @@ export interface SeoCheckResult {
   googleChecklist?: Record<string, boolean>;
   /** Non-null when SEO issues were found and a fix pass was applied. */
   improvedContent: string | null;
+  auditResult: AuditResult;
 }
 
 @Injectable()
@@ -23,6 +26,7 @@ export class SeoCheckService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiExecution: AiExecutionService,
+    private readonly geminiAudit: GeminiAuditService,
   ) {}
 
   async check(
@@ -38,24 +42,36 @@ export class SeoCheckService {
       throw new Error('Page not found for seo_check');
     }
 
-    // ── Phase 1: Evaluate ──────────────────────────────────────────────────
-    const evalOutput = await this.aiExecution.execute({
-      step: 'seo_check',
-      siteId,
-      pageId,
-      priority,
-      intent,
-      runtimeContext: {
-        finalContent,
-        keyword: cluster.primaryKeyword,
-        metaDescription: page.metaDescription,
-        title: page.title,
-        schemaMarkup: page.schemaMarkup,
-        geoScore: page.geoScore,
-        geoScorePillars: page.geoScorePillars,
-      },
-      maxOutputTokens: 1000,
-    });
+    // ── Phase 1: SEO eval + YMYL Gemini audit (single pipeline step, parallel) ──
+    const [evalOutput, auditResult] = await Promise.all([
+      this.aiExecution.execute({
+        step: 'seo_check',
+        siteId,
+        pageId,
+        priority,
+        intent,
+        runtimeContext: {
+          finalContent,
+          keyword: cluster.primaryKeyword,
+          metaDescription: page.metaDescription,
+          title: page.title,
+          schemaMarkup: page.schemaMarkup,
+          geoScore: page.geoScore,
+          geoScorePillars: page.geoScorePillars,
+        },
+        maxOutputTokens: 1000,
+      }),
+      this.geminiAudit.auditContent(finalContent),
+    ]);
+
+    if (!auditResult.approved) {
+      this.logger.warn({
+        msg: 'content_audit_not_approved',
+        pageId,
+        eeat_score: auditResult.eeat_score,
+        critical_errors: auditResult.critical_errors.slice(0, 500),
+      });
+    }
 
     const validated = safeParse(SeoCheckSchema, evalOutput.text);
     let parsed: Record<string, unknown>;
@@ -156,6 +172,7 @@ export class SeoCheckService {
           issues,
           googleChecklist: googleChecklist ?? {},
         } as unknown) as Prisma.InputJsonValue,
+        contentAuditResult: auditResult as unknown as Prisma.InputJsonValue,
         ...(improvedContent
           ? {
               finalContent: contentToSave,
@@ -176,6 +193,6 @@ export class SeoCheckService {
       });
     }
 
-    return { passed, score, issues, googleChecklist, improvedContent };
+    return { passed, score, issues, googleChecklist, improvedContent, auditResult };
   }
 }
