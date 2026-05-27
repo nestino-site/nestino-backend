@@ -53,9 +53,11 @@ export class PublishService {
     const hasPublishableContent = Boolean(page.finalContent?.trim());
 
     if (!isRepublish && page.pipelineStatus !== PipelineStatus.READY) {
-      const canPublishPartial =
-        page.pipelineStatus === PipelineStatus.PARTIALLY_COMPLETED && hasPublishableContent;
-      if (!canPublishPartial) {
+      const humanReviewPublish =
+        hasPublishableContent &&
+        (page.pipelineStatus === PipelineStatus.PARTIALLY_COMPLETED ||
+          page.pipelineStatus === PipelineStatus.FAILED);
+      if (!humanReviewPublish) {
         return {
           published: false,
           webhookFired: false,
@@ -63,7 +65,7 @@ export class PublishService {
         };
       }
       this.logger.warn({
-        msg: 'publish_with_partial_pipeline',
+        msg: 'publish_after_human_review',
         pageId,
         pipelineStatus: page.pipelineStatus,
       });

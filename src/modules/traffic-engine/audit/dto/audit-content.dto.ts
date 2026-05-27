@@ -46,6 +46,8 @@ export interface AuditAndFixResult {
   finalContent: string;
   contentChanged: boolean;
   fixAttempts: number;
+  /** First audit passed — pipeline should not block on later re-audit noise. */
+  initiallyApproved?: boolean;
 }
 
 export class AuditContentDto {

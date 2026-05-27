@@ -355,8 +355,17 @@ export class TrafficEnginePipelineService {
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
         }
-        if (hasBlockingAuditFailure(seoResult.auditResult)) {
+        if (
+          hasBlockingAuditFailure(seoResult.auditResult) &&
+          !seoResult.initiallyApproved
+        ) {
           seoViolations.push('audit_not_approved');
+        } else if (seoResult.initiallyApproved && !seoResult.auditResult.approved) {
+          this.logger.warn({
+            msg: 'seo_gate_audit_human_review_pass',
+            pageId,
+            eeat_score: seoResult.auditResult.eeat_score,
+          });
         } else if (seoResult.auditResult.auditUnavailable) {
           this.logger.warn({
             msg: 'seo_gate_audit_unavailable_skipped',

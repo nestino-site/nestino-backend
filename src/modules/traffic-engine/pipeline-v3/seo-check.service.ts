@@ -26,6 +26,7 @@ export interface SeoCheckResult {
   /** Non-null when content was rewritten by audit fix pass. */
   improvedContent: string | null;
   auditResult: AuditResult;
+  initiallyApproved?: boolean;
 }
 
 @Injectable()
@@ -170,6 +171,9 @@ export class SeoCheckService {
           ...auditResult,
           contentChanged: auditAndFix.contentChanged,
           fixAttempts: auditAndFix.fixAttempts,
+          initiallyApproved: auditAndFix.initiallyApproved ?? false,
+          humanReviewRecommended:
+            !auditResult.approved && Boolean(auditAndFix.initiallyApproved),
         } as unknown as Prisma.InputJsonValue,
         finalContent: authoritativeContent,
         rawDraft: authoritativeContent,
@@ -195,6 +199,7 @@ export class SeoCheckService {
       finalContent: authoritativeContent,
       improvedContent: auditAndFix.contentChanged ? authoritativeContent : null,
       auditResult,
+      initiallyApproved: auditAndFix.initiallyApproved,
     };
   }
 }

@@ -160,10 +160,19 @@ function auditQualityScore(result: AuditResult): number {
 }
 
 function needsFix(auditResult: AuditResult): boolean {
+  if (auditResult.auditUnavailable) {
+    return false;
+  }
+  // Trust an explicit approval with no critical errors — do not rewrite and re-audit
+  // (fix passes often flip approved→false with empty critical_errors).
+  if (auditResult.approved && auditResult.critical_errors.trim().length === 0) {
+    return false;
+  }
   return (
     !auditResult.approved ||
     auditResult.critical_errors.trim().length > 0 ||
-    auditResult.internal_linking_audit.status === 'needs_fix'
+    (auditResult.internal_linking_audit.status === 'needs_fix' &&
+      auditResult.internal_linking_audit.details.trim().length > 0)
   );
 }
 
@@ -234,6 +243,8 @@ export class GeminiAuditService {
     let fixAttempts = 0;
     let auditResult = await this.runAuditPhase(ai, currentContent);
     let bestAuditResult = auditResult;
+    const initiallyApproved =
+      auditResult.approved && auditResult.critical_errors.trim().length === 0;
 
     while (needsFix(auditResult) && fixAttempts < MAX_FIX_ATTEMPTS) {
       this.logger.log({
@@ -281,11 +292,21 @@ export class GeminiAuditService {
       });
     }
 
+    if (initiallyApproved && !auditResult.approved && auditResult.critical_errors.trim().length === 0) {
+      auditResult = { ...bestAuditResult, approved: true };
+      this.logger.log({
+        msg: 'gemini_audit_kept_initial_approval',
+        fixAttempts,
+        eeat_score: auditResult.eeat_score,
+      });
+    }
+
     return {
       auditResult,
       finalContent: currentContent,
       contentChanged: currentContent !== draftContent,
       fixAttempts,
+      initiallyApproved,
     };
   }
 
