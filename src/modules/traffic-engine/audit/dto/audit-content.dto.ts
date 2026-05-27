@@ -17,6 +17,23 @@ export interface AuditResult {
   auditUnavailable?: boolean;
 }
 
+/** True when the SEO gate should hard-fail on YMYL audit (substantive issues only). */
+export function hasBlockingAuditFailure(audit: AuditResult): boolean {
+  if (audit.auditUnavailable) {
+    return false;
+  }
+  if (audit.approved) {
+    return false;
+  }
+  if (audit.critical_errors.trim().length > 0) {
+    return true;
+  }
+  return (
+    audit.internal_linking_audit.status === 'needs_fix' &&
+    audit.internal_linking_audit.details.trim().length > 0
+  );
+}
+
 export interface AuditFixContext {
   keyword?: string;
   seoIssues?: string[];

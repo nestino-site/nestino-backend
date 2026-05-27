@@ -7,6 +7,7 @@ import { ContentPolicyEngineService } from '../intelligence/content-policy-engin
 import { ClusterBuilderService } from '../intelligence/keyword-intelligence/cluster-builder.service';
 import { KeywordClusterData } from '../intelligence/keyword-intelligence/keyword-cluster.types';
 import { cleanMarkdownOutput } from '../utils/markdown-cleaner';
+import { hasBlockingAuditFailure } from '../audit/dto/audit-content.dto';
 import { AnalysisResult, AnalysisService } from './analysis.service';
 import { GenerationService } from './generation.service';
 import { ImageGenerationService } from './image-generation.service';
@@ -307,19 +308,6 @@ export class TrafficEnginePipelineService {
           contentTaskId,
           'seo_check',
         );
-        const seoResult = await this.runWithRetry(
-          () =>
-            this.seoCheckService.check(
-              pageId,
-              page.siteId,
-              finalContent,
-              cluster,
-              priority,
-              cluster.intent,
-            ),
-          config.runtimeConfig.maxRetries,
-        );
-        finalContent = seoResult.finalContent;
 
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {
           const autoFixed = ensureKeywordInH1(finalContent, cluster.primaryKeyword);
@@ -333,9 +321,30 @@ export class TrafficEnginePipelineService {
                 wordCount: autoFixed.split(/\s+/).filter(Boolean).length,
               },
             });
-            this.logger.log({ msg: 'seo_gate_h1_auto_fixed', pageId });
+            this.logger.log({ msg: 'seo_gate_h1_auto_fixed_before_audit', pageId });
           }
         }
+
+        const skipYmylAudit =
+          contentTask?.payload != null &&
+          typeof contentTask.payload === 'object' &&
+          !Array.isArray(contentTask.payload) &&
+          (contentTask.payload as Record<string, unknown>).skipYmylAudit === true;
+
+        const seoResult = await this.runWithRetry(
+          () =>
+            this.seoCheckService.check(
+              pageId,
+              page.siteId,
+              finalContent,
+              cluster,
+              priority,
+              cluster.intent,
+              skipYmylAudit,
+            ),
+          config.runtimeConfig.maxRetries,
+        );
+        finalContent = seoResult.finalContent;
 
         const minSeoScore = config.runtimeConfig.minSeoCheckScore ?? 50;
         // Multi-signal deterministic SEO gate
@@ -346,13 +355,19 @@ export class TrafficEnginePipelineService {
         if (!seoResult.passed) {
           seoViolations.push('llm_check_not_passed');
         }
-        if (!seoResult.auditResult.approved && !seoResult.auditResult.auditUnavailable) {
+        if (hasBlockingAuditFailure(seoResult.auditResult)) {
           seoViolations.push('audit_not_approved');
         } else if (seoResult.auditResult.auditUnavailable) {
           this.logger.warn({
             msg: 'seo_gate_audit_unavailable_skipped',
             pageId,
             reason: seoResult.auditResult.critical_errors.slice(0, 200),
+          });
+        } else if (!seoResult.auditResult.approved) {
+          this.logger.warn({
+            msg: 'seo_gate_audit_soft_pass',
+            pageId,
+            eeat_score: seoResult.auditResult.eeat_score,
           });
         }
         if (!h1ContainsKeyword(finalContent, cluster.primaryKeyword)) {

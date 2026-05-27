@@ -138,6 +138,7 @@ export class PagesController {
   async completePipeline(
     @ParseIntParam('id') pageId: number,
     @Query('fromStep') fromStep?: string,
+    @Query('skipYmylAudit') skipYmylAudit?: string,
   ) {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
@@ -193,10 +194,12 @@ export class PagesController {
       data: { pipelineStatus: PipelineStatus.PARTIALLY_COMPLETED },
     });
 
+    const useLightweightAudit = skipYmylAudit === 'true' || skipYmylAudit === '1';
     const task = await this.contentTasks.create({
       siteId: page.siteId,
       keywordId: page.keywordId,
       pageId: page.id,
+      payload: useLightweightAudit ? { skipYmylAudit: true } : undefined,
     });
 
     return {
@@ -205,6 +208,7 @@ export class PagesController {
       resumedFrom,
       checkpointLastStep: checkpoint.lastStep,
       skippedSteps,
+      skipYmylAudit: useLightweightAudit,
     };
   }
 

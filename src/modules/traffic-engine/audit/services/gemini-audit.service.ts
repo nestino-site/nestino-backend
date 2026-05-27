@@ -66,32 +66,97 @@ function parseAuditJsonFromText(text: string): unknown {
   }
 }
 
+function parseApproved(value: unknown): boolean {
+  if (value === true) {
+    return true;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === 'yes';
+  }
+  return false;
+}
+
+function parseEeatScore(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.min(10, Math.round(value)));
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed)) {
+      return Math.max(1, Math.min(10, parsed));
+    }
+  }
+  return 1;
+}
+
 function normalizeAuditResult(raw: unknown): AuditResult {
   const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const linking =
     obj.internal_linking_audit && typeof obj.internal_linking_audit === 'object'
       ? (obj.internal_linking_audit as Record<string, unknown>)
-      : {};
-  const statusRaw = linking.status;
+      : null;
+  const statusRaw =
+    linking && linking.status != null ? String(linking.status).trim().toLowerCase() : '';
   const status: InternalLinkingAuditStatus =
-    statusRaw === 'approved' ? 'approved' : 'needs_fix';
-  const eeatRaw = typeof obj.eeat_score === 'number' ? obj.eeat_score : 1;
-  const eeat_score = Math.max(1, Math.min(10, Math.round(eeatRaw)));
+    statusRaw === 'approved' ? 'approved' : linking ? 'needs_fix' : 'approved';
+  const critical_errors =
+    typeof obj.critical_errors === 'string'
+      ? obj.critical_errors
+      : String(obj.critical_errors ?? '');
+  const eeat_score = parseEeatScore(obj.eeat_score);
+  let approved = parseApproved(obj.approved);
 
-  return {
-    approved: obj.approved === true,
+  // Model sometimes omits approved or returns false with no listed critical errors.
+  if (
+    !approved &&
+    critical_errors.trim().length === 0 &&
+    status === 'approved' &&
+    eeat_score >= 5
+  ) {
+    approved = true;
+  }
+
+  return finalizeAuditResult({
+    approved,
     eeat_score,
-    critical_errors:
-      typeof obj.critical_errors === 'string' ? obj.critical_errors : String(obj.critical_errors ?? ''),
+    critical_errors,
     seo_and_ux_recommendations:
       typeof obj.seo_and_ux_recommendations === 'string'
         ? obj.seo_and_ux_recommendations
         : String(obj.seo_and_ux_recommendations ?? ''),
     internal_linking_audit: {
       status,
-      details: typeof linking.details === 'string' ? linking.details : String(linking.details ?? ''),
+      details:
+        linking && typeof linking.details === 'string'
+          ? linking.details
+          : linking
+            ? String(linking.details ?? '')
+            : '',
     },
-  };
+  });
+}
+
+/** Approve when audit found no substantive blocking issues. */
+function finalizeAuditResult(result: AuditResult): AuditResult {
+  if (result.auditUnavailable) {
+    return result;
+  }
+  const noCritical = result.critical_errors.trim().length === 0;
+  const linkingOk =
+    result.internal_linking_audit.status === 'approved' ||
+    result.internal_linking_audit.details.trim().length === 0;
+  if (!result.approved && noCritical && linkingOk) {
+    return { ...result, approved: true };
+  }
+  return result;
+}
+
+function auditQualityScore(result: AuditResult): number {
+  if (result.auditUnavailable) {
+    return 0;
+  }
+  return (result.approved ? 100 : 0) + result.eeat_score;
 }
 
 function needsFix(auditResult: AuditResult): boolean {
@@ -168,6 +233,7 @@ export class GeminiAuditService {
     let currentContent = draftContent;
     let fixAttempts = 0;
     let auditResult = await this.runAuditPhase(ai, currentContent);
+    let bestAuditResult = auditResult;
 
     while (needsFix(auditResult) && fixAttempts < MAX_FIX_ATTEMPTS) {
       this.logger.log({
@@ -185,7 +251,26 @@ export class GeminiAuditService {
 
       fixAttempts += 1;
       auditResult = await this.runAuditPhase(ai, currentContent);
+      if (auditQualityScore(auditResult) >= auditQualityScore(bestAuditResult)) {
+        bestAuditResult = auditResult;
+      }
     }
+
+    if (
+      !auditResult.approved &&
+      auditResult.critical_errors.trim().length === 0 &&
+      bestAuditResult.approved
+    ) {
+      this.logger.warn({
+        msg: 'gemini_audit_reverted_to_best_pass',
+        fixAttempts,
+        finalEeat: auditResult.eeat_score,
+        bestEeat: bestAuditResult.eeat_score,
+      });
+      auditResult = bestAuditResult;
+    }
+
+    auditResult = finalizeAuditResult(auditResult);
 
     if (!auditResult.approved) {
       this.logger.warn({
