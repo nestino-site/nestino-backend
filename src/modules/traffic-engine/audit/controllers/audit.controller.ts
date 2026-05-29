@@ -5,12 +5,15 @@ import {
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ParseIntParam } from '../../../../common/pipes/parse-int-param.decorator';
 import { AuditContentDto } from '../dto/audit-content.dto';
 import { GeminiAuditService } from '../services/gemini-audit.service';
 
+@ApiTags('Pages')
+@ApiBearerAuth('bearer')
 @Controller('pages')
 export class AuditController {
   constructor(
@@ -23,6 +26,9 @@ export class AuditController {
    * Optional body.content overrides DB content for the audit input.
    */
   @Post(':id/audit')
+  @ApiOperation({ summary: 'Run YMYL content audit and auto-fix on a page' })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  @ApiResponse({ status: 201, description: 'Audit result with optional fixed content' })
   async auditPage(@ParseIntParam('id') pageId: number, @Body() dto: AuditContentDto) {
     const contentFromBody = dto.content?.trim();
     let content: string;

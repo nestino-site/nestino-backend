@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, NotFoundException, Req, Res } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { PageStatus, PipelineStatus } from '@prisma/client';
 import type { Request, Response } from 'express';
 import sharp from 'sharp';
@@ -12,6 +13,8 @@ import { NextJsContractMapperService } from '../next-js-contract-mapper.service'
 
 type ContentContract = Awaited<ReturnType<NextJsContractMapperService['toContract']>>;
 
+@ApiTags('Content API')
+@ApiSecurity('site-api-key')
 @Controller('content')
 export class ContentApiController {
   constructor(
@@ -22,6 +25,7 @@ export class ContentApiController {
   ) {}
 
   @Get('pages')
+  @ApiOperation({ summary: 'List published pages for the authenticated site' })
   @SiteScopedApiKey()
   async listPublishedPages(@Req() req: Request) {
     const siteId = req.siteId!;
@@ -37,6 +41,7 @@ export class ContentApiController {
   }
 
   @Get('by-slug/*path')
+  @ApiOperation({ summary: 'Get published page content by slug path' })
   @SiteScopedApiKey()
   async getContentBySlug(@Req() req: Request) {
     const siteId = req.siteId!;
@@ -60,6 +65,8 @@ export class ContentApiController {
   }
 
   @Get(':pageId')
+  @ApiOperation({ summary: 'Get published page content by page ID' })
+  @ApiParam({ name: 'pageId', type: Number, example: 100 })
   @SiteApiKey()
   @HttpCode(HttpStatus.OK)
   async getContent(@ParseIntParam('pageId') pageId: number) {
@@ -81,6 +88,8 @@ export class ContentApiController {
   }
 
   @Get(':pageId/hero-image')
+  @ApiOperation({ summary: 'Get hero image (redirects to CDN or returns WebP)' })
+  @ApiParam({ name: 'pageId', type: Number, example: 100 })
   @SiteApiKey()
   async getHeroImage(
     @ParseIntParam('pageId') pageId: number,
@@ -117,6 +126,8 @@ export class ContentApiController {
   }
 
   @Get(':pageId/logs')
+  @ApiOperation({ summary: 'Get AI generation logs for a page' })
+  @ApiParam({ name: 'pageId', type: Number, example: 100 })
   @SiteApiKey()
   async getLogs(@ParseIntParam('pageId') pageId: number) {
     const page = await this.stateManager.getState(pageId);

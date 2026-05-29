@@ -8,10 +8,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { TaskType } from '@prisma/client';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ContentTasksService } from '../content-tasks/services/content-tasks.service';
+import { ClinicWebhookPayloadDto } from './dto/clinic-webhook-payload.dto';
 
 interface ClinicPublishedWebhookPayload {
   event: 'CLINIC_PUBLISHED' | 'CLINIC_UPDATED' | 'TRUTH_SCORE_CHANGED';
@@ -22,7 +23,6 @@ interface ClinicPublishedWebhookPayload {
   countryCode?: string;
   status: string;
   publishedAt?: string;
-  // truth score fields
   composite?: number;
   grade?: string;
 }
@@ -63,8 +63,12 @@ export class ClinicWebhookController {
   @Post('webhook')
   @HttpCode(200)
   @ApiOperation({ summary: 'Inbound webhook from clinic-inventory (clinic published/updated)' })
+  @ApiHeader({ name: 'x-clinic-signature', required: true, description: 'HMAC SHA256 signature' })
+  @ApiHeader({ name: 'x-event-type', required: true, description: 'Event type override' })
+  @ApiResponse({ status: 200, description: 'Webhook accepted' })
+  @ApiResponse({ status: 401, description: 'Invalid webhook signature' })
   async handleClinicWebhook(
-    @Body() payload: ClinicPublishedWebhookPayload,
+    @Body() payload: ClinicWebhookPayloadDto,
     @Headers('x-clinic-signature') signature: string,
     @Headers('x-event-type') eventType: string,
   ): Promise<{ ok: boolean }> {

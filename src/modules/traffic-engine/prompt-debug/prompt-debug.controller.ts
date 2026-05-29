@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ParseIntParam } from '../../../common/pipes/parse-int-param.decorator';
 import { PipelineStep } from '../ai/types/ai-execution.types';
 import { PromptDebugService } from './prompt-debug.service';
@@ -11,6 +12,8 @@ const STEPS: PipelineStep[] = [
   'seo_check',
 ];
 
+@ApiTags('Debug')
+@ApiBearerAuth('bearer')
 @Controller('debug/prompt')
 export class PromptDebugController {
   constructor(private readonly promptDebug: PromptDebugService) {}
@@ -20,6 +23,20 @@ export class PromptDebugController {
    * Query `generateMode=outline|draft` applies when step=generate (default: draft).
    */
   @Get(':pageId')
+  @ApiOperation({ summary: 'Preview composed LLM prompts for a pipeline step' })
+  @ApiParam({ name: 'pageId', type: Number, example: 100 })
+  @ApiQuery({
+    name: 'step',
+    enum: STEPS,
+    required: true,
+    example: 'generate',
+  })
+  @ApiQuery({
+    name: 'generateMode',
+    enum: ['outline', 'draft'],
+    required: false,
+    example: 'draft',
+  })
   async getPrompt(
     @ParseIntParam('pageId') pageId: number,
     @Query('step') stepRaw: string,

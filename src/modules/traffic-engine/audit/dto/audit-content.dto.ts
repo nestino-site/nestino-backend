@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 
 export type InternalLinkingAuditStatus = 'approved' | 'needs_fix';
@@ -51,6 +52,10 @@ export interface AuditAndFixResult {
 }
 
 export class AuditContentDto {
+  @ApiPropertyOptional({
+    example: '# IVF Guide\n\nMarkdown content to audit...',
+    description: 'Override page content for audit; uses stored content when omitted',
+  })
   @IsOptional()
   @IsString()
   content?: string;
