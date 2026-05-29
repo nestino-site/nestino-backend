@@ -145,4 +145,28 @@ export class PipelineCheckpointService {
   private key(pageId: number): string {
     return `pipeline:checkpoint:${pageId}`;
   }
+
+  private lockKey(pageId: number): string {
+    return `pipeline:lock:${pageId}`;
+  }
+
+  /** Exclusive lock so two workers cannot mutate the same page pipeline concurrently. */
+  async acquireRunLock(pageId: number, owner: string, ttlSec = 3600): Promise<boolean> {
+    const result = await this.redis.client.set(
+      this.lockKey(pageId),
+      owner,
+      'EX',
+      ttlSec,
+      'NX',
+    );
+    return result === 'OK';
+  }
+
+  async releaseRunLock(pageId: number, owner: string): Promise<void> {
+    const key = this.lockKey(pageId);
+    const current = await this.redis.client.get(key);
+    if (current === owner) {
+      await this.redis.client.del(key);
+    }
+  }
 }

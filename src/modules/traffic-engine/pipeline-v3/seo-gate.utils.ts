@@ -125,3 +125,65 @@ export function collectDeterministicSeoIssues(
   }
   return issues;
 }
+
+const CONTENT_STOP_WORDS = new Set([
+  'ivf',
+  'vs',
+  'for',
+  'in',
+  'the',
+  'a',
+  'guide',
+  'compare',
+  'cost',
+  'clinic',
+  'and',
+  'or',
+]);
+
+/** Topic tokens derived from keyword + slug (e.g. prague, brno for city compare pages). */
+export function extractPageTopicTokens(keyword: string, slug: string): string[] {
+  const tokens = new Set<string>();
+
+  for (const part of keyword.toLowerCase().split(/[\s/\-_]+/)) {
+    if (part.length > 2 && !CONTENT_STOP_WORDS.has(part)) {
+      tokens.add(part);
+    }
+  }
+
+  const slugLeaf = slug.replace(/^\/+|\/+$/g, '').split('/').pop() ?? '';
+  const compareMatch = slugLeaf.match(/^(.+)-vs-(.+)-ivf$/);
+  if (compareMatch) {
+    for (const city of [compareMatch[1], compareMatch[2]]) {
+      for (const part of city.split('-')) {
+        if (part.length > 2 && !CONTENT_STOP_WORDS.has(part)) {
+          tokens.add(part);
+        }
+      }
+    }
+  }
+
+  return [...tokens];
+}
+
+/**
+ * Detects when persisted draft/final content belongs to a different page topic
+ * (e.g. Athens guide body stored on Prague compare page after a bad resume).
+ */
+export function contentAlignsWithPage(
+  content: string,
+  keyword: string,
+  slug: string,
+): boolean {
+  const tokens = extractPageTopicTokens(keyword, slug);
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  const haystack = content.toLowerCase();
+  const matched = tokens.filter((token) => haystack.includes(token));
+  const isComparison = keyword.includes(' vs ') || slug.includes('-vs-');
+  const requiredMatches = isComparison ? Math.min(2, tokens.length) : 1;
+
+  return matched.length >= requiredMatches;
+}

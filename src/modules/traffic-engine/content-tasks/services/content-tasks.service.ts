@@ -25,6 +25,25 @@ export class ContentTasksService {
   ) {}
 
   async create(dto: CreateContentTaskDto): Promise<ContentTask> {
+    if (
+      dto.pageId &&
+      (dto.type === undefined || dto.type === TaskType.GENERATE_CONTENT)
+    ) {
+      const active = await this.prisma.contentTask.findFirst({
+        where: {
+          pageId: dto.pageId,
+          type: TaskType.GENERATE_CONTENT,
+          status: { in: [TaskStatus.QUEUED, TaskStatus.PROCESSING] },
+        },
+        select: { id: true, status: true },
+      });
+      if (active) {
+        throw new UnprocessableEntityException(
+          `Page ${dto.pageId} already has an active generate task (id=${active.id}, status=${active.status})`,
+        );
+      }
+    }
+
     let task: ContentTask;
     try {
       task = await this.prisma.contentTask.create({

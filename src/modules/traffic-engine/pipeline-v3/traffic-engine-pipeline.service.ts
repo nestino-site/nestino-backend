@@ -25,6 +25,7 @@ import { ErrorTrackerService } from '../observability/error-tracker.service';
 import {
   clampMetaDescription,
   clampMetaTitle,
+  contentAlignsWithPage,
   ensureKeywordInH1,
   h1ContainsKeyword,
   META_DESC_MAX,
@@ -75,17 +76,62 @@ export class TrafficEnginePipelineService {
   ) {}
 
   async run(pageId: number, contentTaskId?: number): Promise<void> {
+    const lockOwner = contentTaskId ? `task:${contentTaskId}` : `run:${pageId}`;
+    const lockAcquired = await this.checkpointService.acquireRunLock(pageId, lockOwner);
+    if (!lockAcquired) {
+      throw new UnprocessableEntityException(
+        `Another pipeline run is already in progress for page ${pageId}`,
+      );
+    }
+
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true, keyword: true },
     });
     if (!page || !page.keyword) {
+      await this.checkpointService.releaseRunLock(pageId, lockOwner);
       throw new UnprocessableEntityException('Page or keyword missing');
     }
 
+    this.logger.log({
+      msg: 'pipeline_v3_start',
+      pageId,
+      contentTaskId,
+      keywordId: page.keywordId,
+      keyword: page.keyword.keyword,
+      slug: page.slug,
+    });
+
     const config = await this.siteConfigService.getForPage(pageId);
-    const checkpoint = await this.checkpointService.load(pageId);
-    const completedSteps = new Set(checkpoint?.completedSteps ?? []);
+    let checkpoint = await this.checkpointService.load(pageId);
+    let completedSteps = new Set(checkpoint?.completedSteps ?? []);
+
+    const persistedForAlignment = page.finalContent ?? page.rawDraft ?? '';
+    if (
+      persistedForAlignment &&
+      !contentAlignsWithPage(persistedForAlignment, page.keyword.keyword, page.slug)
+    ) {
+      this.logger.warn({
+        msg: 'content_topic_mismatch_detected',
+        pageId,
+        keywordId: page.keywordId,
+        keyword: page.keyword.keyword,
+        slug: page.slug,
+      });
+      await this.checkpointService.clear(pageId);
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: {
+          finalContent: null,
+          rawDraft: null,
+          pipelineCheckpoint: Prisma.JsonNull,
+        },
+      });
+      page.finalContent = null;
+      page.rawDraft = null;
+      checkpoint = null;
+      completedSteps = new Set();
+    }
 
     const contentTask = contentTaskId
       ? await this.prisma.contentTask.findUnique({ where: { id: contentTaskId } })
@@ -452,6 +498,12 @@ export class TrafficEnginePipelineService {
       }
 
       finalContent = cleanMarkdownOutput(finalContent);
+      if (!contentAlignsWithPage(finalContent, page.keyword.keyword, page.slug)) {
+        throw new Error(
+          `CONTENT_TOPIC_MISMATCH:keyword=${page.keyword.keyword}:slug=${page.slug}`,
+        );
+      }
+
       const markdownViolations = this.validateMarkdownStructure(finalContent);
       if (markdownViolations.length > 0) {
         throw new Error(`MARKDOWN_VALIDATION_FAILED:${markdownViolations.join(',')}`);
@@ -509,6 +561,8 @@ export class TrafficEnginePipelineService {
         });
       }
       throw error;
+    } finally {
+      await this.checkpointService.releaseRunLock(pageId, lockOwner);
     }
   }
 

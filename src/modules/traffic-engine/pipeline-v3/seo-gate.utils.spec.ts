@@ -3,8 +3,10 @@ import {
   clampMetaDescription,
   clampMetaTitle,
   collectDeterministicSeoIssues,
+  contentAlignsWithPage,
   ensureKeywordInH1,
   extractH1Text,
+  extractPageTopicTokens,
   h1ContainsKeyword,
 } from './seo-gate.utils';
 
@@ -48,6 +50,20 @@ function run(): void {
   assert.ok(longDesc.length > 165);
   const clampedDesc = clampMetaDescription(longDesc);
   assert.ok(clampedDesc.length >= 80 && clampedDesc.length <= 165);
+
+  const pragueSlug = '/compare/prague-vs-brno-ivf';
+  const pragueKeyword = 'prague vs brno ivf';
+  const greeceContent =
+    '# IVF in Greece: Athens vs. Thessaloniki Clinic & Cost Guide (2026)\n\nAthens clinics...';
+  const pragueContent =
+    '# Prague vs Brno IVF: Clinic & Cost Comparison (2026)\n\nPrague and Brno fertility clinics...';
+
+  assert.equal(contentAlignsWithPage(greeceContent, pragueKeyword, pragueSlug), false);
+  assert.equal(contentAlignsWithPage(pragueContent, pragueKeyword, pragueSlug), true);
+  assert.deepEqual(extractPageTopicTokens(pragueKeyword, pragueSlug).sort(), [
+    'brno',
+    'prague',
+  ]);
 
   console.log('seo-gate.utils.spec: all assertions passed');
 }
