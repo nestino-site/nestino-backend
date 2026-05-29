@@ -33,6 +33,7 @@ import { PublishService } from '../../publishing/publish.service';
 import { AssignPageKeywordDto } from '../dto/assign-page-keyword.dto';
 import { CreatePageDto } from '../dto/create-page.dto';
 import { UpdatePageDto } from '../dto/update-page.dto';
+import { UpdatePageContentDto } from '../dto/update-page-content.dto';
 import { PageKeywordService } from '../services/page-keyword.service';
 import { PagesService } from '../services/pages.service';
 
@@ -426,6 +427,19 @@ export class PagesController {
   @ApiParam({ name: 'id', type: Number, example: 100 })
   findOne(@ParseIntParam('id') id: number) {
     return this.pagesService.findOne(id);
+  }
+
+  @Patch(':id/content')
+  @ApiOperation({
+    summary: 'Update page Markdown body (human edit)',
+    description:
+      'Replaces finalContent and rawDraft, re-renders htmlContent/tableOfContents/faq. ' +
+      'Set republish=true on published pages to push changes to the frontend via webhook.',
+  })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  @ApiResponse({ status: 200, description: 'Content updated' })
+  updateContent(@ParseIntParam('id') id: number, @Body() dto: UpdatePageContentDto) {
+    return this.pagesService.updateContent(id, dto);
   }
 
   @Patch(':id')

@@ -1,14 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ContentLanguage, Page, PageStatus } from '@prisma/client';
+import { ContentLanguage, Page, PageStatus, PipelineStatus, Prisma } from '@prisma/client';
 import { PrismaErrorMapper } from '../../../../common/errors/prisma-error.mapper';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { ContentCacheService } from '../../content-api/content-cache.service';
+import { ContentRenderService } from '../../content-api/content-render.service';
+import { PublishService } from '../../publishing/publish.service';
+import { cleanMarkdownOutput } from '../../utils/markdown-cleaner';
 import { CreatePageDto } from '../dto/create-page.dto';
+import { UpdatePageContentDto } from '../dto/update-page-content.dto';
 import { UpdatePageDto } from '../dto/update-page.dto';
 import { PageListItem, pageListSelect } from '../page-list.select';
 
+export interface UpdatePageContentResult {
+  id: number;
+  slug: string;
+  status: PageStatus;
+  pipelineStatus: PipelineStatus;
+  wordCount: number;
+  republished: boolean;
+  webhookFired: boolean;
+  humanEditedAt: string;
+  updatedAt: Date;
+}
+
 @Injectable()
 export class PagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly contentRender: ContentRenderService,
+    private readonly contentCache: ContentCacheService,
+    private readonly publishService: PublishService,
+  ) {}
 
   async create(dto: CreatePageDto): Promise<Page> {
     try {
@@ -68,5 +90,61 @@ export class PagesService {
     } catch (error) {
       throw PrismaErrorMapper.toHttpException(error);
     }
+  }
+
+  async updateContent(
+    id: number,
+    dto: UpdatePageContentDto,
+  ): Promise<UpdatePageContentResult> {
+    const page = await this.findOne(id);
+    const cleaned = cleanMarkdownOutput(dto.finalContent);
+    const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+    const rendered = this.contentRender.renderFromMarkdown(cleaned);
+    const renderedFields = this.contentRender.toJsonFields(rendered);
+    const humanEditedAt = new Date().toISOString();
+
+    const existingAudit =
+      page.contentAuditResult && typeof page.contentAuditResult === 'object'
+        ? (page.contentAuditResult as Record<string, unknown>)
+        : {};
+
+    const updated = await this.prisma.page.update({
+      where: { id },
+      data: {
+        finalContent: cleaned,
+        rawDraft: cleaned,
+        wordCount,
+        optimizationCount: { increment: 1 },
+        ...renderedFields,
+        contentAuditResult: {
+          ...existingAudit,
+          humanEdited: true,
+          humanEditedAt,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    await this.contentCache.invalidatePage(updated.siteId, updated.slug, updated.id);
+
+    let republished = false;
+    let webhookFired = false;
+
+    if (dto.republish && updated.status === PageStatus.PUBLISHED) {
+      const publishResult = await this.publishService.publishPage(id);
+      republished = publishResult.published;
+      webhookFired = publishResult.webhookFired;
+    }
+
+    return {
+      id: updated.id,
+      slug: updated.slug,
+      status: updated.status,
+      pipelineStatus: updated.pipelineStatus,
+      wordCount: updated.wordCount ?? wordCount,
+      republished,
+      webhookFired,
+      humanEditedAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 }
