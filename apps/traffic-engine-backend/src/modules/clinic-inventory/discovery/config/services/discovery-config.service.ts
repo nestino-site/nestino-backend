@@ -12,6 +12,7 @@ import {
   PipelineStep,
   REQUIRED_STEP_KEYS,
 } from '../discovery-pipeline.types';
+import { DEFAULT_SYSTEM_CONFIG_DEFAULTS } from '../discovery-defaults';
 
 function deepMerge<T extends object>(base: T, override: Partial<T>): T {
   const result: T = { ...base };
@@ -63,8 +64,17 @@ export class DiscoveryConfigService {
   ) {}
 
   async getSystemDefaults(): Promise<EffectiveDiscoveryConfig> {
-    const sys = await this.prisma.systemConfig.findUnique({ where: { id: 1 } });
-    if (!sys) throw new NotFoundException('SystemConfig not seeded');
+    let sys = await this.prisma.systemConfig.findUnique({ where: { id: 1 } });
+    if (!sys) {
+      this.logger.warn('SystemConfig missing — bootstrapping defaults');
+      sys = await this.prisma.systemConfig.create({
+        data: {
+          id: 1,
+          defaults: DEFAULT_SYSTEM_CONFIG_DEFAULTS as object,
+          version: 1,
+        },
+      });
+    }
     return sys.defaults as unknown as EffectiveDiscoveryConfig;
   }
 
