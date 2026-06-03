@@ -48,6 +48,8 @@ interface ClinicPageSpec {
   schemaMarkup: object;
 }
 
+const DEFAULT_CLINIC_SITE_DOMAIN = 'medcover.io';
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -77,12 +79,16 @@ function stableStringify(value: unknown): string {
 }
 
 function buildMedicalBusinessSchema(payload: ClinicPublishedWebhookPayload): object {
+  const siteDomain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
+  const countrySlug = payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown';
+  const citySlug = payload.citySlug ?? 'unknown';
+
   return {
     '@context': 'https://schema.org',
     '@type': 'MedicalBusiness',
     name: payload.name,
     medicalSpecialty: 'Reproductive Medicine',
-    url: `https://sindibed.com/clinics/${payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown'}/${payload.citySlug ?? 'unknown'}/${payload.slug}`,
+    url: `https://${siteDomain}/clinics/${countrySlug}/${citySlug}/${payload.slug}`,
     telephone: payload.phone,
     sameAs: [payload.website, payload.googleMapsUrl].filter(Boolean),
     address: {
@@ -229,21 +235,14 @@ export class ClinicWebhookController {
   }
 
   private async upsertClinicPage(payload: ClinicPublishedWebhookPayload): Promise<void> {
-    const clinicSiteId = Number(process.env.CLINIC_SITE_ID ?? '0');
-    if (!clinicSiteId) {
-      this.logger.warn('CLINIC_SITE_ID not set — cannot upsert clinic page');
-      return;
-    }
-
-    const site = await this.prisma.site.findUnique({ where: { id: clinicSiteId } });
+    const site = await this.getClinicSite();
     if (!site) {
-      this.logger.warn(`Site ${clinicSiteId} not found`);
       return;
     }
 
     const specs = buildClinicPageSpecs(payload);
     for (const spec of specs) {
-      await this.upsertGeneratedPage(clinicSiteId, payload, spec);
+      await this.upsertGeneratedPage(site.id, payload, spec);
     }
   }
 
@@ -316,11 +315,11 @@ export class ClinicWebhookController {
   }
 
   private async updatePageSchema(payload: ClinicPublishedWebhookPayload): Promise<void> {
-    const clinicSiteId = Number(process.env.CLINIC_SITE_ID ?? '0');
-    if (!clinicSiteId) return;
+    const site = await this.getClinicSite();
+    if (!site) return;
 
     const slug = `/clinics/${payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown'}/${payload.citySlug ?? 'unknown'}/${payload.slug}`;
-    const page = await this.prisma.page.findFirst({ where: { siteId: clinicSiteId, slug } });
+    const page = await this.prisma.page.findFirst({ where: { siteId: site.id, slug } });
     if (!page) return;
 
     const updatedSchema = {
@@ -343,5 +342,20 @@ export class ClinicWebhookController {
       data: { schemaMarkup: updatedSchema },
     });
     this.logger.log(`Updated schema markup for page ${page.id} with Truth Score grade=${payload.grade}`);
+  }
+
+  private async getClinicSite(): Promise<{ id: number; domain: string } | null> {
+    const clinicDomain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
+    const site = await this.prisma.site.findUnique({
+      where: { domain: clinicDomain },
+      select: { id: true, domain: true },
+    });
+
+    if (!site) {
+      this.logger.warn(`Clinic site domain ${clinicDomain} not found — cannot upsert clinic pages`);
+      return null;
+    }
+
+    return site;
   }
 }
