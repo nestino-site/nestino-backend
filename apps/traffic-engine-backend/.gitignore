@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+dump.rdb
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+id_mapping.json

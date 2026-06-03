@@ -1,0 +1,442 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SiteStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ContentLanguage {
+  EN
+  AR
+  DE
+  FR
+  ES
+  IT
+  TR
+  NL
+  FA
+}
+
+enum ContentStrategy {
+  BUDGET
+  BALANCED
+  QUALITY
+}
+
+enum KeywordIntent {
+  INFORMATIONAL
+  NAVIGATIONAL
+  TRANSACTIONAL
+  COMMERCIAL
+}
+
+enum KeywordStatus {
+  PENDING
+  IN_PROGRESS
+  PUBLISHED
+  FAILED
+  SKIPPED
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  NEEDS_UPDATE
+  ARCHIVED
+}
+
+enum TaskStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaskType {
+  GENERATE_CONTENT
+  REWRITE_CONTENT
+  GENERATE_META
+  GENERATE_SCHEMA
+  GENERATE_IMAGE
+}
+
+enum AiProvider {
+  openai
+  anthropic
+  google
+}
+
+enum AiGenerationStatus {
+  SUCCESS
+  FAILED
+}
+
+enum KeywordResearchSource {
+  MANUAL
+  AI
+  GSC
+}
+
+enum PipelineStatus {
+  PENDING
+  GENERATING
+  VALIDATING
+  ANALYZING
+  GEO_SCORING
+  REWRITING
+  READY
+  FAILED
+  PARTIALLY_COMPLETED
+  SKIPPED_STEP
+}
+
+enum PageKeywordRole {
+  PRIMARY
+  SECONDARY
+}
+
+enum CannibalizationStatus {
+  WINNER
+  LOSER
+  MONITOR
+  NONE
+}
+
+model Site {
+  id               String           @id @default(cuid())
+  name             String
+  domain           String           @unique
+  timezone         String           @default("UTC")
+  status           SiteStatus       @default(ACTIVE)
+  config           Json?
+
+  defaultLanguage  ContentLanguage  @default(EN)
+  languages        ContentLanguage[]
+  strategy         ContentStrategy  @default(BALANCED)
+  gscProperty      String?
+  ga4PropertyId    String?
+  aiPipeline       Json?
+
+  publishWebhookUrl    String?
+  publishWebhookSecret String?
+  autoPublish          Boolean  @default(true)
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  keywords         Keyword[]
+  pages            Page[]
+  seoMetrics       SeoMetric[]
+  siteConfig       SiteConfig?
+  promptTemplates  PromptTemplate[]
+  costLedger       CostLedger[]
+  keywordClusters  KeywordCluster[]
+
+  @@index([domain])
+  @@map("sites")
+}
+
+model Keyword {
+  id             String           @id @default(cuid())
+  siteId         String
+  keyword        String
+  language       ContentLanguage  @default(EN)
+  baseKeywordId  String?
+  intent         KeywordIntent    @default(INFORMATIONAL)
+  status         KeywordStatus    @default(PENDING)
+  searchVolume   Int?
+  difficulty     Float?
+  cpc            Float?
+  priority       Int              @default(0)
+  cannibalizationGroup String?
+  targetUrl      String?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  site           Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  baseKeyword    Keyword?         @relation("KeywordCluster", fields: [baseKeywordId], references: [id], onDelete: SetNull)
+  derivedKeywords Keyword[]       @relation("KeywordCluster")
+  pages          Page[]
+  contentTasks   ContentTask[]
+  pageKeywords   PageKeyword[]
+  cluster        KeywordCluster?  @relation("ClusterMain")
+
+  @@unique([siteId, keyword, language])
+  @@index([siteId, status])
+  @@index([siteId, priority])
+  @@index([siteId, language])
+  @@index([baseKeywordId])
+  @@map("keywords")
+}
+
+model Page {
+  id                 String           @id @default(cuid())
+  siteId             String
+  keywordId          String
+  language           ContentLanguage  @default(EN)
+  slug               String
+  title              String?
+  metaTitle          String?
+  metaDescription    String?
+  outline            Json?
+  rawDraft           String?          @db.Text
+  finalContent       String?          @db.Text
+  schemaMarkup       Json?
+  status             PageStatus       @default(DRAFT)
+  seoScore           Float?
+  geoScore           Float?
+  geoScorePillars    Json?
+  cannibalizationStatus CannibalizationStatus @default(NONE)
+  readabilityScore Float?
+  wordCount          Int?
+  optimizationCount Int             @default(0)
+  pipelineStatus     PipelineStatus  @default(PENDING)
+  pipelineVersion    Int?
+  pipelineCheckpoint Json?
+  intentMatch        Float?
+  contentDepth       Float?
+  redundancyScore    Float?
+  contentGaps        String[]
+  lastAnalyzedAt     DateTime?
+  publishedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  site               Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  keyword            Keyword          @relation(fields: [keywordId], references: [id], onDelete: Restrict)
+  contentTasks       ContentTask[]
+  seoMetrics         SeoMetric[]
+  aiGenerationLogs   AiGenerationLog[]
+  pageKeywords       PageKeyword[]
+
+  @@unique([siteId, slug, language])
+  @@index([siteId, language, status])
+  @@index([siteId, publishedAt])
+  @@map("pages")
+}
+
+model ContentTask {
+  id          String     @id @default(cuid())
+  siteId      String?
+  keywordId   String?
+  pageId      String?
+  type        TaskType   @default(GENERATE_CONTENT)
+  status      TaskStatus @default(QUEUED)
+  priority    Int        @default(0)
+  payload     Json?
+  result      Json?
+  errorLog    String?    @db.Text
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(3)
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  lockedAt    DateTime?
+  lockedBy    String?
+  currentStep String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  keyword     Keyword?   @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  page        Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledAt])
+  @@index([keywordId])
+  @@index([pageId])
+  @@map("content_tasks")
+}
+
+model SeoMetric {
+  id              String   @id @default(cuid())
+  siteId          String
+  pageId          String?
+  query           String?
+  date            DateTime @db.Date
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  ctr             Float    @default(0)
+  avgPosition     Float?
+  ctrExpected     Float?
+  ctrGap          Float?
+  organicSessions Int      @default(0)
+  bounceRate      Float?
+  createdAt       DateTime @default(now())
+
+  site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  page            Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@unique([siteId, pageId, date])
+  @@index([siteId, date])
+  @@index([pageId, date])
+  @@map("seo_metrics")
+}
+
+model KeywordResearch {
+  id           String                @id @default(cuid())
+  seedKeyword  String
+  language     ContentLanguage
+  suggestions  String[]
+  source       KeywordResearchSource
+  createdAt    DateTime              @default(now())
+
+  @@index([seedKeyword, language])
+  @@map("keyword_research")
+}
+
+model AiGenerationLog {
+  id            String             @id @default(cuid())
+  pageId        String
+  pipelineVersion Int?
+  stepKey       String
+  provider      AiProvider
+  model         String
+  inputTokens   Int
+  outputTokens  Int
+  cost          Decimal            @db.Decimal(12, 6)
+  durationMs    Int
+  promptHash    String
+  status        AiGenerationStatus
+  createdAt     DateTime           @default(now())
+
+  page          Page               @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+  @@index([stepKey, createdAt])
+  @@map("ai_generation_logs")
+}
+
+model SiteConfig {
+  id               String   @id @default(cuid())
+  siteId           String   @unique
+  aiBudgetLimit    Decimal  @db.Decimal(12, 2)
+  qualityThreshold Float    @default(70)
+  pipelineConfig   Json
+  modelConfig      Json
+  promptConfig     Json
+  runtimeConfig    Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  site             Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@map("site_configs")
+}
+
+model PromptTemplate {
+  id        String   @id @default(cuid())
+  siteId    String?
+  type      String
+  version   String
+  tone      String   @default("seo")
+  locale    String?
+  abVariant String?
+  system    String?  @db.Text
+  user      String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  site      Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([type, version, siteId, abVariant])
+  @@index([siteId, type, isActive])
+  @@map("prompt_templates")
+}
+
+model CostLedger {
+  id           String   @id @default(cuid())
+  siteId       String
+  date         DateTime @db.Date
+  totalCost    Decimal  @db.Decimal(12, 6)
+  totalTokens  Int      @default(0)
+  requestCount Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date])
+  @@index([siteId, date])
+  @@map("cost_ledger")
+}
+
+model PageKeyword {
+  id        String          @id @default(cuid())
+  pageId    String
+  keywordId String
+  role      PageKeywordRole @default(SECONDARY)
+  weight    Float           @default(0.5)
+  createdAt DateTime        @default(now())
+
+  page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  keyword   Keyword         @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, keywordId])
+  @@index([pageId, role])
+  @@map("page_keywords")
+}
+
+model KeywordCluster {
+  id                  String        @id @default(cuid())
+  siteId              String
+  mainKeywordId       String        @unique
+  intent              KeywordIntent
+  topic               String
+  semanticTopics      String[]
+  secondaryKeywordIds String[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  site                Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  mainKeyword         Keyword       @relation("ClusterMain", fields: [mainKeywordId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, intent])
+  @@map("keyword_clusters")
+}
+
+model VillaUser {
+  id            Int            @id @default(autoincrement())
+  email         String
+  villaId       String
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
+
+  @@unique([email, villaId])
+  @@index([villaId])
+  @@map("villa_users")
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String
+  villaId   String
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, villaId])
+  @@map("otps")
+}
+
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  jti         String    @unique
+  tokenHash   String    @unique
+  villaUserId Int
+  villaUser   VillaUser @relation(fields: [villaUserId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([villaUserId])
+  @@map("refresh_tokens")
+}
