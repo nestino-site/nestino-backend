@@ -1,0 +1,392 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template D cost pages)",
+  "siteId": 2,
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each page in order (Portugal first, then Turkey, Greece, Spain, Czech Republic).",
+    "After step 1, copy the returned keyword id into step 2.",
+    "After step 2, copy the returned page id into steps 3–5.",
+    "Steps 3, 4, 5 have no JSON body — only path/query params.",
+    "Do NOT use POST /sites/2/bulk-generate — it auto-slugs from keyword text and will miss /costs/... URLs."
+  ],
+  "pages": [
+    {
+      "priority": 1,
+      "country": "Portugal",
+      "slug": "/costs/portugal-ivf-cost-2026",
+      "template": "D — Cost Transparency Page",
+      "hubKeywordId": 10,
+      "hubPageSlug": "/guides/portugal-ivf-guide",
+      "primaryGscQuery": "ivf treatment cost in portugal",
+      "gscPosition": 7,
+      "costRange": "€3,000–€5,200",
+      "internalLinks": [
+        "/guides/portugal-ivf-guide",
+        "/guides/portugal/lisbon-ivf-guide",
+        "/guides/portugal/porto-ivf-guide",
+        "/compare/lisbon-vs-porto-ivf"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf treatment cost in portugal",
+            "language": "EN",
+            "baseKeywordId": 10,
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/portugal-ivf-cost-2026",
+            "notes": "GSC pos 7. Template D. Hub keywordId 10. Secondary: ivf agency lisbon, ivf agency portugal."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/portugal-ivf-cost-2026",
+            "language": "EN",
+            "title": "IVF Cost in Portugal 2026: What Patients Actually Paid",
+            "metaTitle": "IVF Cost in Portugal 2026 — Real Patient Data | MedCover",
+            "metaDescription": "IVF in Portugal costs €3,000–€5,200 per cycle based on verified patient interviews. See what's included, hidden fees, and what patients actually paid.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null,
+          "note": "Skip if autoPublish=true and pipeline auto-publishes"
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "country": "Turkey",
+      "slug": "/costs/turkey-ivf-cost-2026",
+      "template": "D — Cost Transparency Page",
+      "hubKeywordId": 9,
+      "hubPageSlug": "/guides/turkey-ivf-guide",
+      "primaryGscQuery": "how much is ivf in turkey 2026",
+      "gscPosition": 8,
+      "costRange": "€2,400–€4,500",
+      "internalLinks": [
+        "/guides/turkey-ivf-guide",
+        "/guides/turkey/istanbul-ivf-guide",
+        "/guides/turkey/ankara-ivf-guide",
+        "/compare/istanbul-vs-ankara-ivf"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "how much is ivf in turkey 2026",
+            "language": "EN",
+            "baseKeywordId": 9,
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/turkey-ivf-cost-2026",
+            "notes": "GSC pos 8. Template D. Hub keywordId 9. Secondary: turkey ivf cost, ivf turkey cost, ivf turkey age limit (FAQ)."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/turkey-ivf-cost-2026",
+            "language": "EN",
+            "title": "IVF Cost in Turkey 2026: What Patients Actually Paid",
+            "metaTitle": "IVF Cost in Turkey 2026 — Real Patient Data | MedCover",
+            "metaDescription": "IVF in Turkey costs €2,400–€4,500 per cycle based on verified patient interviews. Full breakdown of packages, medications, travel, and hidden fees.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ],
+      "faqToInclude": [
+        "How much is IVF in Turkey in 2026?",
+        "What is the IVF age limit in Turkey?",
+        "Does Turkey IVF cost include medications?",
+        "Is IVF cheaper in Turkey than the UK?"
+      ]
+    },
+    {
+      "priority": 3,
+      "country": "Greece",
+      "slug": "/costs/greece-ivf-cost-2026",
+      "template": "D — Cost Transparency Page",
+      "hubKeywordId": 7,
+      "hubPageSlug": "/guides/greece-ivf-guide",
+      "primaryGscQuery": "average cost of ivf in greece",
+      "gscPosition": 16,
+      "costRange": "€2,600–€4,800",
+      "internalLinks": [
+        "/guides/greece-ivf-guide",
+        "/guides/greece/athens-ivf-guide",
+        "/guides/greece/thessaloniki-ivf-guide",
+        "/compare/athens-vs-thessaloniki-ivf"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "average cost of ivf in greece",
+            "language": "EN",
+            "baseKeywordId": 7,
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/greece-ivf-cost-2026",
+            "notes": "GSC pos 16. Only cluster with a click ('ivf in greece'). Hub keywordId 7. Secondary: ivf in greece cost, greece ivf cost, cost of ivf in greece."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/greece-ivf-cost-2026",
+            "language": "EN",
+            "title": "IVF Cost in Greece 2026: What Patients Actually Paid",
+            "metaTitle": "IVF Cost in Greece 2026 — Real Patient Data | MedCover",
+            "metaDescription": "IVF in Greece costs €2,600–€4,800 per cycle based on verified patient interviews. See package prices, hidden add-ons, and what patients actually paid.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ],
+      "faqToInclude": [
+        "What is the average cost of IVF in Greece?",
+        "How much does IVF in Greece cost including medications?",
+        "Is IVF in Greece cheaper than the UK?",
+        "What are hidden costs of IVF in Greece?"
+      ]
+    },
+    {
+      "priority": 4,
+      "country": "Spain",
+      "slug": "/costs/spain-ivf-cost-2026",
+      "template": "D — Cost Transparency Page",
+      "hubKeywordId": 6,
+      "hubPageSlug": "/guides/spain-ivf-guide",
+      "primaryGscQuery": "cost of ivf in spain",
+      "gscPosition": 48.5,
+      "costRange": "€3,000–€5,500",
+      "internalLinks": [
+        "/guides/spain-ivf-guide",
+        "/guides/spain/barcelona-ivf-guide",
+        "/guides/spain/madrid-ivf-guide",
+        "/guides/spain/valencia-ivf-guide",
+        "/compare/barcelona-vs-madrid-ivf",
+        "/costs/spain-ivf-financing-2026"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "cost of ivf in spain",
+            "language": "EN",
+            "baseKeywordId": 6,
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/spain-ivf-cost-2026",
+            "notes": "Largest GSC cluster (~49 impressions). Hub keywordId 6. Secondary: barcelona ivf cost (pos 10.5), ivf cost spain, ivf barcelona price list, instituto bernabeu alicante price list."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/spain-ivf-cost-2026",
+            "language": "EN",
+            "title": "IVF Cost in Spain 2026: What Patients Actually Paid",
+            "metaTitle": "IVF Cost in Spain 2026 — Real Patient Data | MedCover",
+            "metaDescription": "IVF in Spain costs €3,000–€5,500 per cycle based on verified patient interviews. Barcelona, Madrid, and Valencia price breakdowns plus hidden fees.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ],
+      "faqToInclude": [
+        "How much does IVF cost in Spain in 2026?",
+        "What is the IVF cost in Barcelona?",
+        "What is included in a Spain IVF package?",
+        "Are there hidden costs with IVF in Spain?",
+        "How does Spain IVF cost compare to Portugal?"
+      ],
+      "relatedFixes": [
+        "Retry failed page id 2: /costs/hidden-costs-ivf-spain-2026",
+        "Complete draft page id 4: /costs/budgeting-ivf-spain-2026"
+      ]
+    },
+    {
+      "priority": 5,
+      "country": "Czech Republic",
+      "slug": "/costs/czech-republic-ivf-cost-2026",
+      "template": "D — Cost Transparency Page",
+      "hubKeywordId": 8,
+      "hubPageSlug": "/guides/czech-republic-ivf-guide",
+      "primaryGscQuery": "ivf cost czech republic 2026",
+      "gscPosition": 13,
+      "costRange": "€2,200–€4,200",
+      "internalLinks": [
+        "/guides/czech-republic-ivf-guide",
+        "/guides/czech-republic/prague-ivf-guide",
+        "/guides/czech-republic/brno-ivf-guide",
+        "/compare/prague-vs-brno-ivf"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf cost czech republic 2026",
+            "language": "EN",
+            "baseKeywordId": 8,
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/czech-republic-ivf-cost-2026",
+            "notes": "GSC pos 13. Hub keywordId 8. Secondary: prague ivf cost, czech republic ivf success rates, ivf in czech republic cost."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/czech-republic-ivf-cost-2026",
+            "language": "EN",
+            "title": "IVF Cost in Czech Republic 2026: What Patients Actually Paid",
+            "metaTitle": "IVF Cost in Czech Republic 2026 — Real Patient Data | MedCover",
+            "metaDescription": "IVF in Czech Republic costs €2,200–€4,200 per cycle based on verified patient interviews. Prague and Brno price ranges, success rates, and hidden fees.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ],
+      "faqToInclude": [
+        "How much does IVF cost in Czech Republic in 2026?",
+        "What is the IVF cost in Prague?",
+        "What are Czech Republic IVF success rates?",
+        "Is IVF in Czech Republic cheaper than Spain?"
+      ]
+    }
+  ]
+}

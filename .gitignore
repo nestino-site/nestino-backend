@@ -7,3 +7,8 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 id_mapping.json
+
+# Local IDE / data exports (not source)
+.cursor/
+Search console detail/
+package-lock.json

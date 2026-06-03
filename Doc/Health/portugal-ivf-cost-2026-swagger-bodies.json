@@ -1,0 +1,135 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (recommended for Template D cost pages)",
+  "siteId": 2,
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "targetPage": {
+    "slug": "/costs/portugal-ivf-cost-2026",
+    "template": "D — Cost Transparency Page",
+    "primaryGscQuery": "ivf treatment cost in portugal",
+    "gscPosition": 7,
+    "secondaryQueries": [
+      "ivf agency lisbon",
+      "ivf agency portugal",
+      "ivf cost portugal",
+      "how much is ivf in portugal"
+    ],
+    "internalLinks": [
+      "/guides/portugal-ivf-guide",
+      "/guides/portugal/lisbon-ivf-guide",
+      "/guides/portugal/porto-ivf-guide",
+      "/compare/lisbon-vs-porto-ivf"
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "method": "POST",
+      "path": "/keywords",
+      "description": "Create the primary keyword. Save the returned id as keywordId for step 2.",
+      "body": {
+        "siteId": 2,
+        "keyword": "ivf treatment cost in portugal",
+        "language": "EN",
+        "baseKeywordId": 10,
+        "intent": "INFORMATIONAL",
+        "status": "PENDING",
+        "priority": 1,
+        "targetUrl": "/costs/portugal-ivf-cost-2026",
+        "notes": "GSC priority #1 — pos 7, 2 impressions. Template D. Cluster under Portugal hub (keywordId 10). Also targets: ivf agency lisbon, ivf agency portugal."
+      }
+    },
+    {
+      "step": 2,
+      "method": "POST",
+      "path": "/pages",
+      "description": "Create the page shell with slug + SEO metadata before generation. Replace keywordId with the id returned from step 1.",
+      "body": {
+        "siteId": 2,
+        "keywordId": "<keywordId from step 1>",
+        "slug": "/costs/portugal-ivf-cost-2026",
+        "language": "EN",
+        "title": "IVF Cost in Portugal 2026: What Patients Actually Paid",
+        "metaTitle": "IVF Cost in Portugal 2026 — Real Patient Data | MedCover",
+        "metaDescription": "IVF in Portugal costs €3,000–€5,200 per cycle based on verified patient interviews. See what's included, hidden fees, and what patients actually paid.",
+        "status": "DRAFT"
+      }
+    },
+    {
+      "step": 3,
+      "method": "POST",
+      "path": "/pages/{pageId}/generate-content",
+      "description": "Queue the AI pipeline. Replace {pageId} with the id returned from step 2. No request body required.",
+      "query": {
+        "resetCheckpoint": "true"
+      },
+      "body": null
+    },
+    {
+      "step": 4,
+      "method": "GET",
+      "path": "/pages/{pageId}",
+      "description": "Poll every 10–30s until pipelineStatus is READY (or PARTIALLY_COMPLETED if image step failed).",
+      "body": null
+    },
+    {
+      "step": 5,
+      "method": "POST",
+      "path": "/pages/{pageId}/publish",
+      "description": "Publish manually if site.autoPublish is false. MedCover site has autoPublish=true, so this may happen automatically when pipeline completes.",
+      "body": null
+    }
+  ],
+  "optionalSecondaryKeywords": [
+    {
+      "method": "POST",
+      "path": "/keywords",
+      "description": "Optional — add supporting keywords in the same cluster after the main page is live.",
+      "body": {
+        "siteId": 2,
+        "keyword": "ivf agency lisbon",
+        "language": "EN",
+        "baseKeywordId": 10,
+        "intent": "COMMERCIAL",
+        "priority": 2,
+        "targetUrl": "/guides/portugal/lisbon-ivf-guide",
+        "notes": "Already covered by existing Lisbon guide (page id 21). Do not create a duplicate page — use for internal linking only."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/keywords",
+      "body": {
+        "siteId": 2,
+        "keyword": "ivf agency portugal",
+        "language": "EN",
+        "baseKeywordId": 10,
+        "intent": "COMMERCIAL",
+        "priority": 3,
+        "targetUrl": "/costs/portugal-ivf-cost-2026",
+        "notes": "Secondary query — mention agency/planning costs in FAQ section of cost page."
+      }
+    }
+  ],
+  "templateDContentChecklist": {
+    "h1": "IVF Cost in Portugal 2026: What [N] Patients Actually Paid",
+    "requiredH2s": [
+      "IVF Package Prices in Portugal: MedCover-Verified Ranges",
+      "Hidden Add-On Costs Patients Didn't Expect",
+      "IVF Medications Cost in Portugal",
+      "Travel & Accommodation Budget for Portugal IVF",
+      "Total All-In Cost: 3 Budget Scenarios",
+      "IVF in Portugal vs US/UK: How Much Can You Save?",
+      "What Drives the Price Up or Down?",
+      "Frequently Asked Questions About IVF Cost in Portugal"
+    ],
+    "faqQuestionsToInclude": [
+      "How much does IVF treatment cost in Portugal?",
+      "What is the average cost of IVF in Lisbon?",
+      "Are IVF agencies in Portugal worth the cost?",
+      "Does Portugal IVF cost include medications?",
+      "How does Portugal IVF cost compare to Spain?"
+    ],
+    "costRangeFromExistingPages": "€3,000–€5,200 (from /guides/portugal-ivf-guide and /guides/portugal/lisbon-ivf-guide)"
+  }
+}

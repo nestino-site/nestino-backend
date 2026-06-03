@@ -1,0 +1,367 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Topic / authority guides under /guides/)",
+  "siteId": 2,
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each guide in order (1 through 6).",
+    "After step 1, copy the returned keyword id into step 2.",
+    "After step 2, copy the returned page id into steps 3–5.",
+    "Steps 3, 4, 5 have no JSON body.",
+    "Put the full content brief in the keyword notes field — the AI pipeline uses it during generation.",
+    "Target ~1,800 words per page. YMYL: cite sources, medical reviewer block where applicable."
+  ],
+  "pages": [
+    {
+      "id": 1,
+      "title": "IVF for Single Women in Europe: Top 3 Countries with Friendly Legislation (2026)",
+      "slug": "/guides/ivf-single-women-europe-2026",
+      "templateStyle": "Authority / legal guide (ARTICLE, INFORMATIONAL)",
+      "goal": "Establish authority on legal-friendly destinations",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf for single women europe",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-single-women-europe-2026",
+            "notes": "CONTENT BRIEF — Template: Topic authority guide (~1,800 words). Focus: why single women face barriers in some countries; top 3 legal-friendly destinations: Greece, Spain, Denmark. REQUIRED H2s: (1) Why Single Women Face IVF Barriers in Europe, (2) Greece: Legal Requirements for Solo IVF, (3) Spain: Legal Requirements for Solo IVF, (4) Denmark: Legal Requirements for Solo IVF, (5) Notarial Deeds and Consent Forms Explained, (6) Sperm Donor Anonymity Rules by Country, (7) Clinics Specializing in Single Women IVF, (8) Step-by-Step Legal Process for International Patients, (9) FAQ. Link internally to /guides/greece-ivf-guide, /guides/spain-ivf-guide, /guides/greece/athens-ivf-guide, /guides/spain/barcelona-ivf-guide. YMYL: cite national fertility law sources. Goal: establish MedCover as authority on legal-friendly destinations."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-single-women-europe-2026",
+            "language": "EN",
+            "title": "IVF for Single Women in Europe: Top 3 Legal-Friendly Countries (2026)",
+            "metaTitle": "IVF for Single Women in Europe 2026 — Legal Guide | MedCover",
+            "metaDescription": "Greece, Spain, and Denmark allow solo IVF for single women. Legal requirements, donor anonymity rules, and the step-by-step process for international patients.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Planning Your Solo IVF Journey: A Step-by-Step Guide for International Patients",
+      "slug": "/guides/solo-ivf-journey-international-patients",
+      "templateStyle": "Patient journey / logistics guide (LANDING_PAGE, INFORMATIONAL — Template F style)",
+      "goal": "Practical how-to advice to reduce patient anxiety",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "solo ivf journey abroad",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/solo-ivf-journey-international-patients",
+            "notes": "CONTENT BRIEF — Template: Solo patient journey guide (~1,800 words). Focus: comprehensive logistics for women traveling alone for IVF. REQUIRED H2s: (1) Before You Book: Choosing a Clinic with an International Patient Coordinator, (2) First Contact: What to Ask in Your Initial Consultation, (3) Travel Logistics: Flights, Visas, and Timing Your Trip, (4) Accommodation Near Your Clinic, (5) Managing Treatment Alone: Emotional Support and Coping Strategies, (6) What Happens During Each Trip, (7) Post-Transfer Recovery: What to Expect and When to Fly Home, (8) Follow-Up Care After You Return Home, (9) FAQ for Solo IVF Travelers. Link to /guides/ivf-single-women-europe-2026, country guides, and city guides. Include checklist tables. Goal: reduce anxiety with practical step-by-step advice."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/solo-ivf-journey-international-patients",
+            "language": "EN",
+            "title": "Planning Your Solo IVF Journey: A Step-by-Step Guide for International Patients",
+            "metaTitle": "Solo IVF Journey Abroad — Step-by-Step Guide 2026 | MedCover",
+            "metaDescription": "Traveling alone for IVF? Clinic selection, flights, hotels, emotional support, and post-transfer recovery — a practical step-by-step guide for international patients.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "LGBTQ+ Fertility Guide 2026: Best Destinations for Same-Sex Couples",
+      "slug": "/guides/lgbtq-fertility-europe-2026",
+      "templateStyle": "Niche authority guide (ARTICLE, INFORMATIONAL)",
+      "goal": "Target high-demand underserved niche with sensitive professional information",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "lgbtq ivf europe same sex couples",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/lgbtq-fertility-europe-2026",
+            "notes": "CONTENT BRIEF — Template: LGBTQ+ fertility guide (~1,800 words). Tone: sensitive, inclusive, professional. Focus: reproductive options for female same-sex couples in Europe. REQUIRED H2s: (1) IVF Options for Same-Sex Female Couples in Europe, (2) ROPA Method Explained: Reciprocal IVF Step-by-Step, (3) Legal Parental Rights for Both Partners by Country, (4) Best Destinations for LGBTQ+ Fertility Treatment, (5) Donor Selection: What Same-Sex Couples Should Know, (6) How to Identify Inclusive and Welcoming Clinics, (7) Costs of ROPA and Shared Motherhood IVF, (8) Real Considerations Before You Travel, (9) FAQ. Cover Spain, Portugal, Greece where relevant. Link to /guides/spain-ivf-guide, /guides/portugal-ivf-guide, /guides/greece-ivf-guide. Goal: underserved niche with authoritative sensitive content."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/lgbtq-fertility-europe-2026",
+            "language": "EN",
+            "title": "LGBTQ+ Fertility Guide 2026: Best Destinations for Same-Sex Couples",
+            "metaTitle": "LGBTQ+ IVF Europe 2026 — ROPA & Same-Sex Guide | MedCover",
+            "metaDescription": "ROPA method explained, legal parental rights by country, donor selection, and inclusive clinics — the complete LGBTQ+ fertility guide for Europe in 2026.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "IVF After 45: Is It Possible? A Realistic 2026 Guide for Older Patients",
+      "slug": "/guides/ivf-after-45-guide-2026",
+      "templateStyle": "Medical transparency guide (ARTICLE, INFORMATIONAL — Template E style)",
+      "goal": "Build trust through transparency and realistic medical expectations",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf after 45 is it possible",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-after-45-guide-2026",
+            "notes": "CONTENT BRIEF — Template: Advanced maternal age guide (~1,800 words). Focus: honest scientifically backed expectations for women 45+. REQUIRED H2s: (1) IVF After 45: What the Data Actually Shows, (2) Own Eggs vs Egg Donation After 45, (3) Success Rate Statistics by Age Group (table), (4) Why PGT (Genetic Testing) Matters for Older Patients, (5) Risks and Realistic Outcomes to Understand, (6) Best European Destinations for IVF After 45, (7) Clinics That Specialize in Advanced Maternal Age, (8) What MedCover Patients Over 45 Report, (9) FAQ. Link to /guides/greece-ivf-guide, /guides/spain-ivf-guide, /guides/turkey-ivf-guide, /guides/advanced-maternal-age-clinic-questions. YMYL mandatory: cite ESHRE/CDC age-band data, medical reviewer block. Goal: trust through transparency, no false hope."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-after-45-guide-2026",
+            "language": "EN",
+            "title": "IVF After 45: Is It Possible? A Realistic 2026 Guide for Older Patients",
+            "metaTitle": "IVF After 45 in 2026 — Realistic Success Rates | MedCover",
+            "metaDescription": "Honest guide to IVF after 45: own eggs vs donation, success rates by age, PGT testing, and clinics specializing in advanced maternal age. Medically reviewed.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Choosing the Right Clinic for Advanced Maternal Age: 5 Critical Questions to Ask",
+      "slug": "/guides/advanced-maternal-age-clinic-questions",
+      "templateStyle": "Conversion checklist (ARTICLE, COMMERCIAL-leaning INFORMATIONAL)",
+      "goal": "Must-have decision-making tool during clinic selection",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf clinic questions advanced maternal age",
+            "language": "EN",
+            "intent": "COMMERCIAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/advanced-maternal-age-clinic-questions",
+            "notes": "CONTENT BRIEF — Template: High-conversion checklist (~1,500 words). Focus: 5 critical questions for older/higher-risk IVF patients to ask during clinic consultation. REQUIRED H2s: (1) Why the Right Questions Matter Before You Book, (2) Question 1: What Is Your Success Rate for My Specific Age Group?, (3) Question 2: Do You Have In-House Genetic Testing (PGT)?, (4) Question 3: What Is Your Protocol for Low Ovarian Reserve?, (5) Question 4: How Do You Handle Failed Cycles for Patients Over 40?, (6) Question 5: What Are All-In Costs Including Medications and Add-Ons?, (7) Red Flags to Watch for in Clinic Marketing, (8) Printable Consultation Checklist (table format), (9) FAQ. Link to /guides/ivf-after-45-guide-2026 and country/city guides. Goal: position as must-have tool during decision-making."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/advanced-maternal-age-clinic-questions",
+            "language": "EN",
+            "title": "Choosing the Right Clinic for Advanced Maternal Age: 5 Critical Questions to Ask",
+            "metaTitle": "IVF Clinic Questions for Over 40 — 5 Must-Ask | MedCover",
+            "metaDescription": "5 critical questions to ask any IVF clinic if you are over 40 or at higher risk: age-specific success rates, PGT, low ovarian reserve protocols, and hidden costs.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Success Rates vs. Age: How to Interpret IVF Statistics Before Booking Your Trip",
+      "slug": "/guides/ivf-success-rates-by-age-2026",
+      "templateStyle": "Expert education guide (ARTICLE, INFORMATIONAL — Template E style)",
+      "goal": "Smart expert content that helps users avoid marketing pitfalls",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "how to interpret ivf success rates by age",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-success-rates-by-age-2026",
+            "notes": "CONTENT BRIEF — Template: Statistics literacy guide (~1,800 words). Focus: teach users to read clinic IVF statistics and avoid marketing traps. REQUIRED H2s: (1) Why Clinic Success Rates Are Often Misleading, (2) Clinical Pregnancy vs Live Birth Rate: Know the Difference, (3) Cumulative Success Rates Per Cycle Explained, (4) How Age Affects Egg Quality and Success Rates (table by age band), (5) What a Good Success Rate Looks Like by Age Group, (6) How to Verify Clinic Data with National Authorities (EAIYA Greece, HFEA UK, etc.), (7) Questions to Ask When a Clinic Publishes High Success Rates, (8) What MedCover Truth Scores Add Beyond Published Statistics, (9) FAQ. Link to /guides/ivf-after-45-guide-2026, /guides/advanced-maternal-age-clinic-questions, all country guides. Goal: become the smart expert helping users avoid common pitfalls."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-success-rates-by-age-2026",
+            "language": "EN",
+            "title": "Success Rates vs. Age: How to Interpret IVF Statistics Before Booking Your Trip",
+            "metaTitle": "IVF Success Rates by Age — How to Read Them | MedCover",
+            "metaDescription": "Clinical pregnancy vs live birth, cumulative rates, age impact on egg quality, and how to verify clinic data with EAIYA and national authorities before booking.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ],
+  "recommendedPublishOrder": [
+    "1 — Single women legal guide (foundation authority)",
+    "2 — Solo journey logistics (links to #1)",
+    "3 — LGBTQ+ guide (standalone niche)",
+    "4 — IVF after 45 (medical transparency)",
+    "5 — Clinic questions checklist (links to #4)",
+    "6 — Success rates interpretation (links to #4 and #5)"
+  ]
+}

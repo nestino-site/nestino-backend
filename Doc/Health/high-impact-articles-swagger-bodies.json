@@ -1,0 +1,302 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate",
+  "siteId": 2,
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each article in recommended order.",
+    "Copy keyword id from step 1 into step 2.",
+    "Copy page id from step 2 into steps 3–5.",
+    "Steps 3–5 have no JSON body.",
+    "The keyword notes field is the content brief for the AI pipeline."
+  ],
+  "recommendedPublishOrder": [
+    "3 — Add-on treatments (trust builder, links to cost pages)",
+    "5 — Lifestyle 3-month plan (early funnel)",
+    "2 — IVF vs natural at 40+ (decision guide)",
+    "1 — AI & genetic screening (tech authority)",
+    "4 — Travel insurance (pre-booking practical)"
+  ],
+  "pages": [
+    {
+      "id": 1,
+      "title": "The Future of Fertility: How AI & Genetic Screening are Changing IVF in 2026",
+      "slug": "/guides/ai-genetic-screening-ivf-2026",
+      "goal": "Establish site as modern, tech-forward authority",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ai genetic screening ivf 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ai-genetic-screening-ivf-2026",
+            "notes": "CONTENT BRIEF — Template: Tech-forward authority article (~1,800 words). Focus: how AI and genetic screening are changing IVF in 2026. REQUIRED H2s: (1) How AI Is Transforming the IVF Lab in 2026, (2) AI-Driven Embryo Selection: What Morphokinetic Analysis Actually Does, (3) Predictive Modeling for Successful Implantation, (4) Advanced PGT-A Screening: Reducing Chromosomal Errors, (5) Time-Lapse Incubators Explained for Patients, (6) What This Means If You Have Had Failed Cycles, (7) Which European Clinics Are Leading on AI-Assisted IVF, (8) What to Ask Your Clinic About Lab Technology, (9) FAQ. Link to /guides/ivf-success-rates-by-age-2026, /guides/ivf-after-45-guide-2026, /guides/advanced-maternal-age-clinic-questions, country guides. YMYL: cite peer-reviewed sources (ESHRE, ASRM), distinguish proven vs emerging tech. Goal: modern tech-forward authority."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ai-genetic-screening-ivf-2026",
+            "language": "EN",
+            "title": "The Future of Fertility: How AI & Genetic Screening Are Changing IVF in 2026",
+            "metaTitle": "AI & Genetic Screening in IVF 2026 — Patient Guide | MedCover",
+            "metaDescription": "AI embryo selection, PGT-A screening, and time-lapse incubators explained. What new lab technology means for patients with previous failed IVF cycles.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "IVF vs. Natural Conception at 40+: A Comparative Medical Analysis",
+      "slug": "/guides/ivf-vs-natural-conception-40-plus",
+      "goal": "Guide indecisive users to data-driven choice before fertility declines",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf vs natural conception after 40",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-vs-natural-conception-40-plus",
+            "notes": "CONTENT BRIEF — Template: Evidence-based decision guide (~1,800 words). Tone: blunt, honest, compassionate. Focus: IVF vs natural conception at 40+. REQUIRED H2s: (1) The Real Question: One More Natural Cycle or IVF with PGT-A?, (2) Age-Related Decline in Egg Quality: What Changes After 40, (3) The Biological Clock Reality Check, (4) Live Birth Rates by Age: Natural vs IVF (comparison table), (5) Why Time Is Your Most Valuable Asset, (6) When IVF with PGT-A Makes Medical Sense, (7) When Waiting May Still Be Reasonable, (8) How to Decide With Your Doctor, (9) FAQ. Link to /guides/ivf-after-45-guide-2026, /guides/ivf-success-rates-by-age-2026, /guides/advanced-maternal-age-clinic-questions. YMYL: cite CDC/ESHRE age-band statistics. Goal: data-driven choice before potential declines further."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-vs-natural-conception-40-plus",
+            "language": "EN",
+            "title": "IVF vs. Natural Conception at 40+: A Comparative Medical Analysis",
+            "metaTitle": "IVF vs Natural Conception After 40 — Data Guide | MedCover",
+            "metaDescription": "Evidence-based comparison of live birth rates: natural conception vs IVF with PGT-A after 40. Age, egg quality, and why time matters most.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Understanding Add-on Treatments: Are They Worth the Extra Cost?",
+      "slug": "/guides/ivf-add-on-treatments-guide",
+      "goal": "Build trust by saving patients money and avoiding unnecessary treatments",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf add on treatments worth it",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-add-on-treatments-guide",
+            "notes": "CONTENT BRIEF — Template: Objective add-on review (~1,800 words). Focus: IVF add-ons clinics upsell. REQUIRED H2s: (1) What Are IVF Add-On Treatments?, (2) Add-Ons With Strong Evidence: PGT-A and Embryo Glue, (3) Add-Ons With Mixed or Limited Evidence, (4) Still Experimental: Endometrial Scratching and Intralipid Infusions, (5) How to Talk to Your Doctor About Medical Necessity, (6) How to Spot Marketing Fluff vs Clinical Evidence, (7) Typical Add-On Costs in Europe (table), (8) MedCover Patient Reports on Hidden Add-Ons, (9) FAQ. Link to /costs/spain-ivf-cost-2026, /costs/greece-ivf-cost-2026, /guides/ai-genetic-screening-ivf-2026, country guides. Cite Cochrane/ESHRE where possible. Goal: extreme trust — save money, avoid unnecessary treatments."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-add-on-treatments-guide",
+            "language": "EN",
+            "title": "Understanding Add-On Treatments: Are They Worth the Extra Cost?",
+            "metaTitle": "IVF Add-On Treatments — What's Worth It? | MedCover",
+            "metaDescription": "Objective review of IVF add-ons: PGT-A, Embryo Glue, endometrial scratching, and Intralipid. Evidence vs marketing, costs, and questions for your doctor.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Your IVF Abroad Travel Insurance Guide: What Is Actually Covered?",
+      "slug": "/guides/ivf-abroad-travel-insurance-guide",
+      "goal": "Solve traveler anxiety with practical high-conversion resource",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf abroad travel insurance coverage",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-abroad-travel-insurance-guide",
+            "notes": "CONTENT BRIEF — Template: Practical insurance guide (~1,800 words). Focus: travel insurance for IVF abroad — what is actually covered. REQUIRED H2s: (1) Why Standard Travel Insurance Fails IVF Patients, (2) What Complications Insurance Covers (OHSS hospitalization, etc.), (3) Emergency Medical Return Coverage Explained, (4) Specialized Fertility Insurance Providers to Know, (5) What to Check Before You Buy a Policy, (6) Country-Specific Considerations (Spain, Greece, Turkey, Czech Republic), (7) How Much Fertility Travel Insurance Costs, (8) Pre-Trip Insurance Checklist (table), (9) FAQ. Link to /guides/solo-ivf-journey-international-patients, all country guides, cost pages. Note: not legal/financial advice disclaimer. Goal: protect investment, reduce booking anxiety."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-abroad-travel-insurance-guide",
+            "language": "EN",
+            "title": "Your IVF Abroad Travel Insurance Guide: What Is Actually Covered?",
+            "metaTitle": "IVF Abroad Travel Insurance — What's Covered? | MedCover",
+            "metaDescription": "Standard travel insurance won't cover IVF complications. OHSS hospitalization, emergency returns, and specialized fertility insurance — what you need before you fly.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "The Impact of Lifestyle on IVF Outcomes: A 3-Month Pre-Treatment Plan",
+      "slug": "/guides/ivf-lifestyle-pre-treatment-plan",
+      "goal": "Capture planning-stage users early in the funnel",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": 2,
+            "keyword": "ivf lifestyle pre treatment plan 90 days",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/guides/ivf-lifestyle-pre-treatment-plan",
+            "notes": "CONTENT BRIEF — Template: 90-day preparation guide (~1,800 words). Focus: lifestyle optimization 3 months before IVF stimulation. REQUIRED H2s: (1) Why 90 Days Matters for Egg and Uterine Health, (2) Month 1: Baseline Habits and Medical Check-In, (3) Month 2: Supplement Protocols (CoQ10, Vitamin D, Prenatal Vitamins), (4) Month 3: Final Optimization Before Stimulation, (5) Diet: Mediterranean-Style Eating for Fertility, (6) Reducing Environmental Toxins (Plastics, Endocrine Disruptors), (7) Stress Management and Sleep, (8) What Lifestyle Changes Cannot Fix (honest limits), (9) FAQ. Link to /guides/ivf-vs-natural-conception-40-plus, /guides/ivf-after-45-guide-2026, country guides. YMYL: medical reviewer, cite evidence for supplements. Goal: engage users planning but not yet booked."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": 2,
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/ivf-lifestyle-pre-treatment-plan",
+            "language": "EN",
+            "title": "The Impact of Lifestyle on IVF Outcomes: A 3-Month Pre-Treatment Plan",
+            "metaTitle": "IVF Pre-Treatment Plan — 90-Day Lifestyle Guide | MedCover",
+            "metaDescription": "Optimize egg quality and uterine health 90 days before IVF: supplements, Mediterranean diet, toxin reduction, and stress management. Evidence-based prep plan.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}
