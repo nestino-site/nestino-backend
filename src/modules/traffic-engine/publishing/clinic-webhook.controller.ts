@@ -13,6 +13,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ContentTasksService } from '../content-tasks/services/content-tasks.service';
 import { ClinicWebhookPayloadDto } from './dto/clinic-webhook-payload.dto';
+import { Public } from '../../identity/decorators/public.decorator';
 
 interface ClinicPublishedWebhookPayload {
   event: 'CLINIC_PUBLISHED' | 'CLINIC_UPDATED' | 'TRUTH_SCORE_CHANGED';
@@ -20,11 +21,59 @@ interface ClinicPublishedWebhookPayload {
   slug: string;
   name: string;
   citySlug?: string;
+  countrySlug?: string;
   countryCode?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  googleRating?: number;
+  googleReviewCount?: number;
+  googleMapsUrl?: string;
+  editorialSummary?: string;
+  openingHours?: unknown;
+  treatments?: string[];
   status: string;
   publishedAt?: string;
   composite?: number;
   grade?: string;
+}
+
+interface ClinicPageSpec {
+  slug: string;
+  keyword: string;
+  title: string;
+  metaTitle: string;
+  metaDescription: string;
+  priority: number;
+  schemaMarkup: object;
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function displayNameFromSlug(slug?: string): string {
+  return (slug ?? 'unknown')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function buildMedicalBusinessSchema(payload: ClinicPublishedWebhookPayload): object {
@@ -33,12 +82,96 @@ function buildMedicalBusinessSchema(payload: ClinicPublishedWebhookPayload): obj
     '@type': 'MedicalBusiness',
     name: payload.name,
     medicalSpecialty: 'Reproductive Medicine',
-    url: `https://sindibed.com/clinics/${payload.citySlug ?? ''}/${payload.slug}`,
+    url: `https://sindibed.com/clinics/${payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown'}/${payload.citySlug ?? 'unknown'}/${payload.slug}`,
+    telephone: payload.phone,
+    sameAs: [payload.website, payload.googleMapsUrl].filter(Boolean),
     address: {
       '@type': 'PostalAddress',
+      streetAddress: payload.address,
       addressCountry: payload.countryCode,
     },
+    ...(payload.googleRating != null
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: payload.googleRating,
+            bestRating: 5,
+            worstRating: 1,
+            ratingCount: payload.googleReviewCount ?? 0,
+          },
+        }
+      : {}),
   };
+}
+
+function buildClinicPageSpecs(payload: ClinicPublishedWebhookPayload): ClinicPageSpec[] {
+  const countrySlug = payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown';
+  const citySlug = payload.citySlug ?? 'unknown';
+  const countryName = displayNameFromSlug(countrySlug);
+  const cityName = displayNameFromSlug(citySlug);
+  const treatments = payload.treatments?.length ? payload.treatments : ['IVF'];
+  const clinicSchema = buildMedicalBusinessSchema(payload);
+
+  const specs: ClinicPageSpec[] = [
+    {
+      slug: `/clinics/${countrySlug}/${citySlug}/${payload.slug}`,
+      keyword: `${payload.name} IVF clinic ${cityName}`,
+      title: payload.name,
+      metaTitle: `${payload.name} - IVF Clinic Review & Verified Patient Truth Score`,
+      metaDescription: `Verified patient interviews, transparent pricing, Google reviews and Truth Score for ${payload.name} in ${cityName}.`,
+      priority: 5,
+      schemaMarkup: clinicSchema,
+    },
+    {
+      slug: `/clinics/${countrySlug}/${citySlug}`,
+      keyword: `IVF clinics ${cityName}`,
+      title: `IVF Clinics in ${cityName}`,
+      metaTitle: `Best IVF Clinics in ${cityName} - Verified Patient Data`,
+      metaDescription: `Compare IVF clinics in ${cityName} using verified patient interviews, Google data, pricing transparency and clinic profiles.`,
+      priority: 4,
+      schemaMarkup: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `IVF Clinics in ${cityName}`,
+        about: clinicSchema,
+      },
+    },
+    {
+      slug: `/clinics/${countrySlug}`,
+      keyword: `IVF clinics ${countryName}`,
+      title: `IVF Clinics in ${countryName}`,
+      metaTitle: `Best IVF Clinics in ${countryName} - Verified Patient Data`,
+      metaDescription: `Explore IVF clinics in ${countryName} by city, treatment type, Google data and verified patient experience.`,
+      priority: 4,
+      schemaMarkup: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `IVF Clinics in ${countryName}`,
+        about: clinicSchema,
+      },
+    },
+  ];
+
+  for (const treatment of treatments) {
+    const treatmentSlug = slugify(treatment);
+    const treatmentName = displayNameFromSlug(treatmentSlug);
+    specs.push({
+      slug: `/clinics/treatment/${treatmentSlug}`,
+      keyword: `${treatmentName} clinics ${countryName}`,
+      title: `${treatmentName} Clinics`,
+      metaTitle: `${treatmentName} Clinics - Verified Clinic Directory`,
+      metaDescription: `Find clinics offering ${treatmentName}, with verified clinic data, patient interviews, Google data and transparent profile pages.`,
+      priority: 3,
+      schemaMarkup: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `${treatmentName} Clinics`,
+        about: clinicSchema,
+      },
+    });
+  }
+
+  return specs;
 }
 
 function verifyHmacSignature(rawBody: string, signature: string, secret: string): boolean {
@@ -61,6 +194,7 @@ export class ClinicWebhookController {
   ) {}
 
   @Post('webhook')
+  @Public()
   @HttpCode(200)
   @ApiOperation({ summary: 'Inbound webhook from clinic-inventory (clinic published/updated)' })
   @ApiHeader({ name: 'x-clinic-signature', required: true, description: 'HMAC SHA256 signature' })
@@ -76,7 +210,7 @@ export class ClinicWebhookController {
     if (!secret) {
       this.logger.warn('TRAFFIC_ENGINE_WEBHOOK_SECRET not configured — skipping signature check');
     } else {
-      const rawBody = JSON.stringify(payload);
+      const rawBody = stableStringify(payload);
       if (!signature || !verifyHmacSignature(rawBody, signature, secret)) {
         throw new UnauthorizedException('Invalid webhook signature');
       }
@@ -107,30 +241,36 @@ export class ClinicWebhookController {
       return;
     }
 
-    const slug = `/clinics/${payload.citySlug ?? 'unknown'}/${payload.slug}`;
-    const schemaMarkup = buildMedicalBusinessSchema(payload);
+    const specs = buildClinicPageSpecs(payload);
+    for (const spec of specs) {
+      await this.upsertGeneratedPage(clinicSiteId, payload, spec);
+    }
+  }
 
-    // Find or create a keyword for this clinic page
-    const keywordText = `${payload.name} IVF clinic ${payload.citySlug ?? ''}`.trim();
+  private async upsertGeneratedPage(
+    clinicSiteId: number,
+    payload: ClinicPublishedWebhookPayload,
+    spec: ClinicPageSpec,
+  ): Promise<void> {
     let keyword = await this.prisma.keyword.findFirst({
-      where: { siteId: clinicSiteId, keyword: keywordText },
+      where: { siteId: clinicSiteId, keyword: spec.keyword },
     });
 
     if (!keyword) {
       keyword = await this.prisma.keyword.create({
         data: {
           siteId: clinicSiteId,
-          keyword: keywordText,
+          keyword: spec.keyword,
           language: 'EN',
           intent: 'COMMERCIAL',
-          priority: 5,
+          priority: spec.priority,
+          targetUrl: spec.slug,
         },
       });
     }
 
-    // Upsert the Page
     const existingPage = await this.prisma.page.findFirst({
-      where: { siteId: clinicSiteId, slug },
+      where: { siteId: clinicSiteId, slug: spec.slug },
     });
 
     let page;
@@ -138,32 +278,30 @@ export class ClinicWebhookController {
       page = await this.prisma.page.update({
         where: { id: existingPage.id },
         data: {
-          title: payload.name,
-          metaTitle: `${payload.name} — IVF Clinic Review & Verified Patient Truth Score`,
-          metaDescription: `Verified patient interviews, transparent pricing and Truth Score for ${payload.name}. Real cost breakdowns and outcomes from real patients.`,
-          schemaMarkup: schemaMarkup,
-          status: 'PUBLISHED',
-          publishedAt: payload.publishedAt ? new Date(payload.publishedAt) : new Date(),
+          title: spec.title,
+          metaTitle: spec.metaTitle,
+          metaDescription: spec.metaDescription,
+          schemaMarkup: spec.schemaMarkup,
         },
       });
-      this.logger.log(`Updated Page ${page.id} for clinic ${payload.name}`);
+      this.logger.log(`Updated Page ${page.id} (${spec.slug}) for clinic ${payload.name}`);
     } else {
       page = await this.prisma.page.create({
         data: {
           siteId: clinicSiteId,
           keywordId: keyword.id,
           language: 'EN',
-          slug,
-          title: payload.name,
-          metaTitle: `${payload.name} — IVF Clinic Review & Verified Patient Truth Score`,
-          metaDescription: `Verified patient interviews, transparent pricing and Truth Score for ${payload.name}. Real cost breakdowns and outcomes from real patients.`,
-          schemaMarkup: schemaMarkup,
+          slug: spec.slug,
+          title: spec.title,
+          metaTitle: spec.metaTitle,
+          metaDescription: spec.metaDescription,
+          schemaMarkup: spec.schemaMarkup,
           status: 'DRAFT',
+          publishedAt: payload.publishedAt ? new Date(payload.publishedAt) : undefined,
         },
       });
-      this.logger.log(`Created Page ${page.id} for clinic ${payload.name}`);
+      this.logger.log(`Created Page ${page.id} (${spec.slug}) for clinic ${payload.name}`);
 
-      // Enqueue AI content generation for the new page
       try {
         await this.contentTasksService.create({
           siteId: clinicSiteId,
@@ -181,7 +319,7 @@ export class ClinicWebhookController {
     const clinicSiteId = Number(process.env.CLINIC_SITE_ID ?? '0');
     if (!clinicSiteId) return;
 
-    const slug = `/clinics/${payload.citySlug ?? 'unknown'}/${payload.slug}`;
+    const slug = `/clinics/${payload.countrySlug ?? payload.countryCode?.toLowerCase() ?? 'unknown'}/${payload.citySlug ?? 'unknown'}/${payload.slug}`;
     const page = await this.prisma.page.findFirst({ where: { siteId: clinicSiteId, slug } });
     if (!page) return;
 
