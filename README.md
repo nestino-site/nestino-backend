@@ -2,26 +2,28 @@
 
 ```
 apps/
-├── traffic-engine-backend/   ← main API (content engine, webhooks)
-├── clinic-inventory/         ← Google Places clinic discovery
-└── authentication/           ← OTP auth service
+├── traffic-engine-backend/   ← main API (content engine + clinic inventory)
+└── authentication/           ← OTP auth service (optional)
 ```
 
 ## Railway deployment
 
-### Traffic engine (existing service)
-
-The repo root `package.json` and `railway.toml` proxy to `apps/traffic-engine-backend`, so the default Railway service can keep **Root Directory = `/`**.
-
-### Clinic inventory (separate service)
-
-Create a **second Railway service** from the same repo and set:
+One Railway service with **Root Directory = `/`** runs the unified backend:
 
 | Setting | Value |
 |---------|--------|
-| Root Directory | `apps/clinic-inventory` |
+| Root Directory | `/` |
 
-Required env vars: `DATABASE_URL`, `REDIS_URL`, `GOOGLE_PLACES_API_KEY`, `JWT_ACCESS_SECRET`, `TRAFFIC_ENGINE_WEBHOOK_URL`, `TRAFFIC_ENGINE_WEBHOOK_SECRET`.
+The root `package.json` and `railway.toml` proxy to `apps/traffic-engine-backend`.
+
+### Required env vars
+
+- `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`
+- `GOOGLE_PLACES_API_KEY` (clinic discovery)
+- `CLINIC_SITE_DOMAIN=medcover.io` (optional, default in code)
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` (for seed / login)
+
+Clinic publish → MedCover pages runs **in-process** (no separate clinic-inventory service or webhook URL).
 
 ### Authentication (optional)
 

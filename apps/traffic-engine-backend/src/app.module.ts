@@ -6,6 +6,7 @@ import { RedisModule } from './common/redis/redis.module';
 import { InfrastructureQueueModule } from './infrastructure/queue/infrastructure-queue.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { TrafficEngineModule } from './modules/traffic-engine/traffic-engine.module';
+import { ClinicInventoryModule } from './modules/clinic-inventory/clinic-inventory.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { TrafficEngineModule } from './modules/traffic-engine/traffic-engine.mod
     IdentityModule,
     InfrastructureQueueModule,
     TrafficEngineModule,
+    ClinicInventoryModule,
   ],
 })
 export class AppModule {}

@@ -89,7 +89,16 @@ async function bootstrap(): Promise<void> {
     .addTag('Content API', 'Published content for frontends (site API key)')
     .addTag('Content Preview', 'Draft content preview (site API key)')
     .addTag('Sitemap', 'Sitemap and robots.txt (public)')
-    .addTag('Clinic Inventory Webhook', 'Inbound clinic publish webhooks')
+    .addTag('Clinic Inventory Webhook', 'Inbound clinic publish webhooks (legacy HTTP)')
+    .addTag('Clinics', 'Clinic directory and admin CRUD')
+    .addTag('Geo', 'Countries and destination cities')
+    .addTag('Catalog', 'Treatments, accreditations, Truth Score dimensions')
+    .addTag('Discovery', 'Google Places clinic discovery pipeline')
+    .addTag('Discovery Config', 'Per-city discovery pipeline configuration')
+    .addTag('Truth Score', 'Clinic Truth Score computation')
+    .addTag('Interviews', 'Patient interview workflow')
+    .addTag('Media', 'Clinic media assets')
+    .addTag('Clinic Publishing', 'Clinic publish delivery audit log')
     .addTag('Debug', 'Prompt debugging utilities')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);

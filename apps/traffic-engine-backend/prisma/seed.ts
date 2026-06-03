@@ -1,14 +1,15 @@
 import { PlatformRole, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedClinicInventory } from './seed-clinic-inventory';
 
 const prisma = new PrismaClient();
 
-async function main(): Promise<void> {
+async function seedPlatformAdmin(): Promise<void> {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
 
   if (!email || !password) {
-    console.log('Skipping seed: set ADMIN_EMAIL and ADMIN_PASSWORD to create the platform admin.');
+    console.log('Skipping platform admin seed: set ADMIN_EMAIL and ADMIN_PASSWORD.');
     return;
   }
 
@@ -28,6 +29,11 @@ async function main(): Promise<void> {
   });
 
   console.log(`Platform admin ready: ${user.email} (${user.id})`);
+}
+
+async function main(): Promise<void> {
+  await seedPlatformAdmin();
+  await seedClinicInventory(prisma);
 }
 
 main()

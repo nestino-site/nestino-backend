@@ -831,8 +831,8 @@ Subjects:
   For Clinics B2B=${SUBJECT_CLINICS_ID}
 
 Railway variables to set next:
-  traffic-engine-backend: CLINIC_SITE_ID=${SITE_ID}
-  clinic-inventory: TRAFFIC_ENGINE_WEBHOOK_URL=${BASE_URL}/api/v1/clinic-inventory/webhook
+  traffic-engine-backend: CLINIC_SITE_DOMAIN=medcover.io
+  traffic-engine-backend: GOOGLE_PLACES_API_KEY=<your-key>
 
 Content API key for frontend:
   ${CONTENT_API_KEY:-"(API did not return a key field; inspect rotate-content-api-key response/logs)"}

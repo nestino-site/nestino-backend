@@ -7,6 +7,7 @@ import { PublishService } from './publish.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { WebhookRetryScheduler } from './webhook-retry.scheduler';
 import { ClinicWebhookController } from './clinic-webhook.controller';
+import { ClinicWebhookHandlerService } from './clinic-webhook-handler.service';
 
 @Module({
   imports: [forwardRef(() => ContentTasksModule), ContentApiModule],
@@ -16,8 +17,9 @@ import { ClinicWebhookController } from './clinic-webhook.controller';
     WebhookDeliveryService,
     WebhookRetryProcessor,
     WebhookRetryScheduler,
+    ClinicWebhookHandlerService,
   ],
   controllers: [ClinicWebhookController],
-  exports: [PublishService, PageHeroCdnService, WebhookDeliveryService],
+  exports: [PublishService, PageHeroCdnService, WebhookDeliveryService, ClinicWebhookHandlerService],
 })
 export class PublishingModule {}
