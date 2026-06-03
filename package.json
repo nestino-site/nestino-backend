@@ -1,0 +1,12 @@
+{
+  "name": "nestino-backend",
+  "private": true,
+  "description": "Monorepo root — Railway proxy for traffic-engine-backend",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm ci --prefix apps/traffic-engine-backend && npm run build --prefix apps/traffic-engine-backend",
+    "start": "npm run start --prefix apps/traffic-engine-backend"
+  }
+}

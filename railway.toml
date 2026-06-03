@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci --prefix apps/traffic-engine-backend && npm run build --prefix apps/traffic-engine-backend"
+
+[deploy]
+startCommand = "npm run start --prefix apps/traffic-engine-backend"
+restartPolicyType = "on_failure"
