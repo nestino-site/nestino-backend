@@ -80,6 +80,12 @@ function formatWebsite(url?: string | null): string {
   }
 }
 
+function offeredTreatmentNames(clinic: ClinicListItem): string[] {
+  return (clinic.treatments ?? [])
+    .filter((t) => t.isOffered)
+    .map((t) => t.treatment.name || t.treatment.code);
+}
+
 function parseGoogleReviews(raw: unknown): Array<{ text?: string; authorName?: string; rating?: number }> {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 5).map((item) => {
@@ -111,6 +117,34 @@ function parseOpeningHours(raw: unknown): string[] {
   return [];
 }
 
+function extractLeadingH1(content: string | null, fallbackHeading: string): { h1: string; body: string } {
+  const fallback = `# ${fallbackHeading.replace(/^##\s+/, '')}`;
+  if (!content?.trim()) {
+    return { h1: fallback, body: '' };
+  }
+
+  const trimmed = content.trim();
+  const match = trimmed.match(/^#\s+(.+?)(?:\n|$)/);
+  if (match) {
+    const h1 = `# ${match[1].trim()}`;
+    const body = trimmed.slice(match[0].length).trim();
+    return { h1, body };
+  }
+
+  return { h1: fallback, body: trimmed };
+}
+
+function stripClinicDirectoryBlock(content: string): string {
+  const startIdx = content.indexOf(CLINIC_DIRECTORY_START);
+  const endIdx = content.indexOf(CLINIC_DIRECTORY_END);
+  if (startIdx >= 0 && endIdx > startIdx) {
+    const before = content.slice(0, startIdx).trim();
+    const after = content.slice(endIdx + CLINIC_DIRECTORY_END.length).trim();
+    return [before, after].filter(Boolean).join('\n\n').trim();
+  }
+  return content.trim();
+}
+
 @Injectable()
 export class ClinicPageContentBuilder {
   buildDetailContent(clinic: ClinicDetailData): string {
@@ -118,14 +152,13 @@ export class ClinicPageContentBuilder {
     const countryName = clinic.country?.name ?? clinic.city?.country?.name ?? 'Unknown country';
     const rating = formatRating(clinic.googleRating);
     const phone = clinic.phone ?? clinic.formattedPhone;
-    const treatments = (clinic.treatments ?? [])
-      .filter((t) => t.isOffered)
-      .map((t) => t.treatment.name || t.treatment.code);
+    const treatments = offeredTreatmentNames(clinic);
+    const treatmentLabel = treatments.length ? treatments.join(', ') : 'IVF and fertility';
 
     const lines: string[] = [
       `# ${clinic.name}`,
       '',
-      `IVF and fertility clinic in ${cityName}, ${countryName}.`,
+      `${treatmentLabel} clinic in ${cityName}, ${countryName}.`,
     ];
 
     if (clinicHasPhoto(clinic)) {
@@ -233,7 +266,15 @@ export class ClinicPageContentBuilder {
 }
 
 function buildClinicDirectoryMarkdown(heading: string, clinics: ClinicListItem[]): string {
-  const lines: string[] = [heading, ''];
+  const count = clinics.length;
+  const lines: string[] = [
+    heading,
+    '',
+    count > 0
+      ? `Showing **${count}** verified clinic${count === 1 ? '' : 's'}, sorted by Google rating.`
+      : 'No published clinics in this scope yet.',
+    '',
+  ];
 
   const sorted = [...clinics].sort((a, b) => {
     const ra = a.googleRating != null ? Number(a.googleRating) : -1;
@@ -241,34 +282,45 @@ function buildClinicDirectoryMarkdown(heading: string, clinics: ClinicListItem[]
     return rb - ra;
   });
 
-  for (const clinic of sorted) {
+  for (let i = 0; i < sorted.length; i++) {
+    const clinic = sorted[i];
+    const profilePath = clinicProfilePath(clinic);
     const rating = formatRating(clinic.googleRating);
-    const reviewPart =
-      rating != null
-        ? `**Rating:** ${rating}/5 (${clinic.googleReviewCount ?? 0} reviews)`
-        : null;
-    const addressPart = clinic.addressLine ? `**Address:** ${clinic.addressLine}` : null;
     const phone = clinic.phone ?? clinic.formattedPhone;
-    const phonePart = phone ? `**Phone:** ${phone}` : null;
-    const websitePart = clinic.websiteUrl ? `**Website:** ${formatWebsite(clinic.websiteUrl)}` : null;
-    const cityPart = clinic.city?.name ? `**City:** ${clinic.city.name}` : null;
-    const truthPart =
-      clinic.truthScore?.composite != null
-        ? `**Truth Score:** ${clinic.truthScore.composite}/100 (${clinic.truthScore.grade ?? '—'})`
-        : null;
+    const treatmentNames = offeredTreatmentNames(clinic);
 
-    lines.push(`### ${clinic.name}`);
+    lines.push(`### [${clinic.name}](${profilePath})`);
+
     if (clinicHasPhoto(clinic)) {
-      lines.push('', `![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})`);
+      lines.push('', `[![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})](${profilePath})`);
     }
-    const meta = [reviewPart, addressPart, phonePart, websitePart, cityPart, truthPart]
-      .filter(Boolean)
-      .join(' · ');
-    if (meta) lines.push(meta);
+
+    const metaParts: string[] = [];
+    if (rating != null) {
+      metaParts.push(`**Rating:** ${rating}/5 (${clinic.googleReviewCount ?? 0} reviews)`);
+    }
+    if (clinic.addressLine) metaParts.push(`**Address:** ${clinic.addressLine}`);
+    if (phone) metaParts.push(`**Phone:** ${phone}`);
+    if (clinic.websiteUrl) metaParts.push(`**Website:** ${formatWebsite(clinic.websiteUrl)}`);
+    if (clinic.city?.name) metaParts.push(`**City:** ${clinic.city.name}`);
+    if (treatmentNames.length) metaParts.push(`**Treatments:** ${treatmentNames.join(', ')}`);
+    if (clinic.truthScore?.composite != null) {
+      metaParts.push(
+        `**Truth Score:** ${clinic.truthScore.composite}/100 (${clinic.truthScore.grade ?? '—'})`,
+      );
+    }
+
+    if (metaParts.length) {
+      lines.push('', metaParts.join(' · '));
+    }
     if (clinic.editorialSummary) {
       lines.push('', clinic.editorialSummary.trim());
     }
-    lines.push('', `[View Profile](${clinicProfilePath(clinic)})`, '');
+    lines.push('', `[View full profile →](${profilePath})`);
+
+    if (i < sorted.length - 1) {
+      lines.push('', '---', '');
+    }
   }
 
   return lines.join('\n').trim();
@@ -282,18 +334,8 @@ function injectClinicDirectory(
   const directoryBlock = buildClinicDirectoryMarkdown(heading, clinics);
   const wrapped = `${CLINIC_DIRECTORY_START}\n${directoryBlock}\n${CLINIC_DIRECTORY_END}`;
 
-  if (!existingContent?.trim()) {
-    return `# ${heading.replace(/^##\s+/, '')}\n\n${wrapped}`;
-  }
+  const stripped = existingContent ? stripClinicDirectoryBlock(existingContent) : '';
+  const { h1, body } = extractLeadingH1(stripped || null, heading);
 
-  const startIdx = existingContent.indexOf(CLINIC_DIRECTORY_START);
-  const endIdx = existingContent.indexOf(CLINIC_DIRECTORY_END);
-
-  if (startIdx >= 0 && endIdx > startIdx) {
-    const before = existingContent.slice(0, startIdx).trimEnd();
-    const after = existingContent.slice(endIdx + CLINIC_DIRECTORY_END.length).trim();
-    return [before, wrapped, after].filter(Boolean).join('\n\n').trim();
-  }
-
-  return `${existingContent.trimEnd()}\n\n${wrapped}`;
+  return [h1, '', wrapped, body].filter((part) => part.trim().length > 0).join('\n\n').trim();
 }

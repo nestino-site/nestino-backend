@@ -15,6 +15,7 @@ import { DiscoveryTrigger, Prisma } from '@prisma/client';
 import { ClinicPublishBridge } from '../../clinic-publish.bridge';
 import { StartRunDto } from '../dto/start-run.dto';
 import { QuickDiscoveryDto } from '../dto/quick-discovery.dto';
+import { normalizeClinicType, toTreatmentCode } from '../utils/treatment-code.util';
 
 const FULL_GOOGLE_DETAIL_FIELDS = [
   'website',
@@ -43,12 +44,6 @@ function slugify(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-}
-
-function normalizeClinicType(value: string): string {
-  const cleaned = value.trim();
-  if (cleaned.toLowerCase() === 'ivf') return 'IVF';
-  return cleaned.replace(/-/g, ' ');
 }
 
 function sleep(ms: number): Promise<void> {
@@ -113,6 +108,7 @@ export class DiscoveryService {
     if (!city) throw new NotFoundException(`City ${dto.cityId} not found`);
 
     const clinicTypes = dto.clinicTypes.map(normalizeClinicType);
+    const treatmentCodes = clinicTypes.map(toTreatmentCode).filter(Boolean);
     const keywords = clinicTypes.map((type) => `${type} clinic ${city.name}`);
     const maxResults = Math.min(Math.max(dto.maxResults, 1), 60);
 
@@ -123,6 +119,7 @@ export class DiscoveryService {
       configOverride: {
         pipeline: {
           dryRun: dto.dryRun ?? false,
+          treatments: treatmentCodes.length ? treatmentCodes : ['IVF'],
           steps: [
             {
               stepKey: 'places_search',
@@ -370,7 +367,12 @@ export class DiscoveryService {
       try {
         const timeout = (fetchStep.params.timeoutMs as number) ?? 8000;
         fetchResult = await this.fetcher.fetch(websiteUrl, timeout);
-        enrichmentPayload.websiteFetch = { statusCode: fetchResult.statusCode, title: fetchResult.title, hasFertilityTerms: fetchResult.hasFertilityTerms };
+        enrichmentPayload.websiteFetch = {
+          statusCode: fetchResult.statusCode,
+          title: fetchResult.title,
+          hasFertilityTerms: fetchResult.hasFertilityTerms,
+          mentionedTreatments: fetchResult.mentionedTreatments,
+        };
         addStep('website_fetch', 'ok', Date.now() - t0);
       } catch (err) {
         addStep('website_fetch', 'failed', Date.now() - t0, String(err));
@@ -544,9 +546,77 @@ export class DiscoveryService {
       data: { matchedClinicId: clinic.id },
     });
 
+    await this.linkClinicTreatments(clinic.id, candidate.runId, enrichmentPayload);
+
     this.logger.log(`Auto-published clinic ${clinic.id} (${clinic.name}) from candidate ${candidateId}`);
     this.publishing?.emitClinicPublished(clinic.id).catch(() => undefined);
     return clinic;
+  }
+
+  private collectTreatmentCodes(
+    enrichmentPayload: Record<string, unknown>,
+    runConfig: EffectiveDiscoveryConfig | null,
+  ): string[] {
+    const codes = new Set<string>();
+    const pipeline = runConfig?.pipeline as { treatments?: string[] } | undefined;
+
+    for (const code of pipeline?.treatments ?? []) {
+      const normalized = toTreatmentCode(code);
+      if (normalized) codes.add(normalized);
+    }
+
+    const websiteFetch = enrichmentPayload.websiteFetch as { mentionedTreatments?: string[] } | undefined;
+    for (const code of websiteFetch?.mentionedTreatments ?? []) {
+      const normalized = toTreatmentCode(code);
+      if (normalized) codes.add(normalized);
+    }
+
+    const llmExtract = enrichmentPayload.llmExtract as { services?: string[] } | undefined;
+    for (const svc of llmExtract?.services ?? []) {
+      if (typeof svc === 'string') {
+        const normalized = toTreatmentCode(svc);
+        if (normalized) codes.add(normalized);
+      }
+    }
+
+    if (!codes.size) codes.add('IVF');
+    return [...codes];
+  }
+
+  private async linkClinicTreatments(
+    clinicId: number,
+    runId: number,
+    enrichmentPayload: Record<string, unknown>,
+  ): Promise<void> {
+    const run = await this.prisma.discoveryRun.findUnique({ where: { id: runId } });
+    const runConfig = (run?.configSnapshot as EffectiveDiscoveryConfig | null) ?? null;
+    const codes = this.collectTreatmentCodes(enrichmentPayload, runConfig);
+
+    const treatments = await this.prisma.treatment.findMany({
+      where: { code: { in: codes }, isActive: true },
+    });
+
+    if (!treatments.length) {
+      const fallback = await this.prisma.treatment.findUnique({ where: { code: 'IVF' } });
+      if (fallback) {
+        await this.prisma.clinicTreatment.createMany({
+          data: [{ clinicId, treatmentId: fallback.id, isOffered: true }],
+          skipDuplicates: true,
+        });
+      }
+      return;
+    }
+
+    await this.prisma.clinicTreatment.createMany({
+      data: treatments.map((treatment) => ({
+        clinicId,
+        treatmentId: treatment.id,
+        isOffered: true,
+      })),
+      skipDuplicates: true,
+    });
+
+    this.logger.log(`Linked clinic ${clinicId} to treatments: ${treatments.map((t) => t.code).join(', ')}`);
   }
 
   // ── Admin: approve/reject candidates ─────────────────────────────────────
