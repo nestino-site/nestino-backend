@@ -161,13 +161,6 @@ export class ClinicPageContentBuilder {
       `${treatmentLabel} clinic in ${cityName}, ${countryName}.`,
     ];
 
-    if (clinicHasPhoto(clinic)) {
-      const photoUrl = resolveClinicPhotoDisplayUrl(clinic);
-      if (photoUrl) {
-        lines.push('', `![${clinic.name}](${photoUrl})`);
-      }
-    }
-
     const summary = clinic.editorialSummary ?? clinic.shortDescription ?? clinic.longDescription;
     if (summary) {
       lines.push('', summary.trim());

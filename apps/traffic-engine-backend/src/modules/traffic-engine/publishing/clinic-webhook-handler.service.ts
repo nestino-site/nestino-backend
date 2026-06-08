@@ -7,6 +7,7 @@ import {
 } from './clinic-page-content.builder';
 import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
 import { PublishService } from './publish.service';
+import { resolveClinicPhotoDisplayUrl } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
 
 export interface ClinicPublishedWebhookPayload {
   event?: 'CLINIC_PUBLISHED' | 'CLINIC_UPDATED' | 'TRUTH_SCORE_CHANGED';
@@ -347,21 +348,34 @@ export class ClinicWebhookHandlerService {
         }
 
         finalContent = this.contentBuilder.buildDetailContent(clinic);
+
+        const clinicPhotoUrl = resolveClinicPhotoDisplayUrl(clinic);
+        await this.prisma.page.update({
+          where: { id: pageId },
+          data: {
+            finalContent,
+            rawDraft: finalContent,
+            pipelineStatus: PipelineStatus.READY,
+            generatedImageBase64: null,
+            imagePrompt: null,
+            generatedImageCdnUrl: clinicPhotoUrl,
+          },
+        });
       } else {
         let clinics = await this.getClinicsByScope(spec.slug, payload);
         await this.clinicPhotoCdn.ensurePhotosForClinics(clinics.map((c) => c.id));
         clinics = await this.getClinicsByScope(spec.slug, payload);
         finalContent = this.contentBuilder.buildListingContent(spec.slug, existingContent, clinics);
-      }
 
-      await this.prisma.page.update({
-        where: { id: pageId },
-        data: {
-          finalContent,
-          rawDraft: finalContent,
-          pipelineStatus: PipelineStatus.READY,
-        },
-      });
+        await this.prisma.page.update({
+          where: { id: pageId },
+          data: {
+            finalContent,
+            rawDraft: finalContent,
+            pipelineStatus: PipelineStatus.READY,
+          },
+        });
+      }
 
       const result = await this.publishService.publishPage(pageId);
       if (result.published) {
