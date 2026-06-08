@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TaskType } from '@prisma/client';
+import { PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { ContentTasksService } from '../content-tasks/services/content-tasks.service';
+import {
+  ClinicListItem,
+  ClinicPageContentBuilder,
+} from './clinic-page-content.builder';
+import { PublishService } from './publish.service';
 
 export interface ClinicPublishedWebhookPayload {
   event?: 'CLINIC_PUBLISHED' | 'CLINIC_UPDATED' | 'TRUTH_SCORE_CHANGED';
@@ -38,6 +42,17 @@ interface ClinicPageSpec {
 
 const DEFAULT_CLINIC_SITE_DOMAIN = 'medcover.io';
 
+const CLINIC_LIST_INCLUDE = {
+  city: { include: { country: true } },
+  country: true,
+  media: { where: { isPrimary: true }, take: 1, select: { url: true } },
+  treatments: {
+    where: { isOffered: true },
+    include: { treatment: { select: { code: true, name: true } } },
+  },
+  truthScore: { select: { composite: true, grade: true } },
+} as const;
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -53,6 +68,10 @@ function displayNameFromSlug(slug?: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function treatmentCodeFromSlug(treatmentSlug: string): string {
+  return treatmentSlug.toUpperCase().replace(/-/g, '_');
 }
 
 function buildMedicalBusinessSchema(payload: ClinicPublishedWebhookPayload): object {
@@ -135,8 +154,12 @@ function buildClinicPageSpecs(payload: ClinicPublishedWebhookPayload): ClinicPag
     },
   ];
 
+  const seenTreatmentSlugs = new Set<string>();
   for (const treatment of treatments) {
     const treatmentSlug = slugify(treatment);
+    if (seenTreatmentSlugs.has(treatmentSlug)) continue;
+    seenTreatmentSlugs.add(treatmentSlug);
+
     const treatmentName = displayNameFromSlug(treatmentSlug);
     specs.push({
       slug: `/clinics/treatment/${treatmentSlug}`,
@@ -163,7 +186,8 @@ export class ClinicWebhookHandlerService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly contentTasksService: ContentTasksService,
+    private readonly contentBuilder: ClinicPageContentBuilder,
+    private readonly publishService: PublishService,
   ) {}
 
   async handleEvent(
@@ -245,18 +269,124 @@ export class ClinicWebhookHandlerService {
         },
       });
       this.logger.log(`Created Page ${page.id} (${spec.slug}) for clinic ${payload.name}`);
-
-      try {
-        await this.contentTasksService.create({
-          siteId: clinicSiteId,
-          pageId: page.id,
-          type: TaskType.GENERATE_CONTENT,
-        });
-        this.logger.log(`Enqueued AI generation for page ${page.id}`);
-      } catch (err) {
-        this.logger.error(`Failed to enqueue content task for page ${page.id}: ${String(err)}`);
-      }
     }
+
+    await this.buildAndPublishPage(page.id, spec, payload, existingPage?.finalContent ?? null);
+  }
+
+  private async buildAndPublishPage(
+    pageId: number,
+    spec: ClinicPageSpec,
+    payload: ClinicPublishedWebhookPayload,
+    existingContent: string | null,
+  ): Promise<void> {
+    try {
+      const parts = spec.slug.split('/').filter(Boolean);
+      const isDetailPage = parts.length >= 4;
+
+      let finalContent: string;
+      if (isDetailPage) {
+        const clinic = await this.prisma.clinic.findUnique({
+          where: { id: payload.clinicId },
+          include: {
+            city: { include: { country: true } },
+            country: true,
+            treatments: {
+              where: { isOffered: true },
+              include: { treatment: true },
+            },
+            doctors: { where: { isActive: true }, orderBy: { name: 'asc' } },
+          },
+        });
+
+        if (!clinic) {
+          this.logger.warn(`Clinic ${payload.clinicId} not found — skipping page ${pageId}`);
+          return;
+        }
+
+        finalContent = this.contentBuilder.buildDetailContent(clinic);
+      } else {
+        const clinics = await this.getClinicsByScope(spec.slug, payload);
+        finalContent = this.contentBuilder.buildListingContent(spec.slug, existingContent, clinics);
+      }
+
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: {
+          finalContent,
+          rawDraft: finalContent,
+          pipelineStatus: PipelineStatus.READY,
+        },
+      });
+
+      const result = await this.publishService.publishPage(pageId);
+      if (result.published) {
+        this.logger.log(`Published page ${pageId} (${spec.slug})`);
+      } else {
+        this.logger.warn(
+          `Publish skipped for page ${pageId} (${spec.slug}): ${result.skippedReason ?? 'unknown'}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(`Failed to build/publish page ${pageId} (${spec.slug}): ${String(err)}`);
+    }
+  }
+
+  private async getClinicsByScope(
+    slug: string,
+    payload: ClinicPublishedWebhookPayload,
+  ): Promise<ClinicListItem[]> {
+    const parts = slug.split('/').filter(Boolean);
+    const publishedWhere = { status: 'PUBLISHED' as const };
+
+    if (parts[1] === 'treatment') {
+      const treatmentSlug = parts[2] ?? 'ivf';
+      const treatmentCode = treatmentCodeFromSlug(treatmentSlug);
+      return this.prisma.clinic.findMany({
+        where: {
+          ...publishedWhere,
+          treatments: {
+            some: {
+              isOffered: true,
+              treatment: { code: treatmentCode },
+            },
+          },
+        },
+        include: CLINIC_LIST_INCLUDE,
+        orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
+      });
+    }
+
+    if (parts.length === 3) {
+      const citySlug = parts[2];
+      return this.prisma.clinic.findMany({
+        where: {
+          ...publishedWhere,
+          city: { slug: citySlug },
+        },
+        include: CLINIC_LIST_INCLUDE,
+        orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
+      });
+    }
+
+    const countrySlug = parts[1] ?? payload.countrySlug ?? 'unknown';
+    const countries = await this.prisma.country.findMany({
+      select: { id: true, name: true, codeIso2: true },
+    });
+    const country = countries.find((c) => slugify(c.name) === countrySlug);
+    if (!country) {
+      this.logger.warn(`No country matched slug ${countrySlug} for listing ${slug}`);
+      return [];
+    }
+
+    return this.prisma.clinic.findMany({
+      where: {
+        ...publishedWhere,
+        OR: [{ countryId: country.id }, { city: { countryId: country.id } }],
+      },
+      include: CLINIC_LIST_INCLUDE,
+      orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
+    });
   }
 
   private async updatePageSchema(payload: ClinicPublishedWebhookPayload): Promise<void> {

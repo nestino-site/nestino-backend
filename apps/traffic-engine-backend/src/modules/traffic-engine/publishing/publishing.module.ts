@@ -8,6 +8,7 @@ import { WebhookDeliveryService } from './webhook-delivery.service';
 import { WebhookRetryScheduler } from './webhook-retry.scheduler';
 import { ClinicWebhookController } from './clinic-webhook.controller';
 import { ClinicWebhookHandlerService } from './clinic-webhook-handler.service';
+import { ClinicPageContentBuilder } from './clinic-page-content.builder';
 
 @Module({
   imports: [forwardRef(() => ContentTasksModule), ContentApiModule],
@@ -17,6 +18,7 @@ import { ClinicWebhookHandlerService } from './clinic-webhook-handler.service';
     WebhookDeliveryService,
     WebhookRetryProcessor,
     WebhookRetryScheduler,
+    ClinicPageContentBuilder,
     ClinicWebhookHandlerService,
   ],
   controllers: [ClinicWebhookController],
