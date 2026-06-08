@@ -42,15 +42,29 @@ interface ClinicPageSpec {
 
 const DEFAULT_CLINIC_SITE_DOMAIN = 'medcover.io';
 
-const CLINIC_LIST_INCLUDE = {
-  city: { include: { country: true } },
-  country: true,
+const CLINIC_LIST_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  phone: true,
+  formattedPhone: true,
+  websiteUrl: true,
+  addressLine: true,
+  googleRating: true,
+  googleReviewCount: true,
+  editorialSummary: true,
+  googleMapsUrl: true,
   heroImageUrl: true,
   googlePhotos: true,
+  city: { select: { slug: true, name: true, country: { select: { name: true, codeIso2: true } } } },
+  country: { select: { name: true, codeIso2: true } },
   media: { where: { isPrimary: true }, take: 1, select: { url: true } },
   treatments: {
     where: { isOffered: true },
-    include: { treatment: { select: { code: true, name: true } } },
+    select: {
+      isOffered: true,
+      treatment: { select: { code: true, name: true } },
+    },
   },
   truthScore: { select: { composite: true, grade: true } },
 } as const;
@@ -290,14 +304,36 @@ export class ClinicWebhookHandlerService {
       if (isDetailPage) {
         const clinic = await this.prisma.clinic.findUnique({
           where: { id: payload.clinicId },
-          include: {
-            city: { include: { country: true } },
-            country: true,
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            phone: true,
+            formattedPhone: true,
+            websiteUrl: true,
+            addressLine: true,
+            googleRating: true,
+            googleReviewCount: true,
+            editorialSummary: true,
+            googleMapsUrl: true,
+            heroImageUrl: true,
+            googlePhotos: true,
+            googleReviews: true,
+            openingHours: true,
+            shortDescription: true,
+            longDescription: true,
+            city: { select: { slug: true, name: true, country: { select: { name: true, codeIso2: true } } } },
+            country: { select: { name: true, codeIso2: true } },
+            media: { where: { isPrimary: true }, take: 1, select: { url: true } },
             treatments: {
               where: { isOffered: true },
-              include: { treatment: true },
+              select: { isOffered: true, treatment: { select: { code: true, name: true } } },
             },
-            doctors: { where: { isActive: true }, orderBy: { name: 'asc' } },
+            doctors: {
+              where: { isActive: true },
+              orderBy: { name: 'asc' },
+              select: { name: true, title: true, specialties: true },
+            },
           },
         });
 
@@ -354,7 +390,7 @@ export class ClinicWebhookHandlerService {
             },
           },
         },
-        include: CLINIC_LIST_INCLUDE,
+        select: CLINIC_LIST_SELECT,
         orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
       });
     }
@@ -366,7 +402,7 @@ export class ClinicWebhookHandlerService {
           ...publishedWhere,
           city: { slug: citySlug },
         },
-        include: CLINIC_LIST_INCLUDE,
+        select: CLINIC_LIST_SELECT,
         orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
       });
     }
@@ -386,7 +422,7 @@ export class ClinicWebhookHandlerService {
         ...publishedWhere,
         OR: [{ countryId: country.id }, { city: { countryId: country.id } }],
       },
-      include: CLINIC_LIST_INCLUDE,
+      select: CLINIC_LIST_SELECT,
       orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
     });
   }

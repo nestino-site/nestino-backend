@@ -128,6 +128,10 @@ export class ClinicPageContentBuilder {
       `IVF and fertility clinic in ${cityName}, ${countryName}.`,
     ];
 
+    if (clinicHasPhoto(clinic)) {
+      lines.push('', `![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})`);
+    }
+
     const summary = clinic.editorialSummary ?? clinic.shortDescription ?? clinic.longDescription;
     if (summary) {
       lines.push('', summary.trim());
