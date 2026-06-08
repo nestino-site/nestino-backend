@@ -79,9 +79,15 @@ function parseGoogleReviews(raw: unknown): Array<{ text?: string; authorName?: s
   return raw.slice(0, 5).map((item) => {
     if (!item || typeof item !== 'object') return {};
     const r = item as Record<string, unknown>;
+    const authorName =
+      typeof r.authorName === 'string'
+        ? r.authorName
+        : typeof r.author_name === 'string'
+          ? r.author_name
+          : undefined;
     return {
       text: typeof r.text === 'string' ? r.text : undefined,
-      authorName: typeof r.authorName === 'string' ? r.authorName : undefined,
+      authorName,
       rating: typeof r.rating === 'number' ? r.rating : undefined,
     };
   });
@@ -90,9 +96,11 @@ function parseGoogleReviews(raw: unknown): Array<{ text?: string; authorName?: s
 function parseOpeningHours(raw: unknown): string[] {
   if (!raw || typeof raw !== 'object') return [];
   const hours = raw as Record<string, unknown>;
-  const weekday = hours.weekdayDescriptions;
-  if (Array.isArray(weekday)) {
-    return weekday.filter((line): line is string => typeof line === 'string');
+  for (const key of ['weekdayDescriptions', 'weekday_text'] as const) {
+    const weekday = hours[key];
+    if (Array.isArray(weekday)) {
+      return weekday.filter((line): line is string => typeof line === 'string');
+    }
   }
   return [];
 }
