@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   clinicHasPhoto,
-  clinicPhotoProxyUrl,
+  resolveClinicPhotoDisplayUrl,
 } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
 
 export const CLINIC_DIRECTORY_START = '<!-- CLINIC_DIRECTORY_START -->';
@@ -162,7 +162,10 @@ export class ClinicPageContentBuilder {
     ];
 
     if (clinicHasPhoto(clinic)) {
-      lines.push('', `![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})`);
+      const photoUrl = resolveClinicPhotoDisplayUrl(clinic);
+      if (photoUrl) {
+        lines.push('', `![${clinic.name}](${photoUrl})`);
+      }
     }
 
     const summary = clinic.editorialSummary ?? clinic.shortDescription ?? clinic.longDescription;
@@ -292,7 +295,10 @@ function buildClinicDirectoryMarkdown(heading: string, clinics: ClinicListItem[]
     lines.push(`### [${clinic.name}](${profilePath})`);
 
     if (clinicHasPhoto(clinic)) {
-      lines.push('', `[![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})](${profilePath})`);
+      const photoUrl = resolveClinicPhotoDisplayUrl(clinic);
+      if (photoUrl) {
+        lines.push('', `[![${clinic.name}](${photoUrl})](${profilePath})`);
+      }
     }
 
     const metaParts: string[] = [];

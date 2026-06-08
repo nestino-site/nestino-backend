@@ -5,6 +5,7 @@ import {
   ClinicListItem,
   ClinicPageContentBuilder,
 } from './clinic-page-content.builder';
+import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
 import { PublishService } from './publish.service';
 
 export interface ClinicPublishedWebhookPayload {
@@ -203,6 +204,7 @@ export class ClinicWebhookHandlerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contentBuilder: ClinicPageContentBuilder,
+    private readonly clinicPhotoCdn: ClinicPhotoCdnService,
     private readonly publishService: PublishService,
   ) {}
 
@@ -302,6 +304,8 @@ export class ClinicWebhookHandlerService {
 
       let finalContent: string;
       if (isDetailPage) {
+        await this.clinicPhotoCdn.ensureClinicPhotoOnCdn(payload.clinicId);
+
         const clinic = await this.prisma.clinic.findUnique({
           where: { id: payload.clinicId },
           select: {
@@ -344,7 +348,9 @@ export class ClinicWebhookHandlerService {
 
         finalContent = this.contentBuilder.buildDetailContent(clinic);
       } else {
-        const clinics = await this.getClinicsByScope(spec.slug, payload);
+        let clinics = await this.getClinicsByScope(spec.slug, payload);
+        await this.clinicPhotoCdn.ensurePhotosForClinics(clinics.map((c) => c.id));
+        clinics = await this.getClinicsByScope(spec.slug, payload);
         finalContent = this.contentBuilder.buildListingContent(spec.slug, existingContent, clinics);
       }
 

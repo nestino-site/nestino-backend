@@ -9,6 +9,7 @@ import { WebhookRetryScheduler } from './webhook-retry.scheduler';
 import { ClinicWebhookController } from './clinic-webhook.controller';
 import { ClinicWebhookHandlerService } from './clinic-webhook-handler.service';
 import { ClinicPageContentBuilder } from './clinic-page-content.builder';
+import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
 
 @Module({
   imports: [forwardRef(() => ContentTasksModule), ContentApiModule],
@@ -19,6 +20,7 @@ import { ClinicPageContentBuilder } from './clinic-page-content.builder';
     WebhookRetryProcessor,
     WebhookRetryScheduler,
     ClinicPageContentBuilder,
+    ClinicPhotoCdnService,
     ClinicWebhookHandlerService,
   ],
   controllers: [ClinicWebhookController],

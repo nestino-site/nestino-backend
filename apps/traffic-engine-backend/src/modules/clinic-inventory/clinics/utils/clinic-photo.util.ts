@@ -20,6 +20,21 @@ export function clinicPhotoProxyUrl(clinicId: number): string {
   return `${getApiPublicBaseUrl()}/api/v1/clinics/${clinicId}/photo`;
 }
 
+/** Prefer Cloudinary / stored media URLs; fall back to the API photo proxy. */
+export function resolveClinicPhotoDisplayUrl(clinic: ClinicPhotoSource): string | null {
+  const mediaUrl = clinic.media?.[0]?.url?.trim();
+  if (mediaUrl) return mediaUrl;
+
+  const hero = clinic.heroImageUrl?.trim();
+  if (hero) return hero;
+
+  if (parseGooglePhotoRef(clinic.googlePhotos) != null) {
+    return clinicPhotoProxyUrl(clinic.id);
+  }
+
+  return null;
+}
+
 export function clinicHasPhoto(clinic: ClinicPhotoSource): boolean {
   if (clinic.heroImageUrl?.trim()) return true;
   if (clinic.media?.[0]?.url?.trim()) return true;
