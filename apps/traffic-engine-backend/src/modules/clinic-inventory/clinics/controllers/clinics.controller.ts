@@ -24,13 +24,9 @@ export class ClinicsController {
 
   @Get('clinics/:id/photo')
   @Public()
-  @ApiOperation({ summary: 'Redirect to clinic primary photo (Google Places proxy)' })
+  @ApiOperation({ summary: 'Stream clinic primary photo (CDN redirect or Google proxy)' })
   async clinicPhoto(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
-    const url = await this.clinics.getPrimaryPhotoRedirectUrl(id);
-    if (!url) {
-      throw new NotFoundException(`No photo available for clinic ${id}`);
-    }
-    return res.redirect(302, url);
+    await this.clinics.streamPrimaryPhoto(id, res);
   }
 
   @Get('clinics/:identifier')

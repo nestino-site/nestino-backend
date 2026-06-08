@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, Optional } from '@nestjs/common';
+import axios from 'axios';
+import type { Response } from 'express';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { CreateClinicDto } from '../dto/create-clinic.dto';
 import { ListClinicsDto } from '../dto/list-clinics.dto';
@@ -166,6 +168,37 @@ export class ClinicsService {
     });
     if (!clinic) return null;
     return resolveClinicPhotoRedirectUrl(clinic);
+  }
+
+  async streamPrimaryPhoto(id: number, res: Response): Promise<void> {
+    const url = await this.getPrimaryPhotoRedirectUrl(id);
+    if (!url) {
+      throw new NotFoundException(`No photo available for clinic ${id}`);
+    }
+
+    const isEmbeddableCdn = /res\.cloudinary\.com/i.test(url);
+
+    if (isEmbeddableCdn) {
+      res.redirect(302, url);
+      return;
+    }
+
+    const imageRes = await axios.get<ArrayBuffer>(url, {
+      responseType: 'arraybuffer',
+      timeout: 20_000,
+      maxRedirects: 5,
+    });
+
+    const contentType =
+      typeof imageRes.headers['content-type'] === 'string'
+        ? imageRes.headers['content-type']
+        : 'image/jpeg';
+
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.send(Buffer.from(imageRes.data));
   }
 
   async publish(id: number) {
