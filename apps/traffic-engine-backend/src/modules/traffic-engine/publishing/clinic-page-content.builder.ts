@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
+import {
+  clinicHasPhoto,
+  clinicPhotoProxyUrl,
+} from '../../clinic-inventory/clinics/utils/clinic-photo.util';
 
 export const CLINIC_DIRECTORY_START = '<!-- CLINIC_DIRECTORY_START -->';
 export const CLINIC_DIRECTORY_END = '<!-- CLINIC_DIRECTORY_END -->';
@@ -16,6 +20,8 @@ export interface ClinicListItem {
   googleReviewCount?: number | null;
   editorialSummary?: string | null;
   googleMapsUrl?: string | null;
+  heroImageUrl?: string | null;
+  googlePhotos?: unknown;
   city?: { slug: string; name: string; country?: { name: string; codeIso2: string } | null } | null;
   country?: { name: string; codeIso2: string } | null;
   media?: Array<{ url: string }>;
@@ -248,6 +254,9 @@ function buildClinicDirectoryMarkdown(heading: string, clinics: ClinicListItem[]
         : null;
 
     lines.push(`### ${clinic.name}`);
+    if (clinicHasPhoto(clinic)) {
+      lines.push('', `![${clinic.name}](${clinicPhotoProxyUrl(clinic.id)})`);
+    }
     const meta = [reviewPart, addressPart, phonePart, websitePart, cityPart, truthPart]
       .filter(Boolean)
       .join(' · ');

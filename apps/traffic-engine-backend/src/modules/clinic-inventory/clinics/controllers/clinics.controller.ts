@@ -1,6 +1,7 @@
 import {
-  Controller, Get, Post, Patch, Param, Body, Query, ParseIntPipe,
+  Controller, Get, Post, Patch, Param, Body, Query, ParseIntPipe, Res, NotFoundException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ClinicsService } from '../services/clinics.service';
 import { CreateClinicDto, UpdateClinicDto } from '../dto/create-clinic.dto';
@@ -19,6 +20,17 @@ export class ClinicsController {
   @ApiOperation({ summary: 'List published clinics (cursor-paginated)' })
   listClinics(@Query() query: ListClinicsDto) {
     return this.clinics.listClinics(query);
+  }
+
+  @Get('clinics/:id/photo')
+  @Public()
+  @ApiOperation({ summary: 'Redirect to clinic primary photo (Google Places proxy)' })
+  async clinicPhoto(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const url = await this.clinics.getPrimaryPhotoRedirectUrl(id);
+    if (!url) {
+      throw new NotFoundException(`No photo available for clinic ${id}`);
+    }
+    return res.redirect(302, url);
   }
 
   @Get('clinics/:identifier')

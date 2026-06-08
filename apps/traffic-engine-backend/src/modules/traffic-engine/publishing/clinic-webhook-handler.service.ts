@@ -45,6 +45,8 @@ const DEFAULT_CLINIC_SITE_DOMAIN = 'medcover.io';
 const CLINIC_LIST_INCLUDE = {
   city: { include: { country: true } },
   country: true,
+  heroImageUrl: true,
+  googlePhotos: true,
   media: { where: { isPrimary: true }, take: 1, select: { url: true } },
   treatments: {
     where: { isOffered: true },

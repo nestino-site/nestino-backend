@@ -6,6 +6,7 @@ import { UpsertClinicTreatmentDto } from '../dto/upsert-clinic-treatment.dto';
 import { CreatePricingPackageDto } from '../dto/create-pricing-package.dto';
 import { ClinicStatus, Prisma } from '@prisma/client';
 import { ClinicPublishBridge } from '../../clinic-publish.bridge';
+import { resolveClinicPhotoRedirectUrl } from '../utils/clinic-photo.util';
 
 function slugify(name: string): string {
   return name
@@ -151,6 +152,20 @@ export class ClinicsService {
       data,
       include: CLINIC_DETAIL_INCLUDE,
     });
+  }
+
+  async getPrimaryPhotoRedirectUrl(id: number): Promise<string | null> {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        heroImageUrl: true,
+        googlePhotos: true,
+        media: { where: { isPrimary: true }, take: 1, select: { url: true } },
+      },
+    });
+    if (!clinic) return null;
+    return resolveClinicPhotoRedirectUrl(clinic);
   }
 
   async publish(id: number) {
