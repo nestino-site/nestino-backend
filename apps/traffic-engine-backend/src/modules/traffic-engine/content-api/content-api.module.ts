@@ -3,6 +3,7 @@ import { SeoStrategyModule } from '../seo-strategy/seo-strategy.module';
 import { CatalogController } from './catalog/catalog.controller';
 import { CatalogService } from './catalog/catalog.service';
 import { TreatmentSlugGuard } from '../../../common/guards/treatment-slug.guard';
+import { ContentBySlugController } from './controllers/content-by-slug.controller';
 import { ContentApiController } from './controllers/content-api.controller';
 import { ContentCacheService } from './content-cache.service';
 import { ContentRenderService } from './content-render.service';
@@ -14,7 +15,7 @@ import { SeoSchemaBuilderService } from './seo/seo-schema-builder.service';
 
 @Module({
   imports: [SeoStrategyModule],
-  controllers: [CatalogController, ContentApiController],
+  controllers: [CatalogController, ContentApiController, ContentBySlugController],
   providers: [
     CatalogService,
     TreatmentSlugGuard,

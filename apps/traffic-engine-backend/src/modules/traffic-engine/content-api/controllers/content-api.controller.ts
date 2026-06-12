@@ -40,30 +40,6 @@ export class ContentApiController {
     };
   }
 
-  @Get('by-slug/*path')
-  @ApiOperation({ summary: 'Get published page content by slug path' })
-  @SiteScopedApiKey()
-  async getContentBySlug(@Req() req: Request) {
-    const siteId = req.siteId!;
-    const slugPath = (req.params as { path?: string }).path ?? '';
-    const slug = slugPath.startsWith('/') ? slugPath : `/${slugPath}`;
-
-    const cached = await this.contentCache.getBySlug<ContentContract>(siteId, slug);
-    if (cached) {
-      return cached;
-    }
-
-    const page = await this.stateManager.getStateBySlug(siteId, slug);
-    const body = await this.mapper.toContract(page);
-    const response = this.wrapPipelineStatus(page.pipelineStatus, body);
-
-    if (page.status === PageStatus.PUBLISHED) {
-      await this.contentCache.setBySlug(siteId, slug, response);
-    }
-
-    return response;
-  }
-
   @Get(':pageId')
   @ApiOperation({ summary: 'Get published page content by page ID' })
   @ApiParam({ name: 'pageId', type: Number, example: 100 })
