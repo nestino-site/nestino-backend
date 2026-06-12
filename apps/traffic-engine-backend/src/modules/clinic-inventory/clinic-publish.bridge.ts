@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, WebhookEventType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { buildClinicAffectedPaths } from '../traffic-engine/content-api/seo/page-type.util';
+import { slugify } from '../traffic-engine/content-api/catalog/slug.util';
 import {
   ClinicPublishedWebhookPayload,
   ClinicWebhookHandlerService,
 } from '../traffic-engine/publishing/clinic-webhook-handler.service';
+import { PublishService } from '../traffic-engine/publishing/publish.service';
 
 export interface ClinicPublishedPayload extends Record<string, unknown> {
   clinicId: number;
@@ -26,14 +29,7 @@ export interface ClinicPublishedPayload extends Record<string, unknown> {
   publishedAt: string;
 }
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
+const DEFAULT_CLINIC_SITE_DOMAIN = 'medcover.io';
 
 @Injectable()
 export class ClinicPublishBridge {
@@ -42,6 +38,7 @@ export class ClinicPublishBridge {
   constructor(
     private readonly prisma: PrismaService,
     private readonly webhookHandler: ClinicWebhookHandlerService,
+    private readonly publishService: PublishService,
   ) {}
 
   async emitClinicPublished(clinicId: number): Promise<void> {
@@ -83,16 +80,27 @@ export class ClinicPublishBridge {
   }
 
   async emitTruthScoreChanged(clinicId: number): Promise<void> {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+      include: { city: true, country: true, treatments: { include: { treatment: true } } },
+    });
     const score = await this.prisma.clinicTruthScore.findUnique({ where: { clinicId } });
-    if (!score) return;
+    if (!score || !clinic) return;
 
     await this.processEvent('TRUTH_SCORE_CHANGED', {
       clinicId,
+      slug: clinic.slug,
+      name: clinic.name,
+      citySlug: clinic.city?.slug,
+      countrySlug: clinic.country?.name
+        ? slugify(clinic.country.name)
+        : clinic.country?.codeIso2?.toLowerCase(),
+      treatments: clinic.treatments
+        .filter((t) => t.isOffered)
+        .map((t) => t.treatment.code),
       composite: score.composite ?? undefined,
       grade: score.grade as string | null,
       status: score.status as string,
-      slug: '',
-      name: '',
       publishedAt: new Date().toISOString(),
     });
   }
@@ -129,6 +137,8 @@ export class ClinicPublishBridge {
         },
       });
       this.logger.log(`In-process clinic event ${event} handled for clinic ${payload.clinicId}`);
+
+      await this.fireFrontendClinicWebhook(payload as ClinicPublishedPayload);
     } catch (err) {
       await this.prisma.clinicWebhookDelivery.update({
         where: { id: delivery.id },
@@ -141,6 +151,31 @@ export class ClinicPublishBridge {
       this.logger.error(`In-process clinic event ${event} failed for clinic ${payload.clinicId}: ${String(err)}`);
       throw err;
     }
+  }
+
+  private async fireFrontendClinicWebhook(payload: ClinicPublishedPayload): Promise<void> {
+    const domain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
+    const site = await this.prisma.site.findUnique({
+      where: { domain },
+      select: { id: true },
+    });
+    if (!site) return;
+
+    const countrySlug = payload.countrySlug ?? 'unknown';
+    const citySlug = payload.citySlug ?? 'unknown';
+    const pdpSlug = `/clinics/${countrySlug}/${citySlug}/${payload.slug}`;
+
+    await this.publishService.fireClinicUpdatedWebhook({
+      clinicId: payload.clinicId,
+      siteId: site.id,
+      pdpSlug,
+      affectedPaths: buildClinicAffectedPaths({
+        slug: payload.slug,
+        countrySlug,
+        citySlug,
+        treatments: payload.treatments,
+      }),
+    });
   }
 
   listDeliveries(clinicId?: number) {

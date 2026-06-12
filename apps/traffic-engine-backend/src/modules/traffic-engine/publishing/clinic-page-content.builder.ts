@@ -214,19 +214,33 @@ export class ClinicPageContentBuilder {
 
   buildListingContent(slug: string, existingContent: string | null, clinics: ClinicListItem[]): string {
     const parts = slug.split('/').filter(Boolean);
-    if (parts.length >= 4) {
+
+    if (parts.length === 4) {
+      const cityName = displayNameFromSlug(parts[2]);
+      const treatmentName = displayNameFromSlug(parts[3]);
+      return this.buildCityTreatmentListingContent(existingContent, cityName, treatmentName);
+    }
+
+    if (parts.length > 4) {
       throw new Error(`buildListingContent called for detail slug: ${slug}`);
     }
 
-    if (parts[1] === 'treatment') {
-      const treatmentSlug = parts[2] ?? 'ivf';
-      const treatmentName = displayNameFromSlug(treatmentSlug);
-      return this.buildTreatmentListingContent(existingContent, treatmentName, clinics);
-    }
-
     if (parts.length === 3) {
-      const cityName = displayNameFromSlug(parts[2]);
-      return this.buildCityListingContent(existingContent, cityName, clinics);
+      const segment = parts[2];
+      const countryName = displayNameFromSlug(parts[1] ?? 'unknown');
+      const treatmentSlugs = new Set(
+        clinics.flatMap((c) =>
+          (c.treatments ?? []).map((t) => slugify(t.treatment.name || t.treatment.code)),
+        ),
+      );
+      if (treatmentSlugs.has(segment)) {
+        return this.buildCountryTreatmentListingContent(
+          existingContent,
+          countryName,
+          displayNameFromSlug(segment),
+        );
+      }
+      return this.buildCityListingContent(existingContent, displayNameFromSlug(segment), clinics);
     }
 
     const countryName = displayNameFromSlug(parts[1] ?? 'unknown');
@@ -236,28 +250,72 @@ export class ClinicPageContentBuilder {
   buildCityListingContent(
     existingContent: string | null,
     cityName: string,
-    clinics: ClinicListItem[],
+    _clinics: ClinicListItem[],
   ): string {
-    const heading = `## IVF Clinics in ${cityName} (${clinics.length} clinic${clinics.length === 1 ? '' : 's'})`;
-    return injectClinicDirectory(existingContent, heading, clinics);
+    return this.buildMinimalListingContent(
+      existingContent,
+      `IVF Clinics in ${cityName}`,
+      `Compare verified IVF clinics in ${cityName} using patient interviews, Google ratings, and transparent pricing.`,
+    );
   }
 
   buildCountryListingContent(
     existingContent: string | null,
     countryName: string,
-    clinics: ClinicListItem[],
+    _clinics: ClinicListItem[],
   ): string {
-    const heading = `## IVF Clinics in ${countryName} (${clinics.length} clinic${clinics.length === 1 ? '' : 's'})`;
-    return injectClinicDirectory(existingContent, heading, clinics);
+    return this.buildMinimalListingContent(
+      existingContent,
+      `IVF Clinics in ${countryName}`,
+      `Explore IVF clinics in ${countryName} by city and treatment. Clinic directory is composed from live catalog data.`,
+    );
   }
 
   buildTreatmentListingContent(
     existingContent: string | null,
     treatmentName: string,
-    clinics: ClinicListItem[],
+    _clinics: ClinicListItem[],
   ): string {
-    const heading = `## ${treatmentName} Clinics (${clinics.length} clinic${clinics.length === 1 ? '' : 's'})`;
-    return injectClinicDirectory(existingContent, heading, clinics);
+    return this.buildMinimalListingContent(
+      existingContent,
+      `${treatmentName} Clinics`,
+      `Find clinics offering ${treatmentName} with verified patient data and transparent profiles.`,
+    );
+  }
+
+  buildCountryTreatmentListingContent(
+    existingContent: string | null,
+    countryName: string,
+    treatmentName: string,
+  ): string {
+    return this.buildMinimalListingContent(
+      existingContent,
+      `${treatmentName} Clinics in ${countryName}`,
+      `Compare ${treatmentName} clinics in ${countryName} using verified patient interviews and pricing data.`,
+    );
+  }
+
+  buildCityTreatmentListingContent(
+    existingContent: string | null,
+    cityName: string,
+    treatmentName: string,
+  ): string {
+    return this.buildMinimalListingContent(
+      existingContent,
+      `${treatmentName} Clinics in ${cityName}`,
+      `Compare ${treatmentName} clinics in ${cityName} with Truth Score and transparent pricing.`,
+    );
+  }
+
+  private buildMinimalListingContent(
+    existingContent: string | null,
+    heading: string,
+    intro: string,
+  ): string {
+    const stripped = existingContent ? stripClinicDirectoryBlock(existingContent) : '';
+    const { h1, body } = extractLeadingH1(stripped || null, heading);
+    const prose = body || intro;
+    return [h1, '', prose].filter((part) => part.trim().length > 0).join('\n\n').trim();
   }
 }
 

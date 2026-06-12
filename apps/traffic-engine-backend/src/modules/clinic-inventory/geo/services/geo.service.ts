@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { TreatmentSlugGuard } from '../../../../common/guards/treatment-slug.guard';
 import { CreateCountryDto } from '../dto/create-country.dto';
 import { CreateCityDto } from '../dto/create-city.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GeoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly treatmentSlugGuard: TreatmentSlugGuard,
+  ) {}
 
   // ── Countries ──────────────────────────────────────────────────────────────
 
@@ -71,6 +75,7 @@ export class GeoService {
   }
 
   async createCity(dto: CreateCityDto) {
+    await this.treatmentSlugGuard.assertNotTreatmentSlug(dto.slug, 'City');
     try {
       return await this.prisma.city.create({
         data: {
@@ -90,6 +95,9 @@ export class GeoService {
 
   async updateCity(id: number, dto: Partial<CreateCityDto>) {
     await this.findCity(id);
+    if (dto.slug) {
+      await this.treatmentSlugGuard.assertNotTreatmentSlug(dto.slug, 'City');
+    }
     return this.prisma.city.update({ where: { id }, data: dto, include: { country: true } });
   }
 }

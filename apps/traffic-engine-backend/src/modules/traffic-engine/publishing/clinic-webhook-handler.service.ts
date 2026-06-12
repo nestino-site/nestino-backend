@@ -2,6 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
+  displayNameFromSlug,
+  isTreatmentSlug,
+  slugify,
+  treatmentCodeFromSlug,
+} from '../content-api/catalog/slug.util';
+import { PageSeoEnricherService } from '../content-api/seo/page-seo-enricher.service';
+import {
   ClinicListItem,
   ClinicPageContentBuilder,
 } from './clinic-page-content.builder';
@@ -70,27 +77,6 @@ const CLINIC_LIST_SELECT = {
   },
   truthScore: { select: { composite: true, grade: true } },
 } as const;
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-function displayNameFromSlug(slug?: string): string {
-  return (slug ?? 'unknown')
-    .split('-')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function treatmentCodeFromSlug(treatmentSlug: string): string {
-  return treatmentSlug.toUpperCase().replace(/-/g, '_');
-}
 
 function buildMedicalBusinessSchema(payload: ClinicPublishedWebhookPayload): object {
   const siteDomain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
@@ -179,20 +165,34 @@ function buildClinicPageSpecs(payload: ClinicPublishedWebhookPayload): ClinicPag
     seenTreatmentSlugs.add(treatmentSlug);
 
     const treatmentName = displayNameFromSlug(treatmentSlug);
-    specs.push({
-      slug: `/clinics/treatment/${treatmentSlug}`,
-      keyword: `${treatmentName} clinics ${countryName}`,
-      title: `${treatmentName} Clinics`,
-      metaTitle: `${treatmentName} Clinics - Verified Clinic Directory`,
-      metaDescription: `Find clinics offering ${treatmentName}, with verified clinic data, patient interviews, Google data and transparent profile pages.`,
-      priority: 3,
-      schemaMarkup: {
-        '@context': 'https://schema.org',
-        '@type': 'CollectionPage',
-        name: `${treatmentName} Clinics`,
-        about: clinicSchema,
+    specs.push(
+      {
+        slug: `/clinics/${countrySlug}/${treatmentSlug}`,
+        keyword: `${treatmentName} clinics ${countryName}`,
+        title: `${treatmentName} Clinics in ${countryName}`,
+        metaTitle: `${treatmentName} Clinics in ${countryName} - Verified Directory`,
+        metaDescription: `Find ${treatmentName} clinics in ${countryName} with verified patient interviews, Google data and transparent profiles.`,
+        priority: 3,
+        schemaMarkup: {
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: `${treatmentName} Clinics in ${countryName}`,
+        },
       },
-    });
+      {
+        slug: `/clinics/${countrySlug}/${citySlug}/${treatmentSlug}`,
+        keyword: `${treatmentName} clinics ${cityName}`,
+        title: `${treatmentName} Clinics in ${cityName}`,
+        metaTitle: `${treatmentName} Clinics in ${cityName} - Verified Directory`,
+        metaDescription: `Compare ${treatmentName} clinics in ${cityName} using verified patient data and transparent pricing.`,
+        priority: 3,
+        schemaMarkup: {
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: `${treatmentName} Clinics in ${cityName}`,
+        },
+      },
+    );
   }
 
   return specs;
@@ -207,6 +207,7 @@ export class ClinicWebhookHandlerService {
     private readonly contentBuilder: ClinicPageContentBuilder,
     private readonly clinicPhotoCdn: ClinicPhotoCdnService,
     private readonly publishService: PublishService,
+    private readonly pageSeoEnricher: PageSeoEnricherService,
   ) {}
 
   async handleEvent(
@@ -260,15 +261,51 @@ export class ClinicWebhookHandlerService {
       where: { siteId: clinicSiteId, slug: spec.slug },
     });
 
+    const site = await this.prisma.site.findUnique({
+      where: { id: clinicSiteId },
+      select: { domain: true },
+    });
+    const specParts = spec.slug.split('/').filter(Boolean);
+    const treatmentSlugSetForSeo = await this.loadTreatmentSlugSet();
+    const isPdpSpec =
+      specParts.length === 4 &&
+      specParts[0] === 'clinics' &&
+      !isTreatmentSlug(specParts[3], treatmentSlugSetForSeo);
+    let interviewCount: number | undefined;
+    if (isPdpSpec) {
+      const score = await this.prisma.clinicTruthScore.findUnique({
+        where: { clinicId: payload.clinicId },
+        select: { interviewCount: true },
+      });
+      interviewCount = score?.interviewCount;
+    }
+
+    const seo = await this.pageSeoEnricher.enrich({
+      slug: spec.slug,
+      title: spec.title,
+      metaTitle: spec.metaTitle,
+      metaDescription: spec.metaDescription,
+      siteDomain: site?.domain ?? DEFAULT_CLINIC_SITE_DOMAIN,
+      interviewCount,
+      googleRating: payload.googleRating,
+      googleReviewCount: payload.googleReviewCount,
+      heroAnswer: spec.metaDescription,
+    });
+
     let page;
     if (existingPage) {
       page = await this.prisma.page.update({
         where: { id: existingPage.id },
         data: {
           title: spec.title,
-          metaTitle: spec.metaTitle,
-          metaDescription: spec.metaDescription,
-          schemaMarkup: spec.schemaMarkup,
+          metaTitle: seo.metaTitle,
+          metaDescription: seo.metaDescription,
+          schemaMarkup: seo.schemaMarkup,
+          pageType: seo.pageType,
+          entities: seo.entities,
+          contentBlocks: seo.contentBlocks,
+          breadcrumbs: seo.breadcrumbs,
+          robotsMeta: seo.robotsMeta,
         },
       });
       this.logger.log(`Updated Page ${page.id} (${spec.slug}) for clinic ${payload.name}`);
@@ -280,9 +317,14 @@ export class ClinicWebhookHandlerService {
           language: 'EN',
           slug: spec.slug,
           title: spec.title,
-          metaTitle: spec.metaTitle,
-          metaDescription: spec.metaDescription,
-          schemaMarkup: spec.schemaMarkup,
+          metaTitle: seo.metaTitle,
+          metaDescription: seo.metaDescription,
+          schemaMarkup: seo.schemaMarkup,
+          pageType: seo.pageType,
+          entities: seo.entities,
+          contentBlocks: seo.contentBlocks,
+          breadcrumbs: seo.breadcrumbs,
+          robotsMeta: seo.robotsMeta,
           status: 'DRAFT',
           publishedAt: payload.publishedAt ? new Date(payload.publishedAt) : undefined,
         },
@@ -301,7 +343,9 @@ export class ClinicWebhookHandlerService {
   ): Promise<void> {
     try {
       const parts = spec.slug.split('/').filter(Boolean);
-      const isDetailPage = parts.length >= 4;
+      const treatmentSlugSet = await this.loadTreatmentSlugSet();
+      const isDetailPage =
+        parts.length === 4 && parts[0] === 'clinics' && !isTreatmentSlug(parts[3], treatmentSlugSet);
 
       let finalContent: string;
       if (isDetailPage) {
@@ -396,18 +440,38 @@ export class ClinicWebhookHandlerService {
   ): Promise<ClinicListItem[]> {
     const parts = slug.split('/').filter(Boolean);
     const publishedWhere = { status: 'PUBLISHED' as const };
+    const treatmentSlugSet = await this.loadTreatmentSlugSet();
 
-    if (parts[1] === 'treatment') {
-      const treatmentSlug = parts[2] ?? 'ivf';
-      const treatmentCode = treatmentCodeFromSlug(treatmentSlug);
+    if (parts.length === 4 && isTreatmentSlug(parts[3], treatmentSlugSet)) {
+      const countrySlug = parts[1];
+      const citySlug = parts[2];
+      const treatmentCode = treatmentCodeFromSlug(parts[3]);
+      const country = await this.resolveCountryBySlug(countrySlug);
+      if (!country) return [];
       return this.prisma.clinic.findMany({
         where: {
           ...publishedWhere,
+          city: { slug: citySlug, countryId: country.id },
           treatments: {
-            some: {
-              isOffered: true,
-              treatment: { code: treatmentCode },
-            },
+            some: { isOffered: true, treatment: { code: treatmentCode } },
+          },
+        },
+        select: CLINIC_LIST_SELECT,
+        orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
+      });
+    }
+
+    if (parts.length === 3 && isTreatmentSlug(parts[2], treatmentSlugSet)) {
+      const countrySlug = parts[1];
+      const treatmentCode = treatmentCodeFromSlug(parts[2]);
+      const country = await this.resolveCountryBySlug(countrySlug);
+      if (!country) return [];
+      return this.prisma.clinic.findMany({
+        where: {
+          ...publishedWhere,
+          OR: [{ countryId: country.id }, { city: { countryId: country.id } }],
+          treatments: {
+            some: { isOffered: true, treatment: { code: treatmentCode } },
           },
         },
         select: CLINIC_LIST_SELECT,
@@ -428,10 +492,7 @@ export class ClinicWebhookHandlerService {
     }
 
     const countrySlug = parts[1] ?? payload.countrySlug ?? 'unknown';
-    const countries = await this.prisma.country.findMany({
-      select: { id: true, name: true, codeIso2: true },
-    });
-    const country = countries.find((c) => slugify(c.name) === countrySlug);
+    const country = await this.resolveCountryBySlug(countrySlug);
     if (!country) {
       this.logger.warn(`No country matched slug ${countrySlug} for listing ${slug}`);
       return [];
@@ -445,6 +506,21 @@ export class ClinicWebhookHandlerService {
       select: CLINIC_LIST_SELECT,
       orderBy: [{ googleRating: 'desc' }, { name: 'asc' }],
     });
+  }
+
+  private async resolveCountryBySlug(countrySlug: string) {
+    const countries = await this.prisma.country.findMany({
+      select: { id: true, name: true, codeIso2: true },
+    });
+    return countries.find((c) => slugify(c.name) === countrySlug) ?? null;
+  }
+
+  private async loadTreatmentSlugSet(): Promise<Set<string>> {
+    const treatments = await this.prisma.treatment.findMany({
+      where: { isActive: true },
+      select: { name: true, code: true },
+    });
+    return new Set(treatments.flatMap((t) => [slugify(t.name), slugify(t.code)]));
   }
 
   private async updatePageSchema(payload: ClinicPublishedWebhookPayload): Promise<void> {

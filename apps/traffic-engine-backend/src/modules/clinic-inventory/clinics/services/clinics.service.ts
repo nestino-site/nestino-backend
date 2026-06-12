@@ -7,6 +7,7 @@ import { ListClinicsDto } from '../dto/list-clinics.dto';
 import { UpsertClinicTreatmentDto } from '../dto/upsert-clinic-treatment.dto';
 import { CreatePricingPackageDto } from '../dto/create-pricing-package.dto';
 import { ClinicStatus, Prisma } from '@prisma/client';
+import { TreatmentSlugGuard } from '../../../../common/guards/treatment-slug.guard';
 import { ClinicPublishBridge } from '../../clinic-publish.bridge';
 import { resolveClinicPhotoRedirectUrl } from '../utils/clinic-photo.util';
 
@@ -34,6 +35,7 @@ const CLINIC_DETAIL_INCLUDE = {
 export class ClinicsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly treatmentSlugGuard: TreatmentSlugGuard,
     @Optional() private readonly publishing?: ClinicPublishBridge,
   ) {}
 
@@ -121,6 +123,7 @@ export class ClinicsService {
 
   async create(dto: CreateClinicDto) {
     const slug = dto.slug ?? slugify(dto.name);
+    await this.treatmentSlugGuard.assertNotTreatmentSlug(slug, 'Clinic');
     const data = {
       ...dto,
       slug,
@@ -143,6 +146,9 @@ export class ClinicsService {
 
   async update(id: number, dto: Partial<CreateClinicDto>) {
     await this.findByIdAdmin(id);
+    if (dto.slug) {
+      await this.treatmentSlugGuard.assertNotTreatmentSlug(dto.slug, 'Clinic');
+    }
     const data = {
       ...dto,
       openingHours: dto.openingHours as Prisma.InputJsonValue | undefined,

@@ -257,6 +257,11 @@ model Page {
   generatedImageBase64 String?               @db.Text
   generatedImageCdnUrl String?
   schemaMarkup         Json?
+  pageType             String?
+  entities             Json?
+  contentBlocks        Json?
+  breadcrumbs          Json?
+  robotsMeta           String?
   status               PageStatus            @default(DRAFT)
   seoScore             Float?
   seoCheckScore        Int?

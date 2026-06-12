@@ -55,11 +55,18 @@ export class NextJsContractMapperService {
     const base = this.normalizeDomain(page.site.domain);
     const canonical = this.buildUrl(base, page.slug);
     const heroImage = this.extractHeroImage(page);
-    const breadcrumbs = this.buildBreadcrumbs(page, page.site);
+    const breadcrumbs =
+      this.parseBreadcrumbs(page.breadcrumbs) ?? this.buildBreadcrumbs(page, page.site);
+    const contentBlocks = this.parseContentBlocks(page.contentBlocks);
+    const pageType = page.pageType ?? undefined;
+    const entities = this.parseEntities(page.entities);
 
     return {
       version: '2.2',
       status,
+      pageType,
+      entities,
+      contentBlocks,
 
       // Core content
       pageId: page.id,
@@ -77,7 +84,9 @@ export class NextJsContractMapperService {
         metaTitle: page.metaTitle ?? null,
         metaDescription: page.metaDescription ?? null,
         canonical,
-        robotsMeta: page.status === 'PUBLISHED' ? 'index, follow' : 'noindex, nofollow',
+        robotsMeta:
+          page.robotsMeta ??
+          (page.status === 'PUBLISHED' ? 'index, follow' : 'noindex, nofollow'),
         language: page.language.toLowerCase(),
         og: {
           title: page.metaTitle ?? page.title ?? null,
@@ -145,6 +154,40 @@ export class NextJsContractMapperService {
         typeof (item as TocItem).text === 'string' &&
         typeof (item as TocItem).anchor === 'string',
     );
+  }
+
+  private parseBreadcrumbs(value: unknown): BreadcrumbItem[] | null {
+    if (!Array.isArray(value)) return null;
+    const items = value.filter(
+      (item): item is BreadcrumbItem =>
+        typeof item === 'object' &&
+        item != null &&
+        typeof (item as BreadcrumbItem).name === 'string' &&
+        typeof (item as BreadcrumbItem).slug === 'string' &&
+        typeof (item as BreadcrumbItem).position === 'number',
+    );
+    return items.length > 0 ? items : null;
+  }
+
+  private parseContentBlocks(
+    value: unknown,
+  ): Array<{ id: string; type: string; data: Record<string, unknown> }> {
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+      (item): item is { id: string; type: string; data: Record<string, unknown> } =>
+        typeof item === 'object' &&
+        item != null &&
+        typeof (item as { id: string }).id === 'string' &&
+        typeof (item as { type: string }).type === 'string' &&
+        typeof (item as { data: Record<string, unknown> }).data === 'object',
+    );
+  }
+
+  private parseEntities(
+    value: unknown,
+  ): Record<string, unknown> | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    return value as Record<string, unknown>;
   }
 
   private parseFaq(value: unknown): FaqItem[] {

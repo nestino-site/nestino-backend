@@ -12,7 +12,12 @@
     "prisma:seed": "prisma db seed",
     "telegram:test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-telegram-alert.ts",
     "test:classifier": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/observability/error-classifier.service.spec.ts",
-    "test:seo-gate": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/pipeline-v3/seo-gate.utils.spec.ts"
+    "test:seo-gate": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/pipeline-v3/seo-gate.utils.spec.ts",
+    "test:slug-util": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/catalog/slug.util.spec.ts",
+    "migrate:medcover-slugs": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/migrate-medcover-slugs.ts",
+    "seed:medcover-hubs": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/seed-medcover-hubs.ts",
+    "test:medcover-apis": "bash scripts/test-medcover-apis.sh",
+    "test:treatment-guard": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-treatment-slug-guard.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

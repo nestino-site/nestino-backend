@@ -389,18 +389,18 @@ create_templates() {
     '["Breadcrumb","H1 + 60-word hero answer","Truth Score summary card","Key statistics table","AI interview insights block","Marketing vs reality table","Top clinics in country by Truth Score","Full cost breakdown","Legal and ethical context","Country vs US/UK comparison","FAQ accordion","Speakable summary","Related pages","CTA block"]' \
     '["MedCover Truth Score for [Country]: What the Data Shows","IVF Cost in [Country]: What Patients Actually Paid","What Patients Say About IVF in [Country]","Marketing vs Reality: What [Country] Clinics Do Not Tell You","Top IVF Clinics in [Country] by Truth Score","Legal Rules for Egg Donation in [Country]","[Country] vs US/UK IVF: Cost and Success Rate Comparison","Frequently Asked Questions About IVF in [Country]"]' \
     '["MedicalWebPage","FAQPage","BreadcrumbList","SpeakableSpecification","AggregateRating"]' \
-    '["/costs/[country]-ivf-cost-[year]/","/compare/[country]-vs-usa-ivf/","top 5 clinic profiles","/treatments/ivf/","/treatments/egg-donation/","/faq/"]' \
+    '["/countries/[country]/","/guides/[country]-ivf-guide/","/cost/ivf/[country]/","/compare/[country]-vs-usa-for-ivf/","top 5 clinic profiles","/treatments/ivf/","/treatments/egg-donation/","/faq/"]' \
     '{"questionCount":"10-14","rules":["Answers begin with direct one-sentence response","Use patient-sourced questions","Include internal links and cited data"]}' \
     '{"noindexGate":false,"openingParagraph":"IVF in [Country] costs between €[low]-€[high] per cycle based on [N] patient interviews conducted by MedCover.","avoid":["Best","Top","Ultimate"],"dataRequired":["interviewCount","costRange","waitTime","hiddenCostFrequency","nationalTruthScore"]}')")"
 
   TEMPLATE_A2_ID="$(upsert_template A2 "$(template_payload \
-    A2 "City Destination Guide" CITY_PAGE "/guides/[country]/[city]-ivf-guide/" COMMERCIAL 0.85 1500 \
+    A2 "City Destination Guide" CITY_PAGE "/guides/[city]-ivf-guide/" COMMERCIAL 0.85 1500 \
     "IVF in [City]: [N] Clinics, Real Costs & Patient Insights" \
     "End of page: View all [City] clinics and Share your [City] IVF experience" \
     '["Breadcrumb","H1 + city hero answer","City quick stats card","Why this city","All clinics in city","City-specific cost breakdown","Travel and logistics","City vs other city mini-comparison","FAQ","Related pages","CTA"]' \
     '["IVF in [City]: What the Data Shows","IVF Cost in [City] vs [Country] Average","Clinics Tracked in [City]","Travel Logistics for IVF in [City]","[City] vs [Other City] IVF","Frequently Asked Questions About IVF in [City]"]' \
     '["MedicalWebPage","FAQPage","BreadcrumbList","SpeakableSpecification"]' \
-    '["/guides/[country]-ivf-guide/","/clinics/[country]/[city]/","/costs/[city]-ivf-cost-[year]/","/compare/[city]-vs-[other-city]-ivf/","3+ clinic profiles","/faq/"]' \
+    '["/guides/[city]-ivf-guide/","/clinics/[country]/[city]/","/cost/ivf/[country]/[city]/","/compare/[city]-vs-[other-city]-for-ivf/","3+ clinic profiles","/faq/"]' \
     '{"questionCount":"8-10","rules":["City-specific questions only","Start with concise answer","Mention public-data fallback when interview data is missing"]}' \
     '{"contentBeforeInterviewData":["Use ESHRE/SEF country benchmarks","Use publicly listed clinic pricing disclosed as unverified","Show data collection in progress"],"dataRequired":["clinicsTracked","cityCostRange","airport","neighborhoods","waitTime"]}')")"
 
@@ -416,7 +416,7 @@ create_templates() {
     '{"noindexGate":"Force noindex until 5 interviews collected","dataRequired":["clinicIdentity","truthScore","interviewCount","pricingPackages","dimensionScores","patientQuotes"],"quoteAttribution":"Patient interview, [Month Year], via MedCover"}')")"
 
   TEMPLATE_C_ID="$(upsert_template C "$(template_payload \
-    C "Country vs Country Comparison" COMPARISON "/compare/[country-a]-vs-[country-b]-ivf/" COMMERCIAL 0.8 1500 \
+    C "Country vs Country Comparison" COMPARISON "/compare/[country-a]-vs-[country-b]-for-ivf/" COMMERCIAL 0.8 1500 \
     "Is [Country A] or [Country B] Better for IVF?" \
     "End of page: Get a Personalized Comparison Report -> /start/" \
     '["Breadcrumb","H1 as question + direct verdict","Quick verdict card","Full comparison table","Cost breakdown for both countries","Patient quotes from each country","Success rate comparison","Legal differences","Decision tree","FAQ","Related comparisons","CTA"]' \
@@ -427,8 +427,8 @@ create_templates() {
     '{"canonicalRule":"Alphabetical or priority canonical URL wins; reverse-order URL should 301 redirect.","dataRequired":["costRangeA","costRangeB","waitTimeA","waitTimeB","legalRulesA","legalRulesB","successRates"]}')")"
 
   TEMPLATE_D_ID="$(upsert_template D "$(template_payload \
-    D "Cost Transparency Page" LANDING_PAGE "/costs/[country]-ivf-cost-[year]/" INFORMATIONAL 0.8 1800 \
-    "IVF Cost in [Country] [Year]: What Patients Actually Paid" \
+    D "Cost Transparency Page" LANDING_PAGE "/cost/ivf/[country]/" INFORMATIONAL 0.8 1800 \
+    "IVF Cost in [Country]: What Patients Actually Paid" \
     "End of page: Get a Full Cost Breakdown for Your Situation -> /start/" \
     '["Breadcrumb","H1 + direct cost answer","Base cost table","Add-on costs table","Travel and logistics cost table","Total all-in calculator table","Hidden costs section","Origin vs destination comparison","What affects the price","FAQ","Related pages","CTA"]' \
     '["IVF Cost in [Country]: Direct Answer","Base IVF Costs","Medication and Add-On Costs","Travel and Logistics Costs","Total All-In Cost Scenarios","Hidden Costs Patients Reported","How [Country] Compares With US/UK/Canada","What Affects IVF Price?","Frequently Asked Cost Questions"]' \
@@ -455,7 +455,7 @@ create_templates() {
     '["Breadcrumb","H1 + 60-word direct answer","Why origin patients travel","Top destinations for origin","Legal considerations","Logistics guide","Patient stories from origin","FAQ","CTA"]' \
     '["Why [Origin] Patients Travel for IVF","Best IVF Destinations for [Origin] Patients","Legal and Insurance Considerations","Travel Logistics","Patient Stories from [Origin]","Frequently Asked Questions"]' \
     '["Article","FAQPage","BreadcrumbList","SpeakableSpecification"]' \
-    '["/guides/spain-ivf-guide/","/guides/greece-ivf-guide/","/guides/czech-republic-ivf-guide/","/costs/[country]-ivf-cost-[year]/","patient stories from same origin"]' \
+    '["/guides/spain-ivf-guide/","/guides/greece-ivf-guide/","/guides/czech-republic-ivf-guide/","/cost/ivf/[country]/","patient stories from same origin"]' \
     '{"questionCount":"10","rules":["Origin-country-specific only","Address insurance, travel, and legal issues","No legal advice beyond sourced general information"]}' \
     '{"hreflang":"Use country-specific hreflang where applicable.","dataRequired":["originCostComparison","destinationCards","visaRules","insuranceNotes","tripCount"]}')")"
 

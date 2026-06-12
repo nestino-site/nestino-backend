@@ -1,8 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PageStatus, PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { buildAffectedPaths } from '../content-api/seo/page-type.util';
 import { ContentCacheService } from '../content-api/content-cache.service';
 import { ContentRenderService } from '../content-api/content-render.service';
+import { PageSeoEnricherService } from '../content-api/seo/page-seo-enricher.service';
 import { PageHeroCdnService } from './page-hero-cdn.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 
@@ -11,8 +13,11 @@ export interface PublishWebhookPayload {
   slug: string;
   siteId: number;
   language: string;
-  event: 'page.published' | 'page.updated';
+  event: 'page.published' | 'page.updated' | 'clinic.updated';
   timestamp: number;
+  pageType?: string;
+  affectedPaths?: string[];
+  clinicId?: number;
 }
 
 export interface PublishResult {
@@ -37,6 +42,7 @@ export class PublishService {
     private readonly webhookDelivery: WebhookDeliveryService,
     private readonly contentCache: ContentCacheService,
     private readonly contentRender: ContentRenderService,
+    private readonly pageSeoEnricher: PageSeoEnricherService,
   ) {}
 
   async publishPage(pageId: number): Promise<PublishResult> {
@@ -77,6 +83,16 @@ export class PublishService {
         webhookFired: false,
         skippedReason: 'missing_final_content',
       };
+    }
+
+    const seoError = this.pageSeoEnricher.validateIndexableSeo({
+      metaTitle: page.metaTitle,
+      metaDescription: page.metaDescription,
+      schemaMarkup: page.schemaMarkup,
+      robotsMeta: page.robotsMeta,
+    });
+    if (page.pageType && seoError && !page.robotsMeta?.includes('noindex')) {
+      throw new BadRequestException(`Cannot publish page ${pageId}: ${seoError}`);
     }
 
     await this.pageHeroCdn.uploadHeroOnPublish(pageId);
@@ -137,6 +153,8 @@ export class PublishService {
         language: page.language,
         event: webhookEvent,
         timestamp: Date.now(),
+        pageType: page.pageType ?? undefined,
+        affectedPaths: buildAffectedPaths(page.slug, page.pageType ?? undefined),
       },
     );
 
@@ -191,7 +209,45 @@ export class PublishService {
         language: page.language,
         event: 'page.updated',
         timestamp: Date.now(),
+        pageType: page.pageType ?? undefined,
+        affectedPaths: buildAffectedPaths(page.slug, page.pageType ?? undefined),
+      },
+    );
+  }
+
+  async fireClinicUpdatedWebhook(input: {
+    clinicId: number;
+    siteId: number;
+    pdpSlug: string;
+    affectedPaths: string[];
+  }): Promise<void> {
+    const site = await this.prisma.site.findUnique({ where: { id: input.siteId } });
+    const webhookUrl = site?.publishWebhookUrl?.trim();
+    if (!webhookUrl || !site) return;
+
+    const pdpPage = await this.prisma.page.findFirst({
+      where: { siteId: input.siteId, slug: input.pdpSlug },
+      select: { id: true },
+    });
+
+    const pageId = pdpPage?.id ?? 0;
+
+    await this.webhookDelivery.enqueue(
+      input.siteId,
+      pageId,
+      webhookUrl,
+      site.publishWebhookSecret ?? '',
+      {
+        event: 'clinic.updated',
+        clinicId: input.clinicId,
+        affectedPaths: input.affectedPaths,
+        siteId: input.siteId,
+        timestamp: Date.now(),
+        pageId,
+        slug: input.pdpSlug,
+        language: 'EN',
       },
     );
   }
 }
+
