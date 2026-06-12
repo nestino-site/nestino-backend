@@ -10,6 +10,7 @@ import { ContentRenderService } from './content-render.service';
 import { ContentStateManagerService } from './content-state-manager.service';
 import { MarkdownHtmlService } from './markdown-html.service';
 import { NextJsContractMapperService } from './next-js-contract-mapper.service';
+import { EntityResolverService } from './seo/entity-resolver.service';
 import { PageSeoEnricherService } from './seo/page-seo-enricher.service';
 import { SeoSchemaBuilderService } from './seo/seo-schema-builder.service';
 
@@ -25,6 +26,7 @@ import { SeoSchemaBuilderService } from './seo/seo-schema-builder.service';
     MarkdownHtmlService,
     NextJsContractMapperService,
     SeoSchemaBuilderService,
+    EntityResolverService,
     PageSeoEnricherService,
   ],
   exports: [
@@ -35,6 +37,7 @@ import { SeoSchemaBuilderService } from './seo/seo-schema-builder.service';
     ContentRenderService,
     NextJsContractMapperService,
     SeoSchemaBuilderService,
+    EntityResolverService,
     PageSeoEnricherService,
   ],
 })

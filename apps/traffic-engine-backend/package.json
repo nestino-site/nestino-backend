@@ -17,7 +17,10 @@
     "migrate:medcover-slugs": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/migrate-medcover-slugs.ts",
     "seed:medcover-hubs": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/seed-medcover-hubs.ts",
     "test:medcover-apis": "bash scripts/test-medcover-apis.sh",
-    "test:treatment-guard": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-treatment-slug-guard.ts"
+    "test:treatment-guard": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-treatment-slug-guard.ts",
+    "test:page-type-util": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/seo/page-type.util.spec.ts",
+    "test:entity-resolver": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/seo/entity-resolver.spec.ts",
+    "backfill:guide-entities": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-guide-entities.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PageStatus, PipelineStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { buildAffectedPaths } from '../content-api/seo/page-type.util';
 import { ContentCacheService } from '../content-api/content-cache.service';
@@ -100,12 +101,15 @@ export class PublishService {
     const rendered = this.contentRender.renderFromMarkdown(page.finalContent);
     const renderedFields = this.contentRender.toJsonFields(rendered);
 
+    const tagPatch = await this.buildFillIfEmptyTagPatch(page);
+
     await this.prisma.page.update({
       where: { id: pageId },
       data: {
         status: PageStatus.PUBLISHED,
         publishedAt: new Date(),
         ...renderedFields,
+        ...tagPatch,
       },
     });
 
@@ -184,6 +188,38 @@ export class PublishService {
         ? {}
         : { webhookUrl: result.deliveryUrl ?? webhookUrl, configuredWebhookUrl: webhookUrl }),
     };
+  }
+
+  private async buildFillIfEmptyTagPatch(page: {
+    slug: string;
+    pageType: string | null;
+    entities: unknown;
+    robotsMeta: string | null;
+  }): Promise<Prisma.PageUpdateInput> {
+    const entitiesEmpty =
+      page.entities == null ||
+      (typeof page.entities === 'object' &&
+        !Array.isArray(page.entities) &&
+        Object.keys(page.entities as object).length === 0);
+
+    if (page.pageType != null && !entitiesEmpty) {
+      return {};
+    }
+
+    const tags = await this.pageSeoEnricher.resolvePublishTags(page.slug);
+    const patch: Prisma.PageUpdateInput = {};
+
+    if (page.pageType == null) {
+      patch.pageType = tags.pageType;
+    }
+    if (entitiesEmpty && Object.keys(tags.entities).length > 0) {
+      patch.entities = tags.entities as Prisma.InputJsonValue;
+    }
+    if (page.robotsMeta == null) {
+      patch.robotsMeta = tags.robotsMeta;
+    }
+
+    return patch;
   }
 
   async triggerUpdateWebhook(pageId: number): Promise<void> {

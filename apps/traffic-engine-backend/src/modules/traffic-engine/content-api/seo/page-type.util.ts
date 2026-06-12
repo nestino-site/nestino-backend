@@ -149,7 +149,10 @@ export function inferPageTypeFromSlug(
 
   if (section === 'guides') {
     if (rest.length === 0) return { pageType: 'guides_hub', entities: {} };
-    return { pageType: 'guide', entities: {} };
+    return {
+      pageType: 'guide',
+      entities: parseGuideEntitiesFromSlugParts(rest, treatmentSlugs),
+    };
   }
 
   if (section === 'countries') {
@@ -167,6 +170,108 @@ export function inferPageTypeFromSlug(
   if (section === 'for-clinics') return { pageType: 'for_clinics', entities: {} };
 
   return { pageType: 'guide', entities: {} };
+}
+
+/**
+ * Parse guide path segments into raw entity slugs (names are placeholders until taxonomy validation).
+ *
+ * Supported patterns:
+ * - guides/{country}-ivf-guide
+ * - guides/{country}-{city}-ivf-guide
+ * - guides/{country}/{city}-ivf-guide
+ */
+export function parseGuideEntitiesFromSlugParts(
+  rest: string[],
+  treatmentSlugs: Set<string>,
+): PageEntities {
+  if (rest.length === 0) return {};
+
+  if (rest.length >= 2) {
+    const countrySlug = rest[0];
+    const cityTreatment = parseGuideLeafToken(rest[1], treatmentSlugs, 'city-treatment');
+    if (!cityTreatment) return {};
+    const entities: PageEntities = {
+      country: { slug: countrySlug, name: countrySlug },
+    };
+    if (cityTreatment.city) {
+      entities.city = { slug: cityTreatment.city, name: cityTreatment.city };
+    }
+    if (cityTreatment.treatment) {
+      entities.treatment = {
+        slug: cityTreatment.treatment,
+        name: cityTreatment.treatment,
+      };
+    }
+    return entities;
+  }
+
+  const leaf = parseGuideLeafToken(rest[0], treatmentSlugs);
+  if (!leaf) return {};
+
+  const entities: PageEntities = {};
+  if (leaf.country) {
+    entities.country = { slug: leaf.country, name: leaf.country };
+  }
+  if (leaf.city) {
+    entities.city = { slug: leaf.city, name: leaf.city };
+  }
+  if (leaf.treatment) {
+    entities.treatment = { slug: leaf.treatment, name: leaf.treatment };
+  }
+  return entities;
+}
+
+function parseGuideLeafToken(
+  segment: string,
+  treatmentSlugs: Set<string>,
+  mode: 'full' | 'city-treatment' = 'full',
+): {
+  country?: string;
+  city?: string;
+  treatment?: string;
+} | null {
+  if (!segment.endsWith('-guide')) return null;
+
+  const core = segment.slice(0, -'-guide'.length);
+  if (!core) return null;
+
+  const parts = core.split('-').filter(Boolean);
+  if (parts.length === 0) return null;
+
+  const { treatment, remainder } = peelTreatmentSuffix(parts, treatmentSlugs);
+
+  if (remainder.length === 0) {
+    return treatment ? { treatment } : null;
+  }
+
+  if (mode === 'city-treatment') {
+    if (remainder.length === 1) {
+      return { city: remainder[0], treatment };
+    }
+    return null;
+  }
+
+  if (remainder.length === 1) {
+    return { country: remainder[0], treatment };
+  }
+
+  const city = remainder[remainder.length - 1];
+  const country = remainder.slice(0, -1).join('-');
+  return { country, city, treatment };
+}
+
+/** Match longest treatment slug suffix (e.g. egg-donation, ivf-in-vitro-fertilisation). */
+function peelTreatmentSuffix(
+  parts: string[],
+  treatmentSlugs: Set<string>,
+): { treatment?: string; remainder: string[] } {
+  for (let len = parts.length; len >= 1; len--) {
+    const candidate = parts.slice(-len).join('-');
+    if (treatmentSlugs.has(candidate)) {
+      return { treatment: candidate, remainder: parts.slice(0, -len) };
+    }
+  }
+  return { remainder: parts };
 }
 
 export function buildAffectedPaths(slug: string, pageType?: string): string[] {

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { slugify } from '../catalog/slug.util';
+import { EntityResolverService } from './entity-resolver.service';
 import {
   buildAffectedPaths,
   inferPageTypeFromSlug,
@@ -30,11 +31,31 @@ export class PageSeoEnricherService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly schemaBuilder: SeoSchemaBuilderService,
+    private readonly entityResolver: EntityResolverService,
   ) {}
 
-  async enrich(input: PageSeoEnrichInput) {
+  /** Lightweight tag resolution for publish/backfill — no schema or breadcrumb build. */
+  async resolveTags(
+    slug: string,
+  ): Promise<{ pageType: MedCoverPageType; entities: PageEntities }> {
     const treatmentSlugs = await this.loadTreatmentSlugSet();
-    const { pageType, entities } = inferPageTypeFromSlug(input.slug, treatmentSlugs);
+    const raw = inferPageTypeFromSlug(slug, treatmentSlugs);
+    return this.entityResolver.resolve(raw);
+  }
+
+  /** Tags + robotsMeta for fill-if-empty publish/backfill (no schema/breadcrumb overwrite). */
+  async resolvePublishTags(slug: string): Promise<{
+    pageType: MedCoverPageType;
+    entities: PageEntities;
+    robotsMeta: string;
+  }> {
+    const { pageType, entities } = await this.resolveTags(slug);
+    const robotsMeta = this.resolveRobotsMeta(slug, pageType, {});
+    return { pageType, entities, robotsMeta };
+  }
+
+  async enrich(input: PageSeoEnrichInput) {
+    const { pageType, entities } = await this.resolveTags(input.slug);
     const canonical = this.buildCanonical(input.siteDomain, input.slug);
     const robotsMeta = this.resolveRobotsMeta(input.slug, pageType, {
       interviewCount: input.interviewCount,

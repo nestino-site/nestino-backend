@@ -1,4 +1,13 @@
-import { Controller, Get, HttpCode, HttpStatus, NotFoundException, Req, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { PageStatus, PipelineStatus } from '@prisma/client';
 import type { Request, Response } from 'express';
@@ -9,6 +18,7 @@ import { SiteApiKey } from '../../../identity/decorators/site-api-key.decorator'
 import { SiteScopedApiKey } from '../../../identity/decorators/site-scoped-api-key.decorator';
 import { ContentCacheService } from '../content-cache.service';
 import { ContentStateManagerService } from '../content-state-manager.service';
+import { ListPagesQueryDto } from '../dto/list-pages-query.dto';
 import { NextJsContractMapperService } from '../next-js-contract-mapper.service';
 
 type ContentContract = Awaited<ReturnType<NextJsContractMapperService['toContract']>>;
@@ -27,17 +37,45 @@ export class ContentApiController {
   @Get('pages')
   @ApiOperation({ summary: 'List published pages for the authenticated site' })
   @SiteScopedApiKey()
-  async listPublishedPages(@Req() req: Request) {
+  async listPublishedPages(@Req() req: Request, @Query() query: ListPagesQueryDto) {
     const siteId = req.siteId!;
-    const pages = await this.stateManager.listPublishedForSite(siteId);
+    const pages = await this.stateManager.listPublishedForSite(siteId, {
+      pageType: query.pageType,
+      country: query.country,
+      city: query.city,
+      treatment: query.treatment,
+    });
     return {
-      items: pages.map((p) => ({
-        id: p.id,
-        slug: p.slug,
-        language: p.language,
-        updatedAt: p.updatedAt.toISOString(),
-      })),
+      items: pages.map((p) => this.mapPublishedPageListItem(p)),
     };
+  }
+
+  private mapPublishedPageListItem(p: {
+    id: number;
+    slug: string;
+    language: string;
+    updatedAt: Date;
+    title: string | null;
+    pageType: string | null;
+    entities: unknown;
+  }) {
+    const item: Record<string, unknown> = {
+      id: p.id,
+      slug: p.slug,
+      language: p.language,
+      updatedAt: p.updatedAt.toISOString(),
+    };
+    if (p.pageType != null) item.pageType = p.pageType;
+    if (p.title != null) item.title = p.title;
+    if (
+      p.entities != null &&
+      typeof p.entities === 'object' &&
+      !Array.isArray(p.entities) &&
+      Object.keys(p.entities as object).length > 0
+    ) {
+      item.entities = p.entities;
+    }
+    return item;
   }
 
   @Get(':pageId')
