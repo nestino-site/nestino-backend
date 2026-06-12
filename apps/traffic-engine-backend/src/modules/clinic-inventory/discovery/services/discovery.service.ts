@@ -15,7 +15,7 @@ import { DiscoveryTrigger, Prisma } from '@prisma/client';
 import { ClinicPublishBridge } from '../../clinic-publish.bridge';
 import { StartRunDto } from '../dto/start-run.dto';
 import { QuickDiscoveryDto } from '../dto/quick-discovery.dto';
-import { normalizeClinicType, toTreatmentCode } from '../utils/treatment-code.util';
+import { normalizeClinicType, toTreatmentCode, clinicTypeToTreatmentCode } from '../utils/treatment-code.util';
 
 const FULL_GOOGLE_DETAIL_FIELDS = [
   'website',
@@ -108,7 +108,7 @@ export class DiscoveryService {
     if (!city) throw new NotFoundException(`City ${dto.cityId} not found`);
 
     const clinicTypes = dto.clinicTypes.map(normalizeClinicType);
-    const treatmentCodes = clinicTypes.map(toTreatmentCode).filter(Boolean);
+    const treatmentCodes = [...new Set(clinicTypes.map(clinicTypeToTreatmentCode).filter(Boolean))];
     const keywords = clinicTypes.map((type) => `${type} clinic ${city.name}`);
     const maxResults = Math.min(Math.max(dto.maxResults, 1), 60);
 
@@ -579,8 +579,21 @@ export class DiscoveryService {
       }
     }
 
-    if (!codes.size) codes.add('IVF');
+    if (!codes.size) {
+      const pipelineDefault = pipeline?.treatments?.[0];
+      if (pipelineDefault) {
+        const normalized = toTreatmentCode(pipelineDefault);
+        if (normalized) codes.add(normalized);
+      }
+    }
     return [...codes];
+  }
+
+  private async resolveTreatmentsForCodes(codes: string[]) {
+    const resolved = await this.prisma.treatment.findMany({
+      where: { code: { in: codes }, isActive: true },
+    });
+    return resolved;
   }
 
   private async linkClinicTreatments(
@@ -592,18 +605,18 @@ export class DiscoveryService {
     const runConfig = (run?.configSnapshot as EffectiveDiscoveryConfig | null) ?? null;
     const codes = this.collectTreatmentCodes(enrichmentPayload, runConfig);
 
-    const treatments = await this.prisma.treatment.findMany({
-      where: { code: { in: codes }, isActive: true },
-    });
+    let treatments = await this.resolveTreatmentsForCodes(codes);
+
+    // Only fall back to IVF when the run was explicitly an IVF discovery — never for hair/other types.
+    if (!treatments.length && codes.includes('IVF')) {
+      const fallback = await this.prisma.treatment.findUnique({ where: { code: 'IVF' } });
+      if (fallback) treatments = [fallback];
+    }
 
     if (!treatments.length) {
-      const fallback = await this.prisma.treatment.findUnique({ where: { code: 'IVF' } });
-      if (fallback) {
-        await this.prisma.clinicTreatment.createMany({
-          data: [{ clinicId, treatmentId: fallback.id, isOffered: true }],
-          skipDuplicates: true,
-        });
-      }
+      this.logger.warn(
+        `No active treatments matched codes [${codes.join(', ')}] for clinic ${clinicId} — skipping treatment link`,
+      );
       return;
     }
 

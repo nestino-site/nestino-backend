@@ -218,7 +218,8 @@ run_city() {
   local city_slug="$5"
   local city_name="$6"
   local cost_hint="$7"
-  local slug="/guides/${country_slug}/${city_slug}-ivf-guide"
+  # Flat slug — MedCover frontend only routes /guides/[slug] (single segment).
+  local slug="/guides/${city_slug}-ivf-guide"
   local title="IVF in ${city_name}: Clinics, Real Costs & Patient Insights"
   local meta_title="IVF in ${city_name} 2026 — Clinics & Costs | MedCover"
   local meta_desc="IVF clinics in ${city_name} tracked by MedCover. ${cost_hint} Real patient data, hidden costs revealed, clinics ranked by Truth Score."
