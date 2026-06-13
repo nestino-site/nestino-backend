@@ -117,9 +117,6 @@ export class PageSeoEnricherService {
     ctx: { interviewCount?: number; sampleSize?: number },
   ): string {
     if (slug.startsWith('/start')) return 'noindex, follow';
-    if (pageType === 'clinic_pdp' && (ctx.interviewCount ?? 0) < 5) {
-      return 'noindex, follow';
-    }
     if (pageType === 'cost_city' && ctx.sampleSize === 0) {
       return 'noindex, follow';
     }
