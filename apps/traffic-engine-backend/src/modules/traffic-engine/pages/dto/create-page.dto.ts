@@ -47,4 +47,9 @@ export class CreatePageDto {
   @IsOptional()
   @IsEnum(PageStatus)
   status?: PageStatus;
+
+  @ApiPropertyOptional({ example: 'index, follow' })
+  @IsOptional()
+  @IsString()
+  robotsMeta?: string;
 }

@@ -84,9 +84,7 @@ export class NextJsContractMapperService {
         metaTitle: page.metaTitle ?? null,
         metaDescription: page.metaDescription ?? null,
         canonical,
-        robotsMeta:
-          page.robotsMeta ??
-          (page.status === 'PUBLISHED' ? 'index, follow' : 'noindex, nofollow'),
+        robotsMeta: this.resolveContractRobotsMeta(page),
         language: page.language.toLowerCase(),
         og: {
           title: page.metaTitle ?? page.title ?? null,
@@ -239,6 +237,16 @@ export class NextJsContractMapperService {
 
   private prettySlugPart(part: string): string {
     return part.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  private resolveContractRobotsMeta(page: ContentPageRecord): string {
+    if (page.pageType === 'clinic_pdp') {
+      return 'index, follow';
+    }
+    return (
+      page.robotsMeta ??
+      (page.status === 'PUBLISHED' ? 'index, follow' : 'noindex, nofollow')
+    );
   }
 
   private normalizeDomain(domain: string): string {

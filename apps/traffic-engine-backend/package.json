@@ -20,7 +20,8 @@
     "test:treatment-guard": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/test-treatment-slug-guard.ts",
     "test:page-type-util": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/seo/page-type.util.spec.ts",
     "test:entity-resolver": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/seo/entity-resolver.spec.ts",
-    "backfill:guide-entities": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-guide-entities.ts"
+    "backfill:guide-entities": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-guide-entities.ts",
+    "backfill:clinic-robots-index": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-clinic-robots-index.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

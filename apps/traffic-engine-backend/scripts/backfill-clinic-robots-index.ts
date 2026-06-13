@@ -24,16 +24,21 @@ async function main() {
     where: {
       siteId: site.id,
       status: PageStatus.PUBLISHED,
-      pageType: 'clinic_pdp',
+      slug: { startsWith: '/clinics/' },
       robotsMeta: { contains: 'noindex' },
     },
-    select: { id: true, slug: true, robotsMeta: true },
+    select: { id: true, slug: true, robotsMeta: true, pageType: true },
     orderBy: { id: 'asc' },
   });
 
-  console.log(`Found ${pages.length} clinic pages with noindex on ${siteDomain}`);
+  const clinicPages = pages.filter((page) => {
+    const parts = page.slug.replace(/\/$/, '').split('/').filter(Boolean);
+    return page.pageType === 'clinic_pdp' || (parts.length === 4 && parts[0] === 'clinics');
+  });
 
-  for (const page of pages) {
+  console.log(`Found ${clinicPages.length} clinic pages with noindex on ${siteDomain}`);
+
+  for (const page of clinicPages) {
     console.log(
       `${dryRun ? '[dry-run] ' : ''}page ${page.id} ${page.slug}: ${page.robotsMeta} → ${INDEX_ROBOTS}`,
     );
@@ -45,7 +50,7 @@ async function main() {
     }
   }
 
-  console.log(`Done. ${pages.length} ${dryRun ? 'would update' : 'updated'}.`);
+  console.log(`Done. ${clinicPages.length} ${dryRun ? 'would update' : 'updated'}.`);
 }
 
 main()
