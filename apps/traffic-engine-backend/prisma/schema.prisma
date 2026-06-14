@@ -184,6 +184,7 @@ model Site {
   autoPublish            Boolean          @default(true)
   contentApiKeyHash      String?
   contentApiKeyCreatedAt DateTime?
+  automationUnlockedAt   DateTime?
 
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
@@ -354,8 +355,9 @@ model SeoMetric {
   site Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
   page Page? @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
-  @@unique([siteId, pageId, date])
+  @@unique([siteId, pageId, query, date])
   @@index([siteId, date])
+  @@index([siteId, query, date])
   @@index([pageId, date])
   @@map("seo_metrics")
 }

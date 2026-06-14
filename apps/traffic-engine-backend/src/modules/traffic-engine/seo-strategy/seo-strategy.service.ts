@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CannibalizationStatus, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { ContentTasksService } from '../content-tasks/services/content-tasks.service';
 import { SchemaMarkupService } from './schema-markup.service';
 
 export interface QuickWinItem {
@@ -20,6 +21,7 @@ export interface CannibalizationItem {
   query: string;
   winnerPageId: number;
   winnerPageSlug: string | null;
+  winnerAvgPosition: number;
   winnerReason: string;
   loserPages: { pageId: number; pageSlug: string | null; avgPosition: number; clicks: number }[];
   recommendedAction: string;
@@ -41,6 +43,7 @@ export class SeoStrategyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly schemaMarkupService: SchemaMarkupService,
+    private readonly contentTasks: ContentTasksService,
   ) {}
 
   async findQuickWins(siteId: number): Promise<QuickWinItem[]> {
@@ -133,6 +136,7 @@ export class SeoStrategyService {
         query,
         winnerPageId: winner.pageId,
         winnerPageSlug: winner.pageSlug,
+        winnerAvgPosition: winner.avgPosition,
         winnerReason: `best position (${winner.avgPosition.toFixed(2)})`,
         loserPages: losers,
         recommendedAction: monitor
@@ -250,7 +254,7 @@ export class SeoStrategyService {
       });
       if (existing) continue;
 
-      await this.prisma.contentTask.create({
+      const task = await this.prisma.contentTask.create({
         data: {
           siteId,
           pageId: win.pageId,
@@ -264,6 +268,7 @@ export class SeoStrategyService {
           },
         },
       });
+      await this.contentTasks.enqueueAiJobBestEffort(win.pageId, task.id);
       enqueued++;
     }
     this.logger.log({ msg: 'quick_wins_enqueued', siteId, count: enqueued });
@@ -281,7 +286,7 @@ export class SeoStrategyService {
     for (const item of cannibs) {
       if (item.recommendedAction.startsWith('monitor')) continue;
       for (const loser of item.loserPages) {
-        const positionGap = loser.avgPosition - (item.loserPages.length > 0 ? 0 : loser.avgPosition);
+        const positionGap = loser.avgPosition - item.winnerAvgPosition;
         if (positionGap < 3) continue;
 
         const existing = await this.prisma.contentTask.findFirst({
@@ -293,7 +298,7 @@ export class SeoStrategyService {
         });
         if (existing) continue;
 
-        await this.prisma.contentTask.create({
+        const task = await this.prisma.contentTask.create({
           data: {
             siteId,
             pageId: loser.pageId,
@@ -307,6 +312,7 @@ export class SeoStrategyService {
             },
           },
         });
+        await this.contentTasks.enqueueAiJobBestEffort(loser.pageId, task.id);
         enqueued++;
       }
     }

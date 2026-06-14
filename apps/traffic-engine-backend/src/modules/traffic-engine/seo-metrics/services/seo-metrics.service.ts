@@ -11,7 +11,7 @@ export class SeoMetricsService {
   async upsert(dto: UpsertSeoMetricDto): Promise<SeoMetric> {
     const date = new Date(dto.date);
     const updateData = {
-      query: dto.query,
+      query: dto.query ?? null,
       impressions: dto.impressions,
       clicks: dto.clicks,
       ctr: dto.ctr,
@@ -23,49 +23,28 @@ export class SeoMetricsService {
     };
 
     try {
-      if (!dto.pageId) {
-        const existing = await this.prisma.seoMetric.findFirst({
-          where: { siteId: dto.siteId, pageId: null, date },
-        });
+      const existing = await this.prisma.seoMetric.findFirst({
+        where: {
+          siteId: dto.siteId,
+          pageId: dto.pageId ?? null,
+          query: dto.query ?? null,
+          date,
+        },
+      });
 
-        if (existing) {
-          return await this.prisma.seoMetric.update({
-            where: { id: existing.id },
-            data: updateData,
-          });
-        }
-
-        return await this.prisma.seoMetric.create({
-          data: {
-            siteId: dto.siteId,
-            pageId: null,
-            date,
-            query: dto.query,
-            impressions: dto.impressions ?? 0,
-            clicks: dto.clicks ?? 0,
-            ctr: dto.ctr ?? 0,
-            avgPosition: dto.avgPosition,
-            ctrExpected: dto.ctrExpected,
-            ctrGap: dto.ctrGap,
-            organicSessions: dto.organicSessions ?? 0,
-            bounceRate: dto.bounceRate,
-          },
+      if (existing) {
+        return await this.prisma.seoMetric.update({
+          where: { id: existing.id },
+          data: updateData,
         });
       }
 
-      return await this.prisma.seoMetric.upsert({
-        where: {
-          siteId_pageId_date: {
-            siteId: dto.siteId,
-            pageId: dto.pageId,
-            date,
-          },
-        },
-        create: {
+      return await this.prisma.seoMetric.create({
+        data: {
           siteId: dto.siteId,
-          pageId: dto.pageId,
+          pageId: dto.pageId ?? null,
           date,
-          query: dto.query,
+          query: dto.query ?? null,
           impressions: dto.impressions ?? 0,
           clicks: dto.clicks ?? 0,
           ctr: dto.ctr ?? 0,
@@ -75,7 +54,6 @@ export class SeoMetricsService {
           organicSessions: dto.organicSessions ?? 0,
           bounceRate: dto.bounceRate,
         },
-        update: updateData,
       });
     } catch (error) {
       throw PrismaErrorMapper.toHttpException(error);

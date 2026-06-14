@@ -1,8 +1,9 @@
-import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { TaskStatus, TaskType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { MaturityGateService } from '../analytics/maturity-gate.service';
 import {
   TRAFFIC_ENGINE_AI_JOB_PROCESS,
   TRAFFIC_ENGINE_AI_QUEUE,
@@ -14,10 +15,16 @@ export class PerformanceEvaluatorService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly maturityGate: MaturityGateService,
     @InjectQueue(TRAFFIC_ENGINE_AI_QUEUE) private readonly aiQueue: Queue<{ pageId: number; contentTaskId?: number }>,
   ) {}
 
   async evaluateSite(siteId: number): Promise<void> {
+    const unlocked = await this.maturityGate.isUnlocked(siteId);
+    if (!unlocked) {
+      this.logger.debug({ msg: 'evaluation_skipped_locked', siteId });
+      return;
+    }
     const ctrThreshold = Number(process.env.UNDERPERFORM_CTR_THRESHOLD ?? 0.02);
     const daysOld = Number(process.env.UNDERPERFORM_DAYS_OLD ?? 30);
     const minImpressions = Number(process.env.UNDERPERFORM_MIN_IMPRESSIONS ?? 100);

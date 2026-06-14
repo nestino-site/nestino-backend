@@ -94,31 +94,36 @@ export class GscIngestionService {
         const expectedCtr = avgPosition != null ? this.expectedCtr(avgPosition) : null;
         const ctrGap = expectedCtr != null ? ctr - expectedCtr : null;
 
-        await this.prisma.seoMetric.upsert({
-          where: { siteId_pageId_date: { siteId, pageId: pageId ?? null as unknown as number, date } },
-          create: {
-            siteId,
-            pageId,
-            query,
-            date,
-            impressions: row.impressions ?? 0,
-            clicks: row.clicks ?? 0,
-            ctr,
-            avgPosition,
-            ctrExpected: expectedCtr,
-            ctrGap,
-            organicSessions: 0,
-          },
-          update: {
-            query,
-            impressions: row.impressions ?? 0,
-            clicks: row.clicks ?? 0,
-            ctr,
-            avgPosition,
-            ctrExpected: expectedCtr,
-            ctrGap,
-          },
+        const metricData = {
+          impressions: row.impressions ?? 0,
+          clicks: row.clicks ?? 0,
+          ctr,
+          avgPosition,
+          ctrExpected: expectedCtr,
+          ctrGap,
+        };
+
+        const existing = await this.prisma.seoMetric.findFirst({
+          where: { siteId, pageId, query, date },
         });
+
+        if (existing) {
+          await this.prisma.seoMetric.update({
+            where: { id: existing.id },
+            data: metricData,
+          });
+        } else {
+          await this.prisma.seoMetric.create({
+            data: {
+              siteId,
+              pageId,
+              query,
+              date,
+              ...metricData,
+              organicSessions: 0,
+            },
+          });
+        }
         upsertCount++;
       }
 

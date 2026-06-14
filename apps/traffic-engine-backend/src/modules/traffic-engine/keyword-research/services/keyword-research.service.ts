@@ -14,8 +14,12 @@ export class KeywordResearchService {
   ) {}
 
   async create(dto: CreateKeywordResearchDto): Promise<KeywordResearch> {
-    if (dto.source !== KeywordResearchSource.MANUAL) {
-      throw new BadRequestException('Only MANUAL source is supported in Phase 2');
+    const allowedSources: KeywordResearchSource[] = [
+      KeywordResearchSource.MANUAL,
+      KeywordResearchSource.GSC,
+    ];
+    if (!allowedSources.includes(dto.source)) {
+      throw new BadRequestException(`Source ${dto.source} is not supported`);
     }
     try {
       return await this.prisma.keywordResearch.create({
@@ -37,5 +41,27 @@ export class KeywordResearchService {
 
   async enrichFromProvider(seedKeyword: string, language: ContentLanguage) {
     return this.keywordData.enrichSeedKeyword(seedKeyword, language);
+  }
+
+  async createFromGscSeed(
+    seedKeyword: string,
+    language: ContentLanguage,
+    suggestions: string[],
+  ): Promise<KeywordResearch> {
+    const existing = await this.prisma.keywordResearch.findFirst({
+      where: { seedKeyword, language, source: KeywordResearchSource.GSC },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.keywordResearch.create({
+      data: {
+        seedKeyword,
+        language,
+        suggestions,
+        source: KeywordResearchSource.GSC,
+      },
+    });
   }
 }
