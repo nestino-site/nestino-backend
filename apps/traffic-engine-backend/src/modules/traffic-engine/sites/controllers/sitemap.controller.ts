@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { parseOptionalIntQuery } from '../../../../common/pipes/parse-optional-int-query.pipe';
 import { Public } from '../../../identity/decorators/public.decorator';
 import { SitemapService } from '../sitemap.service';
 
@@ -25,9 +26,9 @@ export class SitemapController {
   @Header('Content-Type', 'application/xml; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=3600')
   async sitemap(
-    @Query('siteId', new ParseIntPipe({ optional: true })) siteId?: number,
+    @Query('siteId', parseOptionalIntQuery) siteId?: number,
     @Query('domain') domain?: string,
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('page', parseOptionalIntQuery) page?: number,
   ): Promise<string> {
     if (siteId != null) {
       return this.sitemapService.buildXmlForSite(siteId, page ?? 0);
@@ -47,7 +48,7 @@ export class SitemapController {
   @Header('Cache-Control', 'public, max-age=3600')
   async siteSitemap(
     @Param('siteId', ParseIntPipe) siteId: number,
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('page', parseOptionalIntQuery) page?: number,
   ): Promise<string> {
     return this.sitemapService.buildXmlForSite(siteId, page ?? 0);
   }
@@ -60,7 +61,7 @@ export class SitemapController {
   @Header('Content-Type', 'text/plain; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=86400')
   async robots(
-    @Query('siteId', new ParseIntPipe({ optional: true })) siteId?: number,
+    @Query('siteId', parseOptionalIntQuery) siteId?: number,
     @Query('domain') domain?: string,
   ): Promise<string> {
     if (siteId != null) {

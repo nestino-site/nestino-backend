@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PageStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import {
+  siteDomainLookupVariants,
+  toPublicSiteBaseUrl,
+} from '../../../common/utils/site-domain.util';
 
 const SITEMAP_PAGE_SIZE = 1000;
 
@@ -69,24 +73,14 @@ export class SitemapService {
   }
 
   async buildXmlForDomain(domain: string, page = 0): Promise<string> {
-    const normalized = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const site = await this.prisma.site.findFirst({
-      where: {
-        OR: [{ domain: normalized }, { domain: `https://${normalized}` }, { domain: `http://${normalized}` }],
-      },
-    });
-    if (!site) {
-      throw new NotFoundException(`No site found for domain ${domain}`);
-    }
-    return this.buildXmlForSite(site.id, page);
+    const siteId = await this.getSiteIdByDomain(domain);
+    return this.buildXmlForSite(siteId, page);
   }
 
   async getSiteIdByDomain(domain: string): Promise<number> {
-    const normalized = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const variants = siteDomainLookupVariants(domain);
     const site = await this.prisma.site.findFirst({
-      where: {
-        OR: [{ domain: normalized }, { domain: `https://${normalized}` }, { domain: `http://${normalized}` }],
-      },
+      where: { OR: variants.map((value) => ({ domain: value })) },
       select: { id: true },
     });
     if (!site) throw new NotFoundException(`No site found for domain ${domain}`);
@@ -169,10 +163,7 @@ ${sitemaps}
   }
 
   private normalizeDomain(domain: string): string {
-    if (domain.startsWith('http://') || domain.startsWith('https://')) {
-      return domain.endsWith('/') ? domain.slice(0, -1) : domain;
-    }
-    return `https://${domain.replace(/\/$/, '')}`;
+    return toPublicSiteBaseUrl(domain);
   }
 
   private buildLoc(base: string, slug: string): string {
