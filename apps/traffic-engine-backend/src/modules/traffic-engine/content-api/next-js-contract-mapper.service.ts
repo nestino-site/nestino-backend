@@ -239,8 +239,14 @@ export class NextJsContractMapperService {
     return part.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  /** /clinics/{country}/{city}/{clinic-slug} — not a treatment PLP segment. */
+  private isClinicPdpSlug(slug: string): boolean {
+    const parts = slug.replace(/^\//, '').replace(/\/$/, '').split('/').filter(Boolean);
+    return parts.length === 4 && parts[0] === 'clinics';
+  }
+
   private resolveContractRobotsMeta(page: ContentPageRecord): string {
-    if (page.pageType === 'clinic_pdp') {
+    if (page.pageType === 'clinic_pdp' || this.isClinicPdpSlug(page.slug)) {
       return 'index, follow';
     }
     return (
