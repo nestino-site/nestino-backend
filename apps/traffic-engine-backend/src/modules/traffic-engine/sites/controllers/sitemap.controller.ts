@@ -8,7 +8,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { parseOptionalIntQuery } from '../../../../common/pipes/parse-optional-int-query.pipe';
+import { parseOptionalIntQueryParam } from '../../../../common/pipes/parse-optional-int-query.pipe';
 import { Public } from '../../../identity/decorators/public.decorator';
 import { SitemapService } from '../sitemap.service';
 
@@ -26,15 +26,18 @@ export class SitemapController {
   @Header('Content-Type', 'application/xml; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=3600')
   async sitemap(
-    @Query('siteId', parseOptionalIntQuery) siteId?: number,
+    @Query('siteId') siteIdRaw?: string,
     @Query('domain') domain?: string,
-    @Query('page', parseOptionalIntQuery) page?: number,
+    @Query('page') pageRaw?: string,
   ): Promise<string> {
+    const siteId = parseOptionalIntQueryParam(siteIdRaw);
+    const page = parseOptionalIntQueryParam(pageRaw) ?? 0;
+
     if (siteId != null) {
-      return this.sitemapService.buildXmlForSite(siteId, page ?? 0);
+      return this.sitemapService.buildXmlForSite(siteId, page);
     }
     if (domain?.trim()) {
-      return this.sitemapService.buildXmlForDomain(domain.trim(), page ?? 0);
+      return this.sitemapService.buildXmlForDomain(domain.trim(), page);
     }
     throw new BadRequestException('Provide siteId or domain query parameter');
   }
@@ -48,9 +51,10 @@ export class SitemapController {
   @Header('Cache-Control', 'public, max-age=3600')
   async siteSitemap(
     @Param('siteId', ParseIntPipe) siteId: number,
-    @Query('page', parseOptionalIntQuery) page?: number,
+    @Query('page') pageRaw?: string,
   ): Promise<string> {
-    return this.sitemapService.buildXmlForSite(siteId, page ?? 0);
+    const page = parseOptionalIntQueryParam(pageRaw) ?? 0;
+    return this.sitemapService.buildXmlForSite(siteId, page);
   }
 
   @Public()
@@ -61,9 +65,11 @@ export class SitemapController {
   @Header('Content-Type', 'text/plain; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=86400')
   async robots(
-    @Query('siteId', parseOptionalIntQuery) siteId?: number,
+    @Query('siteId') siteIdRaw?: string,
     @Query('domain') domain?: string,
   ): Promise<string> {
+    const siteId = parseOptionalIntQueryParam(siteIdRaw);
+
     if (siteId != null) {
       return this.sitemapService.buildRobotsTxt(siteId);
     }
