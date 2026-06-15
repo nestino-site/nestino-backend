@@ -22,7 +22,7 @@ import { TrafficEnginePipelineService } from './traffic-engine-pipeline.service'
     AiModule,
     BriefModule,
     IntelligenceModule,
-    SeoStrategyModule,
+    forwardRef(() => SeoStrategyModule),
     ObservabilityModule,
     forwardRef(() => PublishingModule),
   ],

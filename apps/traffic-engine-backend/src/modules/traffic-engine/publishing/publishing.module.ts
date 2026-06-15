@@ -12,7 +12,7 @@ import { ClinicPageContentBuilder } from './clinic-page-content.builder';
 import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
 
 @Module({
-  imports: [forwardRef(() => ContentTasksModule), ContentApiModule],
+  imports: [forwardRef(() => ContentTasksModule), forwardRef(() => ContentApiModule)],
   providers: [
     PublishService,
     PageHeroCdnService,

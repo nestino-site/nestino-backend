@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SeoStrategyModule } from '../seo-strategy/seo-strategy.module';
 import { CatalogController } from './catalog/catalog.controller';
 import { CatalogService } from './catalog/catalog.service';
@@ -15,7 +15,7 @@ import { PageSeoEnricherService } from './seo/page-seo-enricher.service';
 import { SeoSchemaBuilderService } from './seo/seo-schema-builder.service';
 
 @Module({
-  imports: [SeoStrategyModule],
+  imports: [forwardRef(() => SeoStrategyModule)],
   controllers: [CatalogController, ContentApiController, ContentBySlugController],
   providers: [
     CatalogService,
