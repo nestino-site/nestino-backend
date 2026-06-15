@@ -19,7 +19,7 @@ curl -sS --max-time 30 -X PATCH "$BASE/sites/$SITE_ID" \
   -H "Content-Type: application/json" \
   -d '{
     "domain": "www.medcover.io",
-    "publishWebhookUrl": "https://www.medcover.io/api/webhooks/publish"
+    "publishWebhookUrl": "https://www.medcover.io/api/webhooks/publish/"
   }' | python3 -c "import json,sys; d=json.load(sys.stdin); print('domain:', d.get('domain')); print('webhook:', d.get('publishWebhookUrl'))"
 
 echo "==> Verify sitemap endpoints (requires deployed ParseOptionalIntQuery fix)"

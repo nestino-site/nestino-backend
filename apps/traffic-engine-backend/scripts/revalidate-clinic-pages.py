@@ -12,7 +12,7 @@ import urllib.request
 
 WEBHOOK_URL = os.environ.get(
     "PUBLISH_WEBHOOK_URL",
-    "https://www.medcover.io/api/webhooks/publish",
+    "https://www.medcover.io/api/webhooks/publish/",
 )
 WEBHOOK_SECRET = os.environ.get(
     "PUBLISH_WEBHOOK_SECRET",
