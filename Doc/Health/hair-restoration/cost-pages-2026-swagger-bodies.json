@@ -1,0 +1,210 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template HR-D cost pages)",
+  "siteId": "<siteId>",
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each page in order (Turkey first, then Spain, Greece).",
+    "After step 1, copy the returned keyword id into step 2.",
+    "After step 2, copy the returned page id into steps 3–5.",
+    "Steps 3, 4, 5 have no JSON body — only path/query params.",
+    "Put the full content brief in the keyword notes field."
+  ],
+  "pages": [
+    {
+      "priority": 1,
+      "country": "Turkey",
+      "slug": "/costs/hair-restoration-turkey-cost-2026",
+      "template": "HR-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/turkey-hair-restoration-guide",
+      "primaryGscQuery": "hair transplant cost turkey 2026",
+      "costRange": "€1,500–€3,500 (2,000–4,000 grafts)",
+      "internalLinks": [
+        "/guides/turkey-hair-restoration-guide",
+        "/guides/turkey/istanbul-hair-restoration-guide",
+        "/treatments/hair-restoration",
+        "/from/uk/hair-restoration-abroad"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant cost turkey 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/hair-restoration-turkey-cost-2026",
+            "notes": "CONTENT BRIEF — Template HR-D (~1,800 words). Turkey is the world's leading hair transplant destination. REQUIRED H2s: (1) Hair Transplant Cost in Turkey: Direct Answer, (2) Base Procedure Costs by Graft Count (2,000/3,000/4,000+), (3) FUE vs DHI Price Differences, (4) Add-On Costs: PRP, Accommodation Packages, Medication, (5) Travel and Logistics Costs, (6) Total All-In Cost Scenarios, (7) Hidden Costs Patients Reported, (8) How Turkey Compares With UK/USA, (9) What Affects Hair Transplant Price?, (10) FAQ. Cost range €1,500–€3,500 for 2,000–4,000 grafts. Link to /guides/turkey-hair-restoration-guide, /guides/turkey/istanbul-hair-restoration-guide, /treatments/hair-restoration. YMYL: cite ISHRS, patient interview data."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/hair-restoration-turkey-cost-2026",
+            "language": "EN",
+            "title": "Hair Transplant Cost in Turkey 2026: What Patients Actually Paid",
+            "metaTitle": "Hair Transplant Cost Turkey 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Hair transplant in Turkey costs €1,500–€3,500 for 2,000–4,000 grafts based on verified patient interviews. See FUE/DHI pricing, hidden fees, and all-in costs.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "country": "Spain",
+      "slug": "/costs/hair-restoration-spain-cost-2026",
+      "template": "HR-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/spain-hair-restoration-guide",
+      "primaryGscQuery": "hair transplant cost spain 2026",
+      "costRange": "€3,500–€7,000 (2,000–4,000 grafts)",
+      "internalLinks": [
+        "/guides/spain-hair-restoration-guide",
+        "/guides/spain/barcelona-hair-restoration-guide",
+        "/guides/spain/madrid-hair-restoration-guide",
+        "/treatments/hair-restoration"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant cost spain 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/hair-restoration-spain-cost-2026",
+            "notes": "CONTENT BRIEF — Template HR-D (~1,800 words). Spain offers EU-regulated hair transplant clinics in Barcelona and Madrid. REQUIRED H2s: same as Turkey cost page adapted for Spain. Cost range €3,500–€7,000 for 2,000–4,000 grafts. Emphasize EU medical standards, Spanish-language support, shorter flights from UK. Link to Spain country and city guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/hair-restoration-spain-cost-2026",
+            "language": "EN",
+            "title": "Hair Transplant Cost in Spain 2026: What Patients Actually Paid",
+            "metaTitle": "Hair Transplant Cost Spain 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Hair transplant in Spain costs €3,500–€7,000 for 2,000–4,000 grafts. EU-regulated clinics in Barcelona and Madrid with verified patient pricing data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 3,
+      "country": "Greece",
+      "slug": "/costs/hair-restoration-greece-cost-2026",
+      "template": "HR-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/greece-hair-restoration-guide",
+      "primaryGscQuery": "hair transplant cost greece 2026",
+      "costRange": "€2,500–€5,500 (2,000–4,000 grafts)",
+      "internalLinks": [
+        "/guides/greece-hair-restoration-guide",
+        "/guides/greece/athens-hair-restoration-guide",
+        "/treatments/hair-restoration"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant cost greece 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/hair-restoration-greece-cost-2026",
+            "notes": "CONTENT BRIEF — Template HR-D (~1,800 words). Greece offers mid-range pricing with Athens as the primary hub. REQUIRED H2s: same cost page structure. Cost range €2,500–€5,500 for 2,000–4,000 grafts. Link to Greece country and Athens city guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/hair-restoration-greece-cost-2026",
+            "language": "EN",
+            "title": "Hair Transplant Cost in Greece 2026: What Patients Actually Paid",
+            "metaTitle": "Hair Transplant Cost Greece 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Hair transplant in Greece costs €2,500–€5,500 for 2,000–4,000 grafts. Athens clinics with verified FUE/DHI pricing and patient interview data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}

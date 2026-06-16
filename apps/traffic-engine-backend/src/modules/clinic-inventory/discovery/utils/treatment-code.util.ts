@@ -2,13 +2,18 @@
 const CLINIC_TYPE_TREATMENT_ALIASES: Record<string, string> = {
   ivf: 'IVF',
   'hair restoration': 'HAIR_RESTORATION',
+  'hair-restoration': 'HAIR_RESTORATION',
   'hair transplant': 'HAIR_RESTORATION',
   'hair transplant clinic': 'HAIR_RESTORATION',
   fue: 'HAIR_RESTORATION',
   fut: 'HAIR_RESTORATION',
+  dhi: 'HAIR_RESTORATION',
   'fue hair transplant': 'HAIR_RESTORATION',
+  'fue clinic': 'HAIR_RESTORATION',
   capilar: 'HAIR_RESTORATION',
   'trasplante capilar': 'HAIR_RESTORATION',
+  'sac ekimi': 'HAIR_RESTORATION',
+  'greffe cheveux': 'HAIR_RESTORATION',
 };
 
 /** Normalize a human label or slug to a Treatment.code (e.g. "Egg Donation" -> "EGG_DONATION"). */

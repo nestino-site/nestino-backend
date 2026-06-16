@@ -1,0 +1,120 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template HR-F origin journeys)",
+  "siteId": "<siteId>",
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "pages": [
+    {
+      "priority": 1,
+      "origin": "UK",
+      "slug": "/from/uk/hair-restoration-abroad",
+      "template": "HR-F — Origin Patient Journey",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant abroad from uk",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/from/uk/hair-restoration-abroad",
+            "notes": "CONTENT BRIEF — Template HR-F (~1,800 words). UK patients pay £4,000–£12,000 domestically vs €1,500–€7,000 abroad. REQUIRED H2s: (1) Why UK Patients Travel, (2) Best Destinations (Turkey, Spain, Greece), (3) Cost Comparison UK vs Abroad, (4) Choosing a Clinic, (5) Travel Logistics, (6) NHS/Insurance Considerations, (7) Patient Stories, (8) FAQ. Link to all country guides and cost pages."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/from/uk/hair-restoration-abroad",
+            "language": "EN",
+            "title": "Hair Transplant Abroad for UK Patients: What You Need to Know",
+            "metaTitle": "Hair Transplant Abroad from UK — Patient Guide | MedCover",
+            "metaDescription": "UK patients save 50–70% on hair transplants abroad. Compare Turkey, Spain, and Greece costs, clinics, travel logistics, and what to expect.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "origin": "USA",
+      "slug": "/from/usa/hair-restoration-abroad",
+      "template": "HR-F — Origin Patient Journey",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant abroad from usa",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/from/usa/hair-restoration-abroad",
+            "notes": "CONTENT BRIEF — Template HR-F (~1,800 words). US patients pay $8,000–$15,000 domestically. REQUIRED H2s: same as UK origin page adapted for US (insurance gaps, flight times, visa-free destinations). Link to Turkey, Spain, Greece guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/from/usa/hair-restoration-abroad",
+            "language": "EN",
+            "title": "Hair Transplant Abroad for US Patients: What You Need to Know",
+            "metaTitle": "Hair Transplant Abroad from USA — Patient Guide | MedCover",
+            "metaDescription": "US patients save thousands on hair transplants abroad. Compare Turkey, Spain, and Greece — costs, clinics, travel, and recovery timelines.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}

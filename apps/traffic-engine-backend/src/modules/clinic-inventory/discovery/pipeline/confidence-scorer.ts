@@ -34,12 +34,20 @@ const FERTILITY_NAME_TERMS = [
   'fertilité', 'reproductif',
 ];
 
+const HAIR_RESTORATION_NAME_TERMS = [
+  'hair transplant', 'hair restoration', 'fue', 'fut', 'dhi',
+  'trasplante capilar', 'capilar', 'saç ekimi', 'greffe cheveux',
+  'trichology', 'alopecia',
+];
+
 export function computeConfidence(
   input: ConfidenceInput,
   weights: ConfidenceWeights,
 ): ConfidenceBreakdown {
   const nameLower = input.name.toLowerCase();
-  const nameHasFertilityTerm = FERTILITY_NAME_TERMS.some((t) => nameLower.includes(t));
+  const nameHasFertilityTerm =
+    FERTILITY_NAME_TERMS.some((t) => nameLower.includes(t)) ||
+    HAIR_RESTORATION_NAME_TERMS.some((t) => nameLower.includes(t));
   const nameMatchesKeyword = input.searchKeywords.some((kw) =>
     nameLower.includes(kw.toLowerCase()),
   );

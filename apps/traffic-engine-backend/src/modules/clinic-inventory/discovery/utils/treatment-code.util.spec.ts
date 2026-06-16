@@ -11,6 +11,8 @@ function assert(cond: boolean, msg: string) {
 assert(toTreatmentCode('Hair Restoration') === 'HAIR_RESTORATION', 'hair restoration code');
 assert(toTreatmentCode('hair transplant') === 'HAIR_RESTORATION', 'hair transplant alias');
 assert(toTreatmentCode('FUE') === 'HAIR_RESTORATION', 'FUE alias');
+assert(toTreatmentCode('hair-restoration') === 'HAIR_RESTORATION', 'hair-restoration slug alias');
+assert(toTreatmentCode('DHI') === 'HAIR_RESTORATION', 'DHI alias');
 assert(toTreatmentCode('IVF') === 'IVF', 'ivf unchanged');
 assert(clinicTypeToTreatmentCode('hair-transplant') === 'HAIR_RESTORATION', 'normalized hair transplant');
 assert(normalizeClinicType('hair-transplant') === 'hair transplant', 'normalize dashes');

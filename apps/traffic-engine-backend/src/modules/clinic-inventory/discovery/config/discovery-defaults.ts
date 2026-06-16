@@ -1,5 +1,13 @@
 import { EffectiveDiscoveryConfig } from './discovery-pipeline.types';
 
+/** Google Places search keywords for hair restoration clinic discovery runs. */
+export const HAIR_RESTORATION_DISCOVERY_KEYWORDS = [
+  'hair transplant clinic',
+  'FUE clinic',
+  'hair restoration clinic',
+  'saç ekimi kliniği',
+];
+
 export const DEFAULT_SYSTEM_CONFIG_DEFAULTS: EffectiveDiscoveryConfig = {
   pipeline: {
     version: 1,

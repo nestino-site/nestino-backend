@@ -1,0 +1,239 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template HR-A country guides + HR-E treatment page)",
+  "siteId": "<siteId>",
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each page. Treatment page first, then country guides.",
+    "Copy keyword id from step 1 into step 2. Copy page id from step 2 into steps 3–5."
+  ],
+  "pages": [
+    {
+      "priority": 0,
+      "title": "Hair Restoration Treatment Entity Page",
+      "slug": "/treatments/hair-restoration",
+      "template": "HR-E — Treatment Glossary",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "what is hair restoration fue dhi",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/treatments/hair-restoration",
+            "notes": "CONTENT BRIEF — Template HR-E (~1,800 words). Medically reviewed entity page. REQUIRED H2s: (1) What Is Hair Restoration?, (2) How FUE Works, (3) How DHI Works, (4) FUT Strip Method, (5) Graft Counts, (6) Success Rates and Results Timeline, (7) Why Patients Travel Abroad, (8) What MedCover Patients Report, (9) Where Available, (10) Glossary, (11) FAQ, (12) External Resources. Schema: MedicalProcedure, HowTo. requiresMedicalReviewer: true. Link to all country guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/treatments/hair-restoration",
+            "language": "EN",
+            "title": "What Is Hair Restoration? FUE, DHI, and FUT Explained",
+            "metaTitle": "Hair Restoration Explained — FUE, DHI, FUT Guide | MedCover",
+            "metaDescription": "Hair restoration covers FUE, DHI, and FUT techniques. Learn how grafts work, what results to expect, and why patients travel abroad for hair transplants.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 1,
+      "country": "Turkey",
+      "slug": "/guides/turkey-hair-restoration-guide",
+      "template": "HR-A — Country Destination Guide",
+      "costRange": "€1,500–€3,500",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant turkey",
+            "language": "EN",
+            "intent": "COMMERCIAL",
+            "status": "PENDING",
+            "priority": 90,
+            "targetUrl": "/guides/turkey-hair-restoration-guide",
+            "notes": "CONTENT BRIEF — Template HR-A (~1,500 words). Turkey is the global hair transplant capital. REQUIRED H2s per Template Registry HR-A. Cost €1,500–€3,500. Istanbul is primary city. Link to /costs/hair-restoration-turkey-cost-2026, /guides/turkey/istanbul-hair-restoration-guide, /treatments/hair-restoration."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/turkey-hair-restoration-guide",
+            "language": "EN",
+            "title": "Hair Transplant in Turkey: What Real Patients Told Us",
+            "metaTitle": "Hair Transplant in Turkey 2026 — Costs & Clinics | MedCover",
+            "metaDescription": "Hair transplant in Turkey from €1,500. World's leading destination with verified FUE/DHI clinic rankings, graft pricing, and patient interview data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "country": "Spain",
+      "slug": "/guides/spain-hair-restoration-guide",
+      "template": "HR-A — Country Destination Guide",
+      "costRange": "€3,500–€7,000",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant spain",
+            "language": "EN",
+            "intent": "COMMERCIAL",
+            "status": "PENDING",
+            "priority": 90,
+            "targetUrl": "/guides/spain-hair-restoration-guide",
+            "notes": "CONTENT BRIEF — Template HR-A (~1,500 words). EU-regulated clinics in Barcelona and Madrid. Cost €3,500–€7,000. Link to cost page, city guides, treatment page."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/spain-hair-restoration-guide",
+            "language": "EN",
+            "title": "Hair Transplant in Spain: What Real Patients Told Us",
+            "metaTitle": "Hair Transplant in Spain 2026 — Costs & Clinics | MedCover",
+            "metaDescription": "Hair transplant in Spain from €3,500. EU-regulated FUE/DHI clinics in Barcelona and Madrid with verified costs and patient interview data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 3,
+      "country": "Greece",
+      "slug": "/guides/greece-hair-restoration-guide",
+      "template": "HR-A — Country Destination Guide",
+      "costRange": "€2,500–€5,500",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "hair transplant greece",
+            "language": "EN",
+            "intent": "COMMERCIAL",
+            "status": "PENDING",
+            "priority": 90,
+            "targetUrl": "/guides/greece-hair-restoration-guide",
+            "notes": "CONTENT BRIEF — Template HR-A (~1,500 words). Athens primary hub. Cost €2,500–€5,500. Link to cost page, Athens city guide, treatment page."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/guides/greece-hair-restoration-guide",
+            "language": "EN",
+            "title": "Hair Transplant in Greece: What Real Patients Told Us",
+            "metaTitle": "Hair Transplant in Greece 2026 — Costs & Clinics | MedCover",
+            "metaDescription": "Hair transplant in Greece from €2,500. Athens FUE/DHI clinics with verified graft pricing and patient interview data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}

@@ -20,6 +20,14 @@ const FERTILITY_TERMS = [
   'clinique ivf', 'fiv', 'reprodução assistida',
 ];
 
+const HAIR_RESTORATION_TERMS = [
+  'hair transplant', 'hair restoration', 'fue', 'fut', 'dhi',
+  'follicular unit extraction', 'follicular unit transplantation',
+  'trasplante capilar', 'implante capilar', 'capilar',
+  'saç ekimi', 'greffe de cheveux', 'greffe cheveux',
+  'hairline design', 'graft', 'donor area',
+];
+
 const ACCREDITATION_TERMS = ['jci', 'eshre', 'iso 9001', 'hfea', 'sef member', 'redlara', 'cap accredited'];
 
 const TREATMENT_MAP: Record<string, string> = {
@@ -31,6 +39,11 @@ const TREATMENT_MAP: Record<string, string> = {
   iui: 'IUI',
   'embryo freezing': 'EMBRYO_FREEZING',
   'egg freezing': 'EGG_FREEZING',
+  'hair transplant': 'HAIR_RESTORATION',
+  'hair restoration': 'HAIR_RESTORATION',
+  fue: 'HAIR_RESTORATION',
+  fut: 'HAIR_RESTORATION',
+  dhi: 'HAIR_RESTORATION',
 };
 
 @Injectable()
@@ -48,7 +61,9 @@ export class WebsiteFetcherAdapter {
       const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
       const text = body.replace(/<[^>]+>/g, ' ').toLowerCase();
 
-      const hasFertilityTerms = FERTILITY_TERMS.some((t) => text.includes(t));
+      const hasFertilityTerms =
+        FERTILITY_TERMS.some((t) => text.includes(t)) ||
+        HAIR_RESTORATION_TERMS.some((t) => text.includes(t));
       const hasAccreditationTerms = ACCREDITATION_TERMS.some((t) => text.includes(t));
 
       const titleMatch = body.match(/<title[^>]*>([^<]+)<\/title>/i);
