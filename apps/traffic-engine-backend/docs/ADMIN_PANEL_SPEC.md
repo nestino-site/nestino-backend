@@ -302,6 +302,8 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | `GET` | `/pages` | 🔐 | `siteId`, `status?`, `language?` |
 | `GET` | `/pages/:id` | 🔐 | Full page + relations as returned by API |
 | `PATCH` | `/pages/:id` | 🔐 | `UpdatePageDto` |
+| `PATCH` | `/pages/:id/content` | 🔐 | `{ finalContent: string, republish?: boolean }` — human Markdown edit |
+| `PATCH` | `/pages/:id/slug` | 🔐 | `{ slug: string, republish?: boolean }` — change URL path; webhook defaults on for PUBLISHED |
 | `POST` | `/pages/:id/generate-content` | 🔐 | `?resetCheckpoint=true` to restart pipeline from scratch |
 | `POST` | `/pages/:id/retry-image-generation` | 🔐 | Resume from `image_generation` when content exists but hero image failed |
 | `POST` | `/pages/:id/regenerate-hero-image` | 🔐 | Replace hero image synchronously when quality is poor; optional `?uploadCdn=false` to skip Cloudinary |
@@ -311,6 +313,23 @@ Note: files saved server-side under `./uploads` — panel may need a static/CDN 
 | `POST` | `/pages/:id/keywords` | 🔐 | Assign cluster keyword |
 | `GET` | `/pages/:id/keywords` | 🔐 | — |
 | `DELETE` | `/pages/:id/keywords/:keywordId` | 🔐 | — |
+
+**UpdatePageSlugResult** (from `PATCH /pages/:id/slug`):
+
+```json
+{
+  "id": 42,
+  "slug": "/guides/ivf-in-spain",
+  "previousSlug": "/guides/old-slug",
+  "status": "PUBLISHED",
+  "changed": true,
+  "republished": true,
+  "webhookFired": true,
+  "updatedAt": "2026-06-16T12:00:00.000Z"
+}
+```
+
+Webhook payload may include `previousSlug` and merged `affectedPaths` for old + new URLs when slug changes on a published page.
 
 **PublishResult:**
 
@@ -585,6 +604,7 @@ NEXT_PUBLIC_API_BASE_URL=https://nestino-backend-production.up.railway.app/api/v
 
 ### 9.11 Page detail
 - Tabs: Content (markdown preview) | Meta | Pipeline | Logs | Keywords
+- **Meta tab:** slug editor → `PATCH /pages/:id/slug` (not generic `PATCH /pages/:id`); warn on PUBLISHED pages; checkbox "Notify frontend" default on → `republish: true`
 - Pipeline stepper UI mapped to `pipelineStatus`
 - Poll while processing
 - Buttons: Regenerate (`generate-content?resetCheckpoint=true`), Retry image (`retry-image-generation`), **Regenerate hero** (`regenerate-hero-image`), **Complete pipeline** (`complete-pipeline`), Publish

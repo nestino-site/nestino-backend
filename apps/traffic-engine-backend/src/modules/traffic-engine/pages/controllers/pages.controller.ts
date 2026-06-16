@@ -34,6 +34,7 @@ import { AssignPageKeywordDto } from '../dto/assign-page-keyword.dto';
 import { CreatePageDto } from '../dto/create-page.dto';
 import { UpdatePageDto } from '../dto/update-page.dto';
 import { UpdatePageContentDto } from '../dto/update-page-content.dto';
+import { UpdatePageSlugDto } from '../dto/update-page-slug.dto';
 import { PageKeywordService } from '../services/page-keyword.service';
 import { PagesService } from '../services/pages.service';
 
@@ -440,6 +441,19 @@ export class PagesController {
   @ApiResponse({ status: 200, description: 'Content updated' })
   updateContent(@ParseIntParam('id') id: number, @Body() dto: UpdatePageContentDto) {
     return this.pagesService.updateContent(id, dto);
+  }
+
+  @Patch(':id/slug')
+  @ApiOperation({
+    summary: 'Update page URL slug',
+    description:
+      'Changes the page slug path. Invalidates content cache for old and new slugs. ' +
+      'On PUBLISHED pages, fires page.updated webhook by default (set republish=false to skip).',
+  })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  @ApiResponse({ status: 200, description: 'Slug updated' })
+  updateSlug(@ParseIntParam('id') id: number, @Body() dto: UpdatePageSlugDto) {
+    return this.pagesService.updateSlug(id, dto);
   }
 
   @Patch(':id')

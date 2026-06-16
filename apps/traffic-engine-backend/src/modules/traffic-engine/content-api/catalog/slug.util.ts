@@ -51,3 +51,12 @@ export function normalizeSlugPath(path: string): string {
   const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   return withLeading.endsWith('/') ? withLeading : `${withLeading}/`;
 }
+
+/** Normalize a page slug: trim and ensure leading slash. Preserves trailing slash if present. */
+export function normalizePageSlug(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) {
+    throw new Error('Slug cannot be empty');
+  }
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}

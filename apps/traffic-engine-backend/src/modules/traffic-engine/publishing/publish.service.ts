@@ -18,6 +18,7 @@ export interface PublishWebhookPayload {
   timestamp: number;
   pageType?: string;
   affectedPaths?: string[];
+  previousSlug?: string;
   clinicId?: number;
 }
 
@@ -222,21 +223,32 @@ export class PublishService {
     return patch;
   }
 
-  async triggerUpdateWebhook(pageId: number): Promise<void> {
+  async triggerUpdateWebhook(
+    pageId: number,
+    options?: { previousSlug?: string },
+  ): Promise<{ webhookFired: boolean }> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
       include: { site: true },
     });
-    if (!page?.site.publishWebhookUrl || page.status !== PageStatus.PUBLISHED) {
-      return;
+    const webhookUrl = page?.site.publishWebhookUrl?.trim();
+    if (!page || !webhookUrl || page.status !== PageStatus.PUBLISHED) {
+      return { webhookFired: false };
     }
 
     await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
 
-    await this.webhookDelivery.enqueue(
+    const affectedPaths = [
+      ...buildAffectedPaths(page.slug, page.pageType ?? undefined),
+      ...(options?.previousSlug
+        ? buildAffectedPaths(options.previousSlug, page.pageType ?? undefined)
+        : []),
+    ];
+
+    const result = await this.webhookDelivery.enqueue(
       page.siteId,
       pageId,
-      page.site.publishWebhookUrl,
+      webhookUrl,
       page.site.publishWebhookSecret ?? '',
       {
         pageId,
@@ -246,9 +258,12 @@ export class PublishService {
         event: 'page.updated',
         timestamp: Date.now(),
         pageType: page.pageType ?? undefined,
-        affectedPaths: buildAffectedPaths(page.slug, page.pageType ?? undefined),
+        affectedPaths: [...new Set(affectedPaths)],
+        ...(options?.previousSlug ? { previousSlug: options.previousSlug } : {}),
       },
     );
+
+    return { webhookFired: result.delivered };
   }
 
   async fireClinicUpdatedWebhook(input: {

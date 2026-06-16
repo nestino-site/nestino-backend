@@ -76,10 +76,11 @@ wait_for_page_ready() {
         log "  page ${page_id} PARTIALLY_COMPLETED — trying complete-pipeline"
         request POST "/api/v1/pages/${page_id}/complete-pipeline" "${TMP_DIR}/empty.json" >/dev/null || true
         status="$(request GET "/api/v1/pages/${page_id}" | jq -r '.pipelineStatus // empty')"
-        if [[ "${status}" == "PARTIALLY_COMPLETED" ]]; then
-          log "  page ${page_id} still PARTIALLY_COMPLETED — mark-content-ready"
-          request POST "/api/v1/pages/${page_id}/mark-content-ready" "${TMP_DIR}/empty.json" >/dev/null || true
-        fi
+        [[ "${status}" == "READY" ]] && return 0
+        log "  page ${page_id} still ${status:-unknown} — mark-content-ready"
+        request POST "/api/v1/pages/${page_id}/mark-content-ready" "${TMP_DIR}/empty.json" >/dev/null || true
+        status="$(request GET "/api/v1/pages/${page_id}" | jq -r '.pipelineStatus // empty')"
+        [[ "${status}" == "READY" ]] && return 0
         ;;
       FAILED)
         log "Pipeline FAILED for page ${page_id}"
@@ -104,7 +105,9 @@ process_page() {
     pipeline_status="$(request GET "/api/v1/pages/${page_id}" | jq -r '.pipelineStatus')"
     log "Existing page id=${page_id} status=${page_status} pipeline=${pipeline_status}"
     [[ "${page_status}" == "PUBLISHED" ]] && return 0
-    [[ "${pipeline_status}" != "READY" ]] && wait_for_page_ready "${page_id}" || return 1
+    if [[ "${pipeline_status}" != "READY" ]]; then
+      wait_for_page_ready "${page_id}" || return 1
+    fi
   else
     jq -n --argjson siteId "${site_id}" --arg keyword "${keyword}" --arg targetUrl "${slug_norm}" --arg notes "${notes}" \
       '{siteId:$siteId, keyword:$keyword, language:"EN", intent:"COMMERCIAL", priority:90, targetUrl:$targetUrl, notes:$notes}' \
