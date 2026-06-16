@@ -460,7 +460,14 @@ export class TrafficEnginePipelineService {
           }
         }
         if (seoViolations.length > 0) {
-          throw new Error(`SEO_GATE_FAILED:${seoViolations.join(',')}`);
+          // SEO gate is advisory only — record violations and continue to READY.
+          // The score/issues are persisted via seoCheckService; admin UI can surface them for review.
+          this.logger.warn({
+            msg: 'seo_gate_advisory',
+            pageId,
+            score: seoResult.score,
+            violations: seoViolations,
+          });
         }
         await this.saveCheckpoint(pageId, completedSteps, 'seo_check', true);
       }
