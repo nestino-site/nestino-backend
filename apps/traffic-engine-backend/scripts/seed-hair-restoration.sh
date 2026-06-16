@@ -284,6 +284,12 @@ create_subjects() {
     '["fue barcelona","hair clinic barcelona"]' \
     COMMERCIAL Spain Barcelona "Capture Barcelona hair transplant city intent." 8)"
   upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_HR_A2_ID}" \
+    "Madrid Hair Restoration City Guide" \
+    "City guide for hair transplant in Madrid." \
+    '["hair transplant madrid","fue madrid"]' \
+    '["hair clinic madrid","hair restoration madrid"]' \
+    COMMERCIAL Spain Madrid "Capture Madrid hair transplant city intent." 8)"
+  upsert_subject "${site_id}" "$(subject_payload "${site_id}" "${TEMPLATE_HR_A2_ID}" \
     "Athens Hair Restoration City Guide" \
     "City guide for hair transplant in Athens." \
     '["hair transplant athens"]' \

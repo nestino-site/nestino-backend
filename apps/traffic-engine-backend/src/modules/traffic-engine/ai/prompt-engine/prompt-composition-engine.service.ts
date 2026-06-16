@@ -298,6 +298,9 @@ export class PromptCompositionEngineService {
     if (r.location != null && String(r.location).trim()) {
       siteExtras.push(`**Location focus:** ${String(r.location).trim()}`);
     }
+    if (typeof r.geoConstraint === 'string' && r.geoConstraint.trim()) {
+      siteExtras.push(`**Geographic constraint (mandatory):** ${r.geoConstraint.trim()}`);
+    }
     if (Array.isArray(r.core_benefits) && r.core_benefits.length > 0) {
       const benefits = r.core_benefits
         .map((b) => String(b).trim())
@@ -365,8 +368,10 @@ ${intentGuide}${siteExtrasBlock}`;
     const r = context.runtimeContext;
     const part = [
       r.mode,
+      r.keyword,
       r.siteName,
       r.location,
+      r.geoConstraint,
       JSON.stringify(r.core_benefits ?? null),
       r.seo_instructions,
       r.cta_target,

@@ -65,6 +65,20 @@ function run(): void {
     'prague',
   ]);
 
+  const madridSlug = '/guides/spain/madrid-hair-restoration-guide';
+  const madridKeyword = 'hair transplant madrid';
+  const barcelonaDraft =
+    '# Hair Transplant in Barcelona: A Detailed Guide\n\nBarcelona clinics offer FUE and DHI.';
+  const madridDraft =
+    '# Hair Transplant in Madrid: Clinics & Costs\n\nMadrid clinics offer FUE and DHI.';
+
+  assert.equal(contentAlignsWithPage(barcelonaDraft, madridKeyword, madridSlug), false);
+  assert.equal(contentAlignsWithPage(madridDraft, madridKeyword, madridSlug), true);
+  assert.deepEqual(
+    extractPageTopicTokens(madridKeyword, madridSlug).sort(),
+    ['madrid', 'spain'],
+  );
+
   console.log('seo-gate.utils.spec: all assertions passed');
 }
 

@@ -56,6 +56,12 @@ export function slimRuntimeContextForPrompt(
     if (raw.location != null && String(raw.location).trim()) {
       base.location = raw.location;
     }
+    if (typeof raw.geoConstraint === 'string' && raw.geoConstraint.trim()) {
+      base.geoConstraint = raw.geoConstraint.trim();
+    }
+    if (typeof raw.pageTitle === 'string' && raw.pageTitle.trim()) {
+      base.pageTitle = raw.pageTitle.trim();
+    }
     if (Array.isArray(raw.core_benefits) && raw.core_benefits.length > 0) {
       base.core_benefits = (raw.core_benefits as unknown[]).filter(
         (x) => typeof x === 'string' && x.trim().length > 0,

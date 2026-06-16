@@ -126,6 +126,9 @@ export function collectDeterministicSeoIssues(
   return issues;
 }
 
+import { GUIDE_TREATMENT_SLUGS } from '../content-api/seo/guide-geo.util';
+import { parseGuideEntitiesFromSlugParts } from '../content-api/seo/page-type.util';
+
 const CONTENT_STOP_WORDS = new Set([
   'ivf',
   'vs',
@@ -139,6 +142,12 @@ const CONTENT_STOP_WORDS = new Set([
   'clinic',
   'and',
   'or',
+  'hair',
+  'transplant',
+  'restoration',
+  'fue',
+  'dhi',
+  'fut',
 ]);
 
 /** Topic tokens derived from keyword + slug (e.g. prague, brno for city compare pages). */
@@ -151,7 +160,24 @@ export function extractPageTopicTokens(keyword: string, slug: string): string[] 
     }
   }
 
-  const slugLeaf = slug.replace(/^\/+|\/+$/g, '').split('/').pop() ?? '';
+  const normalizedSlug = slug.replace(/^\/+|\/+$/g, '');
+  const slugParts = normalizedSlug.split('/').filter(Boolean);
+  if (slugParts[0] === 'guides') {
+    const entities = parseGuideEntitiesFromSlugParts(
+      slugParts.slice(1),
+      GUIDE_TREATMENT_SLUGS,
+    );
+    for (const geoSlug of [entities.city?.slug, entities.country?.slug]) {
+      if (!geoSlug) continue;
+      for (const part of geoSlug.split('-')) {
+        if (part.length > 2 && !CONTENT_STOP_WORDS.has(part)) {
+          tokens.add(part);
+        }
+      }
+    }
+  }
+
+  const slugLeaf = slugParts[slugParts.length - 1] ?? '';
   const compareMatch = slugLeaf.match(/^(.+)-vs-(.+)-ivf$/);
   if (compareMatch) {
     for (const city of [compareMatch[1], compareMatch[2]]) {
@@ -185,5 +211,26 @@ export function contentAlignsWithPage(
   const isComparison = keyword.includes(' vs ') || slug.includes('-vs-');
   const requiredMatches = isComparison ? Math.min(2, tokens.length) : 1;
 
-  return matched.length >= requiredMatches;
+  if (matched.length < requiredMatches) {
+    return false;
+  }
+
+  const normalizedSlug = slug.replace(/^\/+|\/+$/g, '');
+  const slugParts = normalizedSlug.split('/').filter(Boolean);
+  if (slugParts[0] === 'guides' && slugParts.length >= 3) {
+    const entities = parseGuideEntitiesFromSlugParts(
+      slugParts.slice(1),
+      GUIDE_TREATMENT_SLUGS,
+    );
+    if (entities.city?.slug) {
+      const cityTokens = entities.city.slug
+        .split('-')
+        .filter((part) => part.length > 2 && !CONTENT_STOP_WORDS.has(part));
+      if (cityTokens.length > 0) {
+        return cityTokens.every((token) => haystack.includes(token));
+      }
+    }
+  }
+
+  return true;
 }
