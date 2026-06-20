@@ -19,7 +19,7 @@ export class AnalyticsIngestionService {
     @Optional() private readonly seoStrategy?: SeoStrategyService,
   ) {}
 
-  async syncSiteMetrics(siteId: number): Promise<void> {
+  async syncSiteMetrics(siteId: number): Promise<{ gsc: { synced: boolean; rows: number } }> {
     const gscResult = await this.gscIngestion.syncSiteIfConfigured(siteId);
     if (gscResult.synced) {
       this.logger.log({ msg: 'gsc_sync_complete', siteId, rows: gscResult.rows });
@@ -30,6 +30,7 @@ export class AnalyticsIngestionService {
     await this.ga4Ingestion.syncSiteIfConfigured(siteId).catch(() => null);
     await this.maturityGate.evaluateMaturity(siteId);
     await this.runAutomationIfUnlocked(siteId);
+    return { gsc: gscResult };
   }
 
   async syncAllSites(): Promise<void> {

@@ -11,4 +11,6 @@ id_mapping.json
 # Local IDE / data exports (not source)
 .cursor/
 Search console detail/
+Doc/search console credential.json
+**/gsc-service-account.json
 package-lock.json
