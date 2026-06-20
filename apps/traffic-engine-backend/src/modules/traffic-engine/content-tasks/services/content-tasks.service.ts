@@ -24,11 +24,44 @@ export class ContentTasksService {
     @InjectQueue(TRAFFIC_ENGINE_AI_QUEUE) private readonly aiQueue: Queue<AiGenerationJobPayload>,
   ) {}
 
+  /** Fail zombie QUEUED/PROCESSING tasks so new generation can proceed. */
+  async failStaleGenerateTasksForPage(pageId: number): Promise<number> {
+    const staleBefore = new Date(Date.now() - 60 * 60 * 1000);
+    const result = await this.prisma.contentTask.updateMany({
+      where: {
+        pageId,
+        type: TaskType.GENERATE_CONTENT,
+        status: { in: [TaskStatus.QUEUED, TaskStatus.PROCESSING] },
+        OR: [
+          { lockedAt: { lt: staleBefore } },
+          { lockedAt: null, updatedAt: { lt: staleBefore } },
+        ],
+      },
+      data: {
+        status: TaskStatus.FAILED,
+        failedAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        errorLog: 'Auto-failed stale task blocking new generation',
+      },
+    });
+    if (result.count > 0) {
+      this.logger.warn({
+        msg: 'content_task_stale_failed',
+        pageId,
+        count: result.count,
+      });
+    }
+    return result.count;
+  }
+
   async create(dto: CreateContentTaskDto): Promise<ContentTask> {
     if (
       dto.pageId &&
       (dto.type === undefined || dto.type === TaskType.GENERATE_CONTENT)
     ) {
+      await this.failStaleGenerateTasksForPage(dto.pageId);
+
       const active = await this.prisma.contentTask.findFirst({
         where: {
           pageId: dto.pageId,
