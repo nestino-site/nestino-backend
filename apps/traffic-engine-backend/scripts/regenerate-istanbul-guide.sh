@@ -26,9 +26,17 @@ TOKEN=$(curl -sS --max-time 30 -X POST "$BASE_URL/api/v1/identity/login" \
 [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { log "Login failed"; exit 1; }
 
 log "Queue generation for page ${PAGE_ID} (resetCheckpoint=true)"
-curl -sS --max-time 60 -w "\nHTTP:%{http_code}\n" -X POST \
+queue_code=$(curl -sS --max-time 60 -w "%{http_code}" -o "$TMP/queue.json" -X POST \
   "$BASE_URL/api/v1/pages/${PAGE_ID}/generate-content?resetCheckpoint=true" \
-  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{}' | tee "$TMP/queue.json"
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{}')
+if [[ "${queue_code}" == "201" || "${queue_code}" == "200" ]]; then
+  log "Queued: $(jq -c '{id, status}' "$TMP/queue.json")"
+elif [[ "${queue_code}" == "422" ]]; then
+  log "Queue skipped (active task): $(jq -r '.message' "$TMP/queue.json")"
+else
+  log "Queue failed HTTP ${queue_code}: $(cat "$TMP/queue.json")"
+  exit 1
+fi
 
 deadline=$((SECONDS + MAX_PIPELINE_WAIT_SEC))
 while (( SECONDS < deadline )); do
