@@ -126,7 +126,7 @@ export function collectDeterministicSeoIssues(
   return issues;
 }
 
-import { GUIDE_TREATMENT_SLUGS } from '../content-api/seo/guide-geo.util';
+import { contentGeoMisaligned, GUIDE_TREATMENT_SLUGS } from '../content-api/seo/guide-geo.util';
 import { parseGuideEntitiesFromSlugParts } from '../content-api/seo/page-type.util';
 
 const CONTENT_STOP_WORDS = new Set([
@@ -201,6 +201,10 @@ export function contentAlignsWithPage(
   keyword: string,
   slug: string,
 ): boolean {
+  if (contentGeoMisaligned(content, slug)) {
+    return false;
+  }
+
   const tokens = extractPageTopicTokens(keyword, slug);
   if (tokens.length === 0) {
     return true;

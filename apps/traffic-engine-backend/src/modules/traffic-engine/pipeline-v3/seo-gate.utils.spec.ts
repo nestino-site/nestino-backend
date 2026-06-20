@@ -79,6 +79,12 @@ function run(): void {
     ['madrid', 'spain'],
   );
 
+  const istanbulSlug = '/guides/turkey/istanbul-hair-restoration-guide';
+  const istanbulKeyword = 'hair transplant istanbul';
+  const greeceIstanbulDraft =
+    '# hair transplant istanbul: Hair Transplant in Greece: Your Guide\n\nGreece clinics...';
+  assert.equal(contentAlignsWithPage(greeceIstanbulDraft, istanbulKeyword, istanbulSlug), false);
+
   console.log('seo-gate.utils.spec: all assertions passed');
 }
 

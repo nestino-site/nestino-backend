@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  contentGeoMisaligned,
   extractGuideGeoFromPage,
   filterSecondaryKeywordsByGeo,
   slugToDisplayName,
@@ -45,6 +46,16 @@ function run(): void {
   assert.deepEqual(filtered, ['hair transplant madrid', 'fue spain']);
 
   assert.equal(slugToDisplayName('hair-restoration'), 'Hair Restoration');
+
+  const istanbulWrong =
+    '# hair transplant istanbul: Hair Transplant in Greece: Your Guide\n\nHome > Greece';
+  assert.equal(
+    contentGeoMisaligned(
+      istanbulWrong,
+      '/guides/turkey/istanbul-hair-restoration-guide',
+    ),
+    true,
+  );
 
   console.log('guide-geo.util.spec: all assertions passed');
 }

@@ -166,3 +166,46 @@ export function filterSecondaryKeywordsByGeo(
 
   return keywords.filter((keyword) => !keywordMentionsOtherGeo(keyword, geo));
 }
+
+/** Returns true when visible content focuses on the wrong city/country for this guide slug. */
+export function contentGeoMisaligned(
+  content: string,
+  slug: string,
+  title?: string | null,
+): boolean {
+  const geo = extractGuideGeoFromPage({ slug, title });
+  if (!geo.isCityGuide && !geo.countrySlug) {
+    return false;
+  }
+
+  const h1 = (content.match(/^#\s+(.+)$/m)?.[1] ?? '').toLowerCase();
+  const head = content.slice(0, 1500).toLowerCase();
+  const targetCity = geo.cityName?.toLowerCase();
+
+  for (const citySlug of KNOWN_CITY_SLUGS) {
+    if (geo.citySlug && citySlug === geo.citySlug) continue;
+    const cityName = slugToDisplayName(citySlug).toLowerCase();
+    const inCity = new RegExp(`\\bin\\s+${cityName}\\b`, 'i');
+    if (inCity.test(h1) || (geo.isCityGuide && inCity.test(head.slice(0, 400)))) {
+      return true;
+    }
+  }
+
+  for (const countrySlug of KNOWN_COUNTRY_SLUGS) {
+    if (geo.countrySlug && countrySlug === geo.countrySlug) continue;
+    const countryName = slugToDisplayName(countrySlug).toLowerCase();
+    const inCountry = new RegExp(`\\bin\\s+${countryName}\\b`, 'i');
+    if (inCountry.test(h1) || (geo.isCityGuide && inCountry.test(head.slice(0, 400)))) {
+      return true;
+    }
+  }
+
+  if (geo.isCityGuide && targetCity && h1 && !h1.includes(targetCity)) {
+    return KNOWN_CITY_SLUGS.some((citySlug) => {
+      if (citySlug === geo.citySlug) return false;
+      return new RegExp(`\\bin\\s+${slugToDisplayName(citySlug).toLowerCase()}\\b`, 'i').test(h1);
+    });
+  }
+
+  return false;
+}
