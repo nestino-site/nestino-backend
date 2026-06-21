@@ -28,6 +28,14 @@ const HAIR_RESTORATION_TERMS = [
   'hairline design', 'graft', 'donor area',
 ];
 
+const DENTAL_TERMS = [
+  'dental implant', 'dental clinic', 'dentist', 'dental tourism',
+  'veneer', 'veneers', 'dental crown', 'all-on-4', 'all on 4',
+  'zirconia crown', 'porcelain veneer', 'teeth whitening',
+  'clinica dental', 'clínica dental', 'diş kliniği', 'implant dentar',
+  'odontologia', 'stomatology',
+];
+
 const ACCREDITATION_TERMS = ['jci', 'eshre', 'iso 9001', 'hfea', 'sef member', 'redlara', 'cap accredited'];
 
 const TREATMENT_MAP: Record<string, string> = {
@@ -44,6 +52,11 @@ const TREATMENT_MAP: Record<string, string> = {
   fue: 'HAIR_RESTORATION',
   fut: 'HAIR_RESTORATION',
   dhi: 'HAIR_RESTORATION',
+  'dental implant': 'DENTAL',
+  'dental clinic': 'DENTAL',
+  dentist: 'DENTAL',
+  veneer: 'DENTAL',
+  'all-on-4': 'DENTAL',
 };
 
 @Injectable()
@@ -63,7 +76,8 @@ export class WebsiteFetcherAdapter {
 
       const hasFertilityTerms =
         FERTILITY_TERMS.some((t) => text.includes(t)) ||
-        HAIR_RESTORATION_TERMS.some((t) => text.includes(t));
+        HAIR_RESTORATION_TERMS.some((t) => text.includes(t)) ||
+        DENTAL_TERMS.some((t) => text.includes(t));
       const hasAccreditationTerms = ACCREDITATION_TERMS.some((t) => text.includes(t));
 
       const titleMatch = body.match(/<title[^>]*>([^<]+)<\/title>/i);

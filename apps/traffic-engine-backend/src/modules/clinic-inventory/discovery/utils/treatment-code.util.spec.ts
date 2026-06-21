@@ -13,6 +13,9 @@ assert(toTreatmentCode('hair transplant') === 'HAIR_RESTORATION', 'hair transpla
 assert(toTreatmentCode('FUE') === 'HAIR_RESTORATION', 'FUE alias');
 assert(toTreatmentCode('hair-restoration') === 'HAIR_RESTORATION', 'hair-restoration slug alias');
 assert(toTreatmentCode('DHI') === 'HAIR_RESTORATION', 'DHI alias');
+assert(toTreatmentCode('dental') === 'DENTAL', 'dental code');
+assert(toTreatmentCode('dental clinic') === 'DENTAL', 'dental clinic alias');
+assert(clinicTypeToTreatmentCode('dental-implant') === 'DENTAL', 'normalized dental implant');
 assert(toTreatmentCode('IVF') === 'IVF', 'ivf unchanged');
 assert(clinicTypeToTreatmentCode('hair-transplant') === 'HAIR_RESTORATION', 'normalized hair transplant');
 assert(normalizeClinicType('hair-transplant') === 'hair transplant', 'normalize dashes');

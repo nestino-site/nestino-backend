@@ -1,0 +1,210 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template DT-D cost pages)",
+  "siteId": "<siteId>",
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "instructions": [
+    "Run steps 1→5 for each page in order (Turkey first, then Spain, Greece).",
+    "After step 1, copy the returned keyword id into step 2.",
+    "After step 2, copy the returned page id into steps 3–5.",
+    "Steps 3, 4, 5 have no JSON body — only path/query params.",
+    "Put the full content brief in the keyword notes field."
+  ],
+  "pages": [
+    {
+      "priority": 1,
+      "country": "Turkey",
+      "slug": "/costs/dental-turkey-cost-2026",
+      "template": "DT-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/turkey-dental-guide",
+      "primaryGscQuery": "dental cost turkey 2026",
+      "costRange": "€300–€600 per implant",
+      "internalLinks": [
+        "/guides/turkey-dental-guide",
+        "/guides/turkey/istanbul-dental-guide",
+        "/treatments/dental",
+        "/from/uk/dental-abroad"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "dental cost turkey 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/dental-turkey-cost-2026",
+            "notes": "CONTENT BRIEF — Template DT-D (~1,800 words). Turkey is a leading dental tourism destination. REQUIRED H2s: (1) Dental Cost in Turkey: Direct Answer, (2) Implant Costs per Tooth, (3) Veneer and Crown Prices, (4) All-on-4 Pricing, (5) Add-On Costs, (6) Travel and Logistics Costs, (7) Total All-In Cost Scenarios, (8) Hidden Costs Patients Reported, (9) How Turkey Compares With UK/USA, (10) What Affects Dental Price?, (11) FAQ. Cost range €300–€600/implant. Link to country and city guides, treatment page."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/dental-turkey-cost-2026",
+            "language": "EN",
+            "title": "Dental Cost in Turkey 2026: What Patients Actually Paid",
+            "metaTitle": "Dental Cost Turkey 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Dental work in Turkey costs €300–€600 per implant based on verified patient interviews. See implant, veneer, all-on-4 pricing, hidden fees, and all-in costs.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null,
+          "note": "Poll until pipelineStatus = READY"
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "country": "Spain",
+      "slug": "/costs/dental-spain-cost-2026",
+      "template": "DT-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/spain-dental-guide",
+      "primaryGscQuery": "dental cost spain 2026",
+      "costRange": "€500–€900 per implant",
+      "internalLinks": [
+        "/guides/spain-dental-guide",
+        "/guides/spain/barcelona-dental-guide",
+        "/guides/spain/madrid-dental-guide",
+        "/treatments/dental"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "dental cost spain 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/dental-spain-cost-2026",
+            "notes": "CONTENT BRIEF — Template DT-D (~1,800 words). Spain offers EU-regulated dental clinics in Barcelona and Madrid. REQUIRED H2s: same as Turkey cost page adapted for Spain. Cost range €500–€900/implant. Emphasize EU medical standards, shorter flights from UK. Link to Spain country and city guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/dental-spain-cost-2026",
+            "language": "EN",
+            "title": "Dental Cost in Spain 2026: What Patients Actually Paid",
+            "metaTitle": "Dental Cost Spain 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Dental work in Spain costs €500–€900 per implant. EU-regulated clinics in Barcelona and Madrid with verified patient pricing data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 3,
+      "country": "Greece",
+      "slug": "/costs/dental-greece-cost-2026",
+      "template": "DT-D — Cost Transparency Page",
+      "hubPageSlug": "/guides/greece-dental-guide",
+      "primaryGscQuery": "dental cost greece 2026",
+      "costRange": "€400–€750 per implant",
+      "internalLinks": [
+        "/guides/greece-dental-guide",
+        "/guides/greece/athens-dental-guide",
+        "/treatments/dental"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "dental cost greece 2026",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/costs/dental-greece-cost-2026",
+            "notes": "CONTENT BRIEF — Template DT-D (~1,800 words). Greece offers mid-range pricing with Athens as the primary hub. REQUIRED H2s: same cost page structure. Cost range €400–€750/implant. Link to Greece country and Athens city guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/costs/dental-greece-cost-2026",
+            "language": "EN",
+            "title": "Dental Cost in Greece 2026: What Patients Actually Paid",
+            "metaTitle": "Dental Cost Greece 2026 — Real Patient Data | MedCover",
+            "metaDescription": "Dental work in Greece costs €400–€750 per implant. Athens clinics with verified implant and veneer pricing and patient interview data.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}

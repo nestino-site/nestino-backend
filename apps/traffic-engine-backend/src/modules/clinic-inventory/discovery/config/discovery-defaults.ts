@@ -8,6 +8,14 @@ export const HAIR_RESTORATION_DISCOVERY_KEYWORDS = [
   'saç ekimi kliniği',
 ];
 
+/** Google Places search keywords for dental clinic discovery runs. */
+export const DENTAL_DISCOVERY_KEYWORDS = [
+  'dental clinic',
+  'dentist',
+  'dental implant clinic',
+  'clinica dental',
+];
+
 export const DEFAULT_SYSTEM_CONFIG_DEFAULTS: EffectiveDiscoveryConfig = {
   pipeline: {
     version: 1,

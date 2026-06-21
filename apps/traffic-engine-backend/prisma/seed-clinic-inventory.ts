@@ -356,6 +356,7 @@ export async function seedClinicInventory(prisma: PrismaClient): Promise<void> {
     { code: 'SURROGACY', name: 'Surrogacy', sortOrder: 11 },
     { code: 'MINI_IVF', name: 'Mini / Mild IVF', sortOrder: 12 },
     { code: 'HAIR_RESTORATION', name: 'Hair Restoration', sortOrder: 20 },
+    { code: 'DENTAL', name: 'Dental', sortOrder: 21 },
   ];
   for (const t of treatments) {
     await prisma.treatment.upsert({

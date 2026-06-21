@@ -40,6 +40,11 @@ const HAIR_RESTORATION_NAME_TERMS = [
   'trichology', 'alopecia',
 ];
 
+const DENTAL_NAME_TERMS = [
+  'dental', 'dentist', 'dentistry', 'implant', 'veneer', 'crown',
+  'orthodont', 'clinica dental', 'diş', 'stomatolog', 'odontolog',
+];
+
 export function computeConfidence(
   input: ConfidenceInput,
   weights: ConfidenceWeights,
@@ -47,7 +52,8 @@ export function computeConfidence(
   const nameLower = input.name.toLowerCase();
   const nameHasFertilityTerm =
     FERTILITY_NAME_TERMS.some((t) => nameLower.includes(t)) ||
-    HAIR_RESTORATION_NAME_TERMS.some((t) => nameLower.includes(t));
+    HAIR_RESTORATION_NAME_TERMS.some((t) => nameLower.includes(t)) ||
+    DENTAL_NAME_TERMS.some((t) => nameLower.includes(t));
   const nameMatchesKeyword = input.searchKeywords.some((kw) =>
     nameLower.includes(kw.toLowerCase()),
   );

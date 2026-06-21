@@ -14,6 +14,16 @@ const CLINIC_TYPE_TREATMENT_ALIASES: Record<string, string> = {
   'trasplante capilar': 'HAIR_RESTORATION',
   'sac ekimi': 'HAIR_RESTORATION',
   'greffe cheveux': 'HAIR_RESTORATION',
+  dental: 'DENTAL',
+  dentist: 'DENTAL',
+  'dental clinic': 'DENTAL',
+  'dental implant': 'DENTAL',
+  'dental tourism': 'DENTAL',
+  'dental implants': 'DENTAL',
+  'clinica dental': 'DENTAL',
+  'clínica dental': 'DENTAL',
+  'diş kliniği': 'DENTAL',
+  'implant dentar': 'DENTAL',
 };
 
 /** Normalize a human label or slug to a Treatment.code (e.g. "Egg Donation" -> "EGG_DONATION"). */

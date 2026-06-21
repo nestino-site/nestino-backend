@@ -1,0 +1,120 @@
+{
+  "workflow": "Workflow B — Direct keyword → page → generate (Template DT-F origin journeys)",
+  "siteId": "<siteId>",
+  "auth": "Authorization: Bearer <accessToken>",
+  "baseUrl": "https://nestino-backend-production.up.railway.app/api/v1",
+  "pages": [
+    {
+      "priority": 1,
+      "origin": "UK",
+      "slug": "/from/uk/dental-abroad",
+      "template": "DT-F — Origin Patient Journey",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "dental treatment abroad from uk",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/from/uk/dental-abroad",
+            "notes": "CONTENT BRIEF — Template DT-F (~1,800 words). UK patients pay £2,000–£25,000 domestically vs €300–€900/implant abroad. REQUIRED H2s: (1) Why UK Patients Travel, (2) Best Destinations (Turkey, Spain, Greece), (3) Cost Comparison UK vs Abroad, (4) Choosing a Clinic, (5) Trip Planning, (6) NHS/Insurance Considerations, (7) Patient Stories, (8) FAQ. Link to all country guides and cost pages."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/from/uk/dental-abroad",
+            "language": "EN",
+            "title": "Dental Treatment Abroad for UK Patients: What You Need to Know",
+            "metaTitle": "Dental Treatment Abroad from UK — Patient Guide | MedCover",
+            "metaDescription": "UK patients save 50–70% on dental work abroad. Compare Turkey, Spain, and Greece costs, clinics, travel logistics, and what to expect.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    },
+    {
+      "priority": 2,
+      "origin": "USA",
+      "slug": "/from/usa/dental-abroad",
+      "template": "DT-F — Origin Patient Journey",
+      "steps": [
+        {
+          "step": 1,
+          "method": "POST",
+          "path": "/keywords",
+          "body": {
+            "siteId": "<siteId>",
+            "keyword": "dental treatment abroad from usa",
+            "language": "EN",
+            "intent": "INFORMATIONAL",
+            "status": "PENDING",
+            "priority": 1,
+            "targetUrl": "/from/usa/dental-abroad",
+            "notes": "CONTENT BRIEF — Template DT-F (~1,800 words). US patients pay $3,000–$6,000 per implant domestically. REQUIRED H2s: same as UK origin page adapted for US (insurance gaps, flight times, visa-free destinations). Link to Turkey, Spain, Greece guides."
+          }
+        },
+        {
+          "step": 2,
+          "method": "POST",
+          "path": "/pages",
+          "body": {
+            "siteId": "<siteId>",
+            "keywordId": "<keywordId from step 1>",
+            "slug": "/from/usa/dental-abroad",
+            "language": "EN",
+            "title": "Dental Treatment Abroad for US Patients: What You Need to Know",
+            "metaTitle": "Dental Treatment Abroad from USA — Patient Guide | MedCover",
+            "metaDescription": "US patients save thousands on dental work abroad. Compare Turkey, Spain, and Greece — costs, clinics, travel, and trip planning.",
+            "status": "DRAFT"
+          }
+        },
+        {
+          "step": 3,
+          "method": "POST",
+          "path": "/pages/{pageId}/generate-content?resetCheckpoint=true",
+          "body": null
+        },
+        {
+          "step": 4,
+          "method": "GET",
+          "path": "/pages/{pageId}",
+          "body": null
+        },
+        {
+          "step": 5,
+          "method": "POST",
+          "path": "/pages/{pageId}/publish",
+          "body": null
+        }
+      ]
+    }
+  ]
+}
