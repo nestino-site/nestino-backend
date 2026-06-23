@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, WebhookEventType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { siteDomainFindManyWhere } from '../../common/utils/site-domain.util';
 import { buildClinicAffectedPaths } from '../traffic-engine/content-api/seo/page-type.util';
 import { slugify } from '../traffic-engine/content-api/catalog/slug.util';
 import {
@@ -155,8 +156,8 @@ export class ClinicPublishBridge {
 
   private async fireFrontendClinicWebhook(payload: ClinicPublishedPayload): Promise<void> {
     const domain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
-    const site = await this.prisma.site.findUnique({
-      where: { domain },
+    const site = await this.prisma.site.findFirst({
+      where: siteDomainFindManyWhere(domain),
       select: { id: true },
     });
     if (!site) return;

@@ -237,7 +237,7 @@ export class ClinicsService {
     const treatment = await this.prisma.treatment.findUnique({ where: { code: dto.treatmentCode.toUpperCase() } });
     if (!treatment) throw new NotFoundException(`Treatment '${dto.treatmentCode}' not found`);
 
-    return this.prisma.clinicTreatment.upsert({
+    const result = await this.prisma.clinicTreatment.upsert({
       where: { clinicId_treatmentId: { clinicId, treatmentId: treatment.id } },
       create: {
         clinicId,
@@ -253,6 +253,18 @@ export class ClinicsService {
       },
       include: { treatment: true },
     });
+
+    if ((dto.isOffered ?? true) && result.clinicId) {
+      const clinic = await this.prisma.clinic.findUnique({
+        where: { id: clinicId },
+        select: { status: true },
+      });
+      if (clinic?.status === 'PUBLISHED') {
+        this.publishing?.emitClinicPublished(clinicId).catch(() => undefined);
+      }
+    }
+
+    return result;
   }
 
   async removeTreatment(clinicId: number, treatmentCode: string) {

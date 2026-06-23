@@ -3,9 +3,13 @@
 set -uo pipefail
 export PATH="/usr/bin:/bin:/opt/homebrew/bin"
 
-BASE="${BASE_URL:-https://nestino-backend-production.up.railway.app/api/v1}"
+BASE="${BASE_URL:-https://nestino-backend-production.up.railway.app}"
+BASE="${BASE%/}"
+[[ "$BASE" == */api/v1 ]] || BASE="${BASE}/api/v1"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@nestino.test}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-NestinoTest2026!}"
 TARGET=20
-PAUSE=150
+PAUSE=300
 WAIT=720
 POLL=12
 SHORT_WAIT=45
@@ -26,28 +30,35 @@ curl_json() {
 }
 
 login() {
+  local payload
+  payload="$(jq -n --arg email "${ADMIN_EMAIL}" --arg password "${ADMIN_PASSWORD}" '{email:$email,password:$password}')"
   curl_json -X POST "$BASE/identity/login" \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@nestino.test","password":"NestinoTest2026!"}' \
+    -d "${payload}" \
     | python3 -c "import json,sys;print(json.load(sys.stdin)['accessToken'])"
 }
 
 ensure_treatment() {
   local token="$1"
-  local raw
+  local raw exists id
   raw=$(curl_json -H "Authorization: Bearer $token" "$BASE/treatments" || echo "[]")
-  local exists
   exists=$(echo "$raw" | python3 -c "import json,sys;d=json.load(sys.stdin);codes=[t['code'] for t in d];print('yes' if 'DENTAL' in codes else 'no')" 2>/dev/null || echo "no")
   if [[ "$exists" == "yes" ]]; then
     log "Treatment DENTAL already exists"
-    return
+    return 0
   fi
   log "Creating treatment DENTAL..."
-  curl -sS --max-time 30 -X POST "$BASE/treatments" \
+  id=$(curl -sS --max-time 30 -X POST "$BASE/treatments" \
     -H "Authorization: Bearer $token" \
     -H "Content-Type: application/json" \
     -d '{"code":"DENTAL","name":"Dental","description":"Dental implants, veneers, crowns, and all-on-4 clinics","sortOrder":21,"isActive":true}' \
-    >>"$LOG" 2>&1 || true
+    | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('id',''))" 2>/dev/null || true)
+  if [[ -n "$id" && "$id" =~ ^[0-9]+$ ]]; then
+    log "Treatment DENTAL created (id=$id)"
+    return 0
+  fi
+  log "ERROR: failed to create DENTAL treatment — aborting"
+  exit 1
 }
 
 city_meta() {

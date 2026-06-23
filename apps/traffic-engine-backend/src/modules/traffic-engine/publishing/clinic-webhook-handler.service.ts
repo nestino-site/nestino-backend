@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PipelineStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { siteDomainFindManyWhere } from '../../../common/utils/site-domain.util';
 import {
   displayNameFromSlug,
   isTreatmentSlug,
@@ -555,8 +556,8 @@ export class ClinicWebhookHandlerService {
 
   private async getClinicSite(): Promise<{ id: number; domain: string } | null> {
     const clinicDomain = process.env.CLINIC_SITE_DOMAIN ?? DEFAULT_CLINIC_SITE_DOMAIN;
-    const site = await this.prisma.site.findUnique({
-      where: { domain: clinicDomain },
+    const site = await this.prisma.site.findFirst({
+      where: siteDomainFindManyWhere(clinicDomain),
       select: { id: true, domain: true },
     });
 

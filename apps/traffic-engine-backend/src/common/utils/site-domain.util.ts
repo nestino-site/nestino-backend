@@ -30,3 +30,8 @@ export function toPublicSiteBaseUrl(domain: string): string {
   const host = normalizeDomainHost(domain);
   return `https://${host}`;
 }
+
+/** Prisma `where` clause matching apex/www (and optional protocol-prefixed) domain variants. */
+export function siteDomainFindManyWhere(domain: string): { OR: Array<{ domain: string }> } {
+  return { OR: siteDomainLookupVariants(domain).map((value) => ({ domain: value })) };
+}
