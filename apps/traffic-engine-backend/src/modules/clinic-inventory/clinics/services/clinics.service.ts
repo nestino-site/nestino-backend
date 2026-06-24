@@ -288,7 +288,14 @@ export class ClinicsService {
         }
       } catch (error) {
         result.failed++;
-        const message = error instanceof Error ? error.message : String(error);
+        let message: string;
+        if (error instanceof Error) {
+          message = error.message;
+        } else if (typeof error === 'object' && error !== null) {
+          message = JSON.stringify(error);
+        } else {
+          message = String(error);
+        }
         result.failures.push({ clinicId, error: message });
         this.logger.error({ msg: 'clinic_photo_backfill_failed', clinicId, error: message });
       }

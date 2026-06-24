@@ -105,8 +105,15 @@ export class ClinicPhotoCdnService {
       return cdnUrl;
     } catch (error) {
       const axiosStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const axiosBody = axios.isAxiosError(error)
+        ? (typeof error.response?.data === 'string'
+          ? error.response.data.slice(0, 200)
+          : JSON.stringify(error.response?.data)?.slice(0, 200))
+        : undefined;
       const message = error instanceof Error ? error.message : String(error);
-      const detail = axiosStatus ? `HTTP ${axiosStatus}: ${message}` : message;
+      const detail = axiosStatus
+        ? `HTTP ${axiosStatus}${axiosBody ? `: ${axiosBody}` : ''}: ${message}`
+        : message;
       this.logger.error({ msg: 'clinic_photo_cdn_failed', clinicId, error: detail });
       throw new Error(detail);
     }
@@ -130,7 +137,10 @@ export class ClinicPhotoCdnService {
         },
         (error, result) => {
           if (error || !result) {
-            reject(error ?? new Error('cloudinary upload returned no result'));
+            const err = error instanceof Error
+              ? error
+              : new Error(error ? JSON.stringify(error) : 'cloudinary upload returned no result');
+            reject(err);
           } else {
             resolve(result.secure_url);
           }
