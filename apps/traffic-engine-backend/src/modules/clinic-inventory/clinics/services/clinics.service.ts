@@ -130,6 +130,7 @@ export class ClinicsService {
       openingHours: dto.openingHours as Prisma.InputJsonValue | undefined,
       googlePhotos: dto.googlePhotos as Prisma.InputJsonValue | undefined,
       googleReviews: dto.googleReviews as Prisma.InputJsonValue | undefined,
+      sourcePayload: dto.sourcePayload as Prisma.InputJsonValue | undefined,
     } as Prisma.ClinicUncheckedCreateInput;
     try {
       return await this.prisma.clinic.create({
@@ -154,6 +155,7 @@ export class ClinicsService {
       openingHours: dto.openingHours as Prisma.InputJsonValue | undefined,
       googlePhotos: dto.googlePhotos as Prisma.InputJsonValue | undefined,
       googleReviews: dto.googleReviews as Prisma.InputJsonValue | undefined,
+      sourcePayload: dto.sourcePayload as Prisma.InputJsonValue | undefined,
     } as Prisma.ClinicUncheckedUpdateInput;
     return this.prisma.clinic.update({
       where: { id },

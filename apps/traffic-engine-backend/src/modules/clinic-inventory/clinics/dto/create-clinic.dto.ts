@@ -134,6 +134,11 @@ export class CreateClinicDto {
   @IsOptional()
   @IsArray()
   declare googleReviews?: Record<string, unknown>[];
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  @IsOptional()
+  @IsObject()
+  declare sourcePayload?: Record<string, unknown>;
 }
 
 export class UpdateClinicDto extends PartialType(CreateClinicDto) {}
