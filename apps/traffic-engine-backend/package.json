@@ -50,6 +50,7 @@
     "ioredis": "^5.4.1",
     "jose": "5.9.6",
     "markdown-it": "^14.1.1",
+    "openai": "^6.44.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.34.5",

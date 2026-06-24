@@ -7,6 +7,7 @@ import { InterviewsModule } from './interviews/interviews.module';
 import { TruthScoreModule } from './truth-score/truth-score.module';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { ClinicPublishModule } from './clinic-publish.module';
+import { ClinicEnrichmentModule } from './clinics/enrichment/clinic-enrichment.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ClinicPublishModule } from './clinic-publish.module';
     InterviewsModule,
     TruthScoreModule,
     DiscoveryModule,
+    ClinicEnrichmentModule,
   ],
   exports: [
     GeoModule,
