@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, ConflictException, Optional } from '@nestjs/common';
+import {
+  Injectable, Logger, NotFoundException, ConflictException, Optional, ServiceUnavailableException,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { CreateClinicDto } from '../dto/create-clinic.dto';
@@ -213,6 +215,74 @@ export class ClinicsService {
     // (scripts/backfill-clinic-photo-cdn.ts) to migrate all clinic photos to CDN.
     this.logger.warn({ msg: 'clinic_photo_not_on_cdn', clinicId: id });
     throw new NotFoundException(`Photo not yet on CDN for clinic ${id}`);
+  }
+
+  async backfillPhotosToCdn(options?: { ids?: number[]; limit?: number }): Promise<{
+    cloudinaryConfigured: boolean;
+    processed: number;
+    uploaded: number;
+    skipped: number;
+    failed: number;
+    failures: Array<{ clinicId: number; error: string }>;
+  }> {
+    const cloudinaryConfigured = !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
+    if (!this.clinicPhotoCdn) {
+      throw new ServiceUnavailableException('ClinicPhotoCdnService is not available');
+    }
+    if (!cloudinaryConfigured) {
+      throw new ServiceUnavailableException(
+        'CLOUDINARY_URL is not configured on the server. Set it in Railway variables and redeploy.',
+      );
+    }
+
+    let clinicIds = options?.ids?.filter((id) => id > 0) ?? [];
+    if (clinicIds.length === 0) {
+      const clinics = await this.prisma.clinic.findMany({
+        where: { status: 'PUBLISHED' },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        ...(options?.limit ? { take: options.limit } : {}),
+      });
+      clinicIds = clinics.map((c) => c.id);
+    } else if (options?.limit) {
+      clinicIds = clinicIds.slice(0, options.limit);
+    }
+
+    const result = {
+      cloudinaryConfigured,
+      processed: 0,
+      uploaded: 0,
+      skipped: 0,
+      failed: 0,
+      failures: [] as Array<{ clinicId: number; error: string }>,
+    };
+
+    for (const clinicId of clinicIds) {
+      result.processed++;
+      try {
+        const before = await this.prisma.clinic.findUnique({
+          where: { id: clinicId },
+          select: { heroImageUrl: true },
+        });
+        const hadCloudinary = /res\.cloudinary\.com/i.test(before?.heroImageUrl ?? '');
+
+        const cdnUrl = await this.clinicPhotoCdn.ensureClinicPhotoOnCdn(clinicId);
+        if (cdnUrl && /res\.cloudinary\.com/i.test(cdnUrl)) {
+          if (hadCloudinary) result.skipped++;
+          else result.uploaded++;
+        } else {
+          result.skipped++;
+        }
+      } catch (error) {
+        result.failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        result.failures.push({ clinicId, error: message });
+        this.logger.error({ msg: 'clinic_photo_backfill_failed', clinicId, error: message });
+      }
+    }
+
+    this.logger.log({ msg: 'clinic_photo_backfill_complete', ...result, failures: undefined });
+    return result;
   }
 
   async publish(id: number) {

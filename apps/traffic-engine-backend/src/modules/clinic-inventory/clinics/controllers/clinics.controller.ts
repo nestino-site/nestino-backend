@@ -75,6 +75,19 @@ export class ClinicsController {
     return this.clinics.update(id, dto);
   }
 
+  @Post('clinics/backfill-photos')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Upload clinic Google photos to Cloudinary (admin batch)',
+    description:
+      'Requires CLOUDINARY_URL on the server. Migrates published clinic photos to Cloudinary and updates heroImageUrl.',
+  })
+  backfillClinicPhotos(
+    @Body() body: { ids?: number[]; limit?: number } = {},
+  ) {
+    return this.clinics.backfillPhotosToCdn(body);
+  }
+
   @Post('clinics/:id/publish')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Publish clinic (admin)' })
