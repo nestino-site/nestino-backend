@@ -3,7 +3,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import axios from 'axios';
 import sharp from 'sharp';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { resolveClinicPhotoRedirectUrl } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
+import { resolveClinicPhotoRedirectUrl, parseGooglePhotoRef } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
 
 function isCloudinaryConfigured(): boolean {
   return !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
@@ -57,6 +57,9 @@ export class ClinicPhotoCdnService {
 
     const sourceUrl = resolveClinicPhotoRedirectUrl(clinic);
     if (!sourceUrl) {
+      if (parseGooglePhotoRef(clinic.googlePhotos)) {
+        throw new Error('Cannot build Google photo URL (GOOGLE_PLACES_API_KEY missing or invalid photo ref)');
+      }
       return existing ?? null;
     }
 
@@ -65,6 +68,7 @@ export class ClinicPhotoCdnService {
         responseType: 'arraybuffer',
         timeout: 20_000,
         maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 400,
       });
 
       const webpBuffer = await sharp(Buffer.from(imageRes.data))
@@ -100,10 +104,11 @@ export class ClinicPhotoCdnService {
       this.logger.log({ msg: 'clinic_photo_cdn_uploaded', clinicId, cdnUrl });
       return cdnUrl;
     } catch (error) {
+      const axiosStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
       const message = error instanceof Error ? error.message : String(error);
-      // Log as error (not warn) so this surfaces in monitoring dashboards.
-      this.logger.error({ msg: 'clinic_photo_cdn_failed', clinicId, error: message });
-      return null;
+      const detail = axiosStatus ? `HTTP ${axiosStatus}: ${message}` : message;
+      this.logger.error({ msg: 'clinic_photo_cdn_failed', clinicId, error: detail });
+      throw new Error(detail);
     }
   }
 

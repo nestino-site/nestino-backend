@@ -75,7 +75,7 @@ export function resolveClinicPhotoRedirectUrl(clinic: ClinicPhotoSource): string
   );
 }
 
-function parseGooglePhotoRef(
+export function parseGooglePhotoRef(
   raw: unknown,
 ): { kind: 'photo_reference' | 'name'; value: string } | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;

@@ -284,10 +284,7 @@ export class ClinicsService {
           result.skipped++;
         } else {
           result.failed++;
-          result.failures.push({
-            clinicId,
-            error: 'Google photo fetch or Cloudinary upload failed (check server logs)',
-          });
+          result.failures.push({ clinicId, error: 'No CDN URL returned' });
         }
       } catch (error) {
         result.failed++;
