@@ -45,7 +45,14 @@ export class ClinicPhotoCdnService {
     }
 
     if (!isCloudinaryConfigured()) {
-      return existing ?? null;
+      // Surface this clearly — a silent no-op here means every published clinic
+      // falls back to the paid Google Places Photo proxy on every page request.
+      this.logger.error({
+        msg: 'clinic_photo_cdn_misconfigured',
+        clinicId,
+        detail: 'CLOUDINARY_URL is not set or invalid. Set it to cloudinary://<api_key>:<api_secret>@<cloud_name>. Until fixed, clinic photos cannot be migrated to CDN and the photo proxy will return 404.',
+      });
+      return null;
     }
 
     const sourceUrl = resolveClinicPhotoRedirectUrl(clinic);
@@ -94,8 +101,9 @@ export class ClinicPhotoCdnService {
       return cdnUrl;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn({ msg: 'clinic_photo_cdn_failed', clinicId, error: message });
-      return existing ?? null;
+      // Log as error (not warn) so this surfaces in monitoring dashboards.
+      this.logger.error({ msg: 'clinic_photo_cdn_failed', clinicId, error: message });
+      return null;
     }
   }
 

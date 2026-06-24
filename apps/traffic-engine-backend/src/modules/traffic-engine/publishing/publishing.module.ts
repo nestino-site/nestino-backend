@@ -24,6 +24,6 @@ import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
     ClinicWebhookHandlerService,
   ],
   controllers: [ClinicWebhookController],
-  exports: [PublishService, PageHeroCdnService, WebhookDeliveryService, ClinicWebhookHandlerService],
+  exports: [PublishService, PageHeroCdnService, WebhookDeliveryService, ClinicWebhookHandlerService, ClinicPhotoCdnService],
 })
 export class PublishingModule {}

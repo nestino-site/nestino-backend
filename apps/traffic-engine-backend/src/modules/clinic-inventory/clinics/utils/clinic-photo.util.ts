@@ -20,25 +20,29 @@ export function clinicPhotoProxyUrl(clinicId: number): string {
   return `${getApiPublicBaseUrl()}/api/v1/clinics/${clinicId}/photo`;
 }
 
-/** Prefer Cloudinary / stored media URLs; fall back to the API photo proxy. */
+/**
+ * Returns the display URL for a clinic photo.
+ *
+ * Only returns Cloudinary / stored media URLs — never the API photo proxy.
+ * The proxy hit is a paid Google Places Photo API call; photo URLs must be
+ * migrated to Cloudinary via ClinicPhotoCdnService before display.
+ */
 export function resolveClinicPhotoDisplayUrl(clinic: ClinicPhotoSource): string | null {
   const mediaUrl = clinic.media?.[0]?.url?.trim();
-  if (mediaUrl) return mediaUrl;
+  if (mediaUrl && /res\.cloudinary\.com/i.test(mediaUrl)) return mediaUrl;
 
   const hero = clinic.heroImageUrl?.trim();
-  if (hero) return hero;
-
-  if (parseGooglePhotoRef(clinic.googlePhotos) != null) {
-    return clinicPhotoProxyUrl(clinic.id);
-  }
+  if (hero && /res\.cloudinary\.com/i.test(hero)) return hero;
 
   return null;
 }
 
 export function clinicHasPhoto(clinic: ClinicPhotoSource): boolean {
-  if (clinic.heroImageUrl?.trim()) return true;
-  if (clinic.media?.[0]?.url?.trim()) return true;
-  return parseGooglePhotoRef(clinic.googlePhotos) != null;
+  const hero = clinic.heroImageUrl?.trim();
+  if (hero && /res\.cloudinary\.com/i.test(hero)) return true;
+  const mediaUrl = clinic.media?.[0]?.url?.trim();
+  if (mediaUrl && /res\.cloudinary\.com/i.test(mediaUrl)) return true;
+  return false;
 }
 
 export function resolveClinicPhotoRedirectUrl(clinic: ClinicPhotoSource): string | null {

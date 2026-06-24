@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { ClinicsService } from '../services/clinics.service';
 import { CreateClinicDto, UpdateClinicDto } from '../dto/create-clinic.dto';
 import { ListClinicsDto } from '../dto/list-clinics.dto';
@@ -17,20 +18,26 @@ export class ClinicsController {
 
   @Get('clinics')
   @Public()
+  @SkipThrottle()
   @ApiOperation({ summary: 'List published clinics (cursor-paginated)' })
   listClinics(@Query() query: ListClinicsDto) {
     return this.clinics.listClinics(query);
   }
 
+  // Tighter limit on the photo proxy: max 30 requests per minute per IP.
+  // Each successful response is a Cloudinary 302 redirect (free), but this
+  // guards against bots driving high request volume.
   @Get('clinics/:id/photo')
   @Public()
-  @ApiOperation({ summary: 'Stream clinic primary photo (CDN redirect or Google proxy)' })
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @ApiOperation({ summary: 'Stream clinic primary photo (CDN redirect)' })
   async clinicPhoto(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     await this.clinics.streamPrimaryPhoto(id, res);
   }
 
   @Get('clinics/:identifier')
   @Public()
+  @SkipThrottle()
   @ApiOperation({ summary: 'Get clinic by slug or numeric id' })
   getClinic(@Param('identifier') identifier: string) {
     return this.clinics.findBySlugOrId(identifier);

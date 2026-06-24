@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, Optional } from '@nestjs/common';
-import axios from 'axios';
+import { Injectable, Logger, NotFoundException, ConflictException, Optional } from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { CreateClinicDto } from '../dto/create-clinic.dto';
@@ -9,6 +8,7 @@ import { CreatePricingPackageDto } from '../dto/create-pricing-package.dto';
 import { ClinicStatus, Prisma } from '@prisma/client';
 import { TreatmentSlugGuard } from '../../../../common/guards/treatment-slug.guard';
 import { ClinicPublishBridge } from '../../clinic-publish.bridge';
+import { ClinicPhotoCdnService } from '../../../traffic-engine/publishing/clinic-photo-cdn.service';
 import { resolveClinicPhotoRedirectUrl } from '../utils/clinic-photo.util';
 
 function slugify(name: string): string {
@@ -33,10 +33,13 @@ const CLINIC_DETAIL_INCLUDE = {
 
 @Injectable()
 export class ClinicsService {
+  private readonly logger = new Logger(ClinicsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly treatmentSlugGuard: TreatmentSlugGuard,
     @Optional() private readonly publishing?: ClinicPublishBridge,
+    @Optional() private readonly clinicPhotoCdn?: ClinicPhotoCdnService,
   ) {}
 
   // ── List / Search ──────────────────────────────────────────────────────────
@@ -179,34 +182,37 @@ export class ClinicsService {
   }
 
   async streamPrimaryPhoto(id: number, res: Response): Promise<void> {
-    const url = await this.getPrimaryPhotoRedirectUrl(id);
+    let url = await this.getPrimaryPhotoRedirectUrl(id);
     if (!url) {
       throw new NotFoundException(`No photo available for clinic ${id}`);
     }
 
-    const isEmbeddableCdn = /res\.cloudinary\.com/i.test(url);
-
-    if (isEmbeddableCdn) {
+    if (/res\.cloudinary\.com/i.test(url)) {
       res.redirect(302, url);
       return;
     }
 
-    const imageRes = await axios.get<ArrayBuffer>(url, {
-      responseType: 'arraybuffer',
-      timeout: 20_000,
-      maxRedirects: 5,
-    });
+    // The resolved URL points to a Google Places Photo API endpoint.
+    // Proxying it on every request causes unbounded billed API calls.
+    // Attempt a one-time migration to Cloudinary instead.
+    if (this.clinicPhotoCdn) {
+      try {
+        const cdnUrl = await this.clinicPhotoCdn.ensureClinicPhotoOnCdn(id);
+        if (cdnUrl && /res\.cloudinary\.com/i.test(cdnUrl)) {
+          res.redirect(302, cdnUrl);
+          return;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn({ msg: 'clinic_photo_cdn_migration_failed_in_proxy', clinicId: id, error: message });
+      }
+    }
 
-    const contentType =
-      typeof imageRes.headers['content-type'] === 'string'
-        ? imageRes.headers['content-type']
-        : 'image/jpeg';
-
-    res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Origin', '*');
-    res.send(Buffer.from(imageRes.data));
+    // CDN migration unavailable or failed — do NOT fall through to a live Google
+    // fetch. Return 404 so no billed API calls are made. Run the backfill script
+    // (scripts/backfill-clinic-photo-cdn.ts) to migrate all clinic photos to CDN.
+    this.logger.warn({ msg: 'clinic_photo_not_on_cdn', clinicId: id });
+    throw new NotFoundException(`Photo not yet on CDN for clinic ${id}`);
   }
 
   async publish(id: number) {

@@ -50,7 +50,7 @@ async function uploadToCloudinary(buffer: Buffer, clinicId: number): Promise<str
   });
 }
 
-async function backfillClinic(clinicId: number): Promise<void> {
+async function backfillClinic(clinicId: number): Promise<'done' | 'skip' | 'error'> {
   const clinic = await prisma.clinic.findUnique({
     where: { id: clinicId },
     select: {
@@ -65,58 +65,65 @@ async function backfillClinic(clinicId: number): Promise<void> {
 
   if (!clinic) {
     console.log(`clinic ${clinicId}: not found`);
-    return;
+    return 'skip';
   }
 
   const existing = clinic.heroImageUrl?.trim() || clinic.media[0]?.url?.trim();
   if (existing && isCloudinaryUrl(existing)) {
-    console.log(`clinic ${clinicId} (${clinic.name}): already on CDN — ${existing}`);
-    return;
+    console.log(`clinic ${clinicId} (${clinic.name}): already on CDN — skip`);
+    return 'skip';
   }
 
   const sourceUrl = resolveClinicPhotoRedirectUrl(clinic);
   if (!sourceUrl) {
-    console.log(`clinic ${clinicId} (${clinic.name}): no Google photo — skip`);
-    return;
+    console.log(`clinic ${clinicId} (${clinic.name}): no photo source — skip`);
+    return 'skip';
   }
 
-  const imageRes = await axios.get<ArrayBuffer>(sourceUrl, {
-    responseType: 'arraybuffer',
-    timeout: 20_000,
-    maxRedirects: 5,
-  });
-
-  const webpBuffer = await sharp(Buffer.from(imageRes.data))
-    .resize({ width: 800, height: 534, fit: 'cover', withoutEnlargement: true })
-    .webp({ quality: 82 })
-    .toBuffer();
-
-  const cdnUrl = await uploadToCloudinary(webpBuffer, clinicId);
-
-  await prisma.clinic.update({
-    where: { id: clinicId },
-    data: { heroImageUrl: cdnUrl },
-  });
-
-  const primaryMedia = clinic.media[0];
-  if (primaryMedia) {
-    await prisma.clinicMedia.update({
-      where: { id: primaryMedia.id },
-      data: { url: cdnUrl, isPrimary: true, kind: 'PHOTO' },
+  try {
+    const imageRes = await axios.get<ArrayBuffer>(sourceUrl, {
+      responseType: 'arraybuffer',
+      timeout: 20_000,
+      maxRedirects: 5,
     });
-  } else {
-    await prisma.clinicMedia.create({
-      data: {
-        clinicId,
-        url: cdnUrl,
-        isPrimary: true,
-        kind: 'PHOTO',
-        displayOrder: 0,
-      },
+
+    const webpBuffer = await sharp(Buffer.from(imageRes.data))
+      .resize({ width: 800, height: 534, fit: 'cover', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+
+    const cdnUrl = await uploadToCloudinary(webpBuffer, clinicId);
+
+    await prisma.clinic.update({
+      where: { id: clinicId },
+      data: { heroImageUrl: cdnUrl },
     });
+
+    const primaryMedia = clinic.media[0];
+    if (primaryMedia) {
+      await prisma.clinicMedia.update({
+        where: { id: primaryMedia.id },
+        data: { url: cdnUrl, isPrimary: true, kind: 'PHOTO' },
+      });
+    } else {
+      await prisma.clinicMedia.create({
+        data: {
+          clinicId,
+          url: cdnUrl,
+          isPrimary: true,
+          kind: 'PHOTO',
+          displayOrder: 0,
+        },
+      });
+    }
+
+    console.log(`clinic ${clinicId} (${clinic.name}): uploaded → ${cdnUrl}`);
+    return 'done';
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`clinic ${clinicId} (${clinic.name}): ERROR — ${message}`);
+    return 'error';
   }
-
-  console.log(`clinic ${clinicId} (${clinic.name}): uploaded → ${cdnUrl}`);
 }
 
 async function main(): Promise<void> {
@@ -133,31 +140,38 @@ async function main(): Promise<void> {
     .map((id) => Number(id))
     .filter((id) => Number.isInteger(id) && id > 0);
 
+  let clinicIds: number[];
+
   if (ids.length > 0) {
-    for (const clinicId of ids) {
-      await backfillClinic(clinicId);
+    clinicIds = ids;
+  } else {
+    // Query ALL published clinics — the per-clinic check skips ones already on Cloudinary.
+    // Previously this only fetched clinics with a null heroImageUrl, missing clinics whose
+    // heroImageUrl was set to a non-Cloudinary URL (e.g. a stale Google redirect URL).
+    const clinics = await prisma.clinic.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+
+    if (clinics.length === 0) {
+      console.log('No published clinics found.');
+      return;
     }
-    return;
+    clinicIds = clinics.map((c) => c.id);
   }
 
-  const clinics = await prisma.clinic.findMany({
-    where: {
-      status: 'PUBLISHED',
-      OR: [{ heroImageUrl: null }, { heroImageUrl: '' }],
-      googlePhotos: { not: null },
-    },
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
+  console.log(`Processing ${clinicIds.length} clinic(s)...`);
+  const stats = { done: 0, skip: 0, error: 0 };
 
-  if (clinics.length === 0) {
-    console.log('No clinics need backfill.');
-    return;
+  for (const clinicId of clinicIds) {
+    const result = await backfillClinic(clinicId);
+    stats[result]++;
   }
 
-  console.log(`Backfilling ${clinics.length} clinic(s)...`);
-  for (const clinic of clinics) {
-    await backfillClinic(clinic.id);
+  console.log(`\nDone. uploaded=${stats.done}  skipped=${stats.skip}  errors=${stats.error}`);
+  if (stats.error > 0) {
+    process.exitCode = 1;
   }
 }
 
