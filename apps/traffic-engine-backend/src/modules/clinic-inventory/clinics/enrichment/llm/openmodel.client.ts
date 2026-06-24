@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { LlmClient, LlmJsonRequest } from './llm-client.interface';
 
 interface OpenModelMessageBlock {
@@ -18,8 +18,11 @@ interface OpenModelMessagesResponse {
  * deepseek-v4-flash is NOT available on /v1/chat/completions — OpenModel routes
  * it through POST /v1/messages instead.
  *
- * Required env vars:
- *   OPENMODEL_API_KEY     — secret key for OpenModel
+ * The API key is validated lazily on first enrichment call so the app can boot
+ * without OPENMODEL_API_KEY (enrichment endpoint returns 503 until configured).
+ *
+ * Env vars:
+ *   OPENMODEL_API_KEY     — required to call enrichment
  *   OPENMODEL_BASE_URL    — e.g. https://api.openmodel.ai/v1
  *   OPENMODEL_MODEL       — e.g. deepseek-v4-flash
  *   OPENMODEL_TIMEOUT_MS  — optional, defaults to 90 000 ms
@@ -27,27 +30,41 @@ interface OpenModelMessagesResponse {
 @Injectable()
 export class OpenModelClient implements LlmClient {
   private readonly logger = new Logger(OpenModelClient.name);
-  private readonly apiKey: string;
   private readonly messagesUrl: string;
   private readonly model: string;
   private readonly timeoutMs: number;
+  private warnedMissingKey = false;
 
   constructor() {
-    const apiKey = process.env.OPENMODEL_API_KEY;
-    if (!apiKey) {
-      throw new InternalServerErrorException(
-        'OPENMODEL_API_KEY is not configured. Set it in your .env file before using clinic enrichment.',
-      );
-    }
-
     const baseURL = (process.env.OPENMODEL_BASE_URL ?? 'https://api.openmodel.ai/v1').replace(/\/+$/, '');
-    this.apiKey = apiKey;
     this.messagesUrl = baseURL.endsWith('/v1') ? `${baseURL}/messages` : `${baseURL}/v1/messages`;
     this.model = process.env.OPENMODEL_MODEL ?? 'deepseek-v4-flash';
     this.timeoutMs = Number(process.env.OPENMODEL_TIMEOUT_MS ?? 90_000);
+
+    if (!process.env.OPENMODEL_API_KEY?.trim()) {
+      this.logger.warn(
+        'OPENMODEL_API_KEY is not set — clinic enrichment (POST /clinics/:id/enrich) will return 503 until configured.',
+      );
+    }
+  }
+
+  private requireApiKey(): string {
+    const apiKey = process.env.OPENMODEL_API_KEY?.trim();
+    if (!apiKey) {
+      if (!this.warnedMissingKey) {
+        this.warnedMissingKey = true;
+        this.logger.error('OPENMODEL_API_KEY is missing — enrichment request rejected.');
+      }
+      throw new ServiceUnavailableException(
+        'OPENMODEL_API_KEY is not configured. Add it to your environment variables to use clinic enrichment.',
+      );
+    }
+    return apiKey;
   }
 
   async completeJson(request: LlmJsonRequest): Promise<string> {
+    const apiKey = this.requireApiKey();
+
     this.logger.debug({ msg: 'openmodel_request', model: this.model, url: this.messagesUrl });
 
     const controller = new AbortController();
@@ -57,7 +74,7 @@ export class OpenModelClient implements LlmClient {
       const res = await fetch(this.messagesUrl, {
         method: 'POST',
         headers: {
-          'x-api-key': this.apiKey,
+          'x-api-key': apiKey,
           'content-type': 'application/json',
           'anthropic-version': '2023-06-01',
         },
