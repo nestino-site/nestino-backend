@@ -1,4 +1,6 @@
 import { Inject, Injectable, Logger, BadGatewayException } from '@nestjs/common';
+import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { ClinicsService } from '../services/clinics.service';
 import {
   ClinicEnrichmentInput,
   ClinicEnrichmentResult,
@@ -6,12 +8,24 @@ import {
 } from './clinic-enrichment.types';
 import { buildEnrichmentSystemPrompt, buildEnrichmentUserPrompt } from './clinic-enrichment.prompt';
 import { LlmClient, LLM_CLIENT } from './llm/llm-client.interface';
+import { buildApplyData } from './clinic-enrichment.mapper';
+
+export interface EnrichAndPublishResult {
+  clinicId: number;
+  enrichment: ClinicEnrichmentResult;
+  published: boolean;
+  appliedAt: string;
+}
 
 @Injectable()
 export class ClinicEnrichmentService {
   private readonly logger = new Logger(ClinicEnrichmentService.name);
 
-  constructor(@Inject(LLM_CLIENT) private readonly llm: LlmClient) {}
+  constructor(
+    @Inject(LLM_CLIENT) private readonly llm: LlmClient,
+    private readonly prisma: PrismaService,
+    private readonly clinics: ClinicsService,
+  ) {}
 
   async enrich(input: ClinicEnrichmentInput): Promise<ClinicEnrichmentResult> {
     this.logger.log({
@@ -32,7 +46,6 @@ export class ClinicEnrichmentService {
       throw new BadGatewayException(`LLM call failed for clinic enrichment: ${message}`);
     }
 
-    // Strip accidental markdown fences the model may still emit despite instructions
     const cleaned = rawJson
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```\s*$/i, '')
@@ -72,5 +85,38 @@ export class ClinicEnrichmentService {
     });
 
     return validation.data;
+  }
+
+  async applyToClinic(clinicId: number, result: ClinicEnrichmentResult): Promise<void> {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { sourcePayload: true },
+    });
+    if (!clinic) {
+      throw new BadGatewayException(`Clinic ${clinicId} not found`);
+    }
+
+    await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: buildApplyData(clinic.sourcePayload, result),
+    });
+
+    this.logger.log({ msg: 'clinic_enrichment_applied', clinicId });
+  }
+
+  async enrichAndPublish(
+    input: ClinicEnrichmentInput,
+    clinicId: number,
+  ): Promise<EnrichAndPublishResult> {
+    const enrichment = await this.enrich(input);
+    await this.applyToClinic(clinicId, enrichment);
+    await this.clinics.publish(clinicId);
+
+    return {
+      clinicId,
+      enrichment,
+      published: true,
+      appliedAt: new Date().toISOString(),
+    };
   }
 }

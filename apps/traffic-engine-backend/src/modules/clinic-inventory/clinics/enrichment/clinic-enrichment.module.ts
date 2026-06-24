@@ -22,5 +22,6 @@ import { LLM_CLIENT } from './llm/llm-client.interface';
       useClass: OpenModelClient,
     },
   ],
+  exports: [ClinicEnrichmentService],
 })
 export class ClinicEnrichmentModule {}

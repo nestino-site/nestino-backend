@@ -4,6 +4,8 @@ import {
   clinicHasPhoto,
   resolveClinicPhotoDisplayUrl,
 } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
+import { readAiEnrichment } from '../../clinic-inventory/clinics/enrichment/clinic-enrichment.mapper';
+import type { LocalFaq } from '../../clinic-inventory/clinics/enrichment/clinic-enrichment.types';
 
 export const CLINIC_DIRECTORY_START = '<!-- CLINIC_DIRECTORY_START -->';
 export const CLINIC_DIRECTORY_END = '<!-- CLINIC_DIRECTORY_END -->';
@@ -35,6 +37,7 @@ export interface ClinicDetailData extends ClinicListItem {
   doctors?: Array<{ name: string; title?: string | null; specialties?: string[] }>;
   longDescription?: string | null;
   shortDescription?: string | null;
+  sourcePayload?: unknown;
 }
 
 function slugify(value: string): string {
@@ -161,8 +164,13 @@ export class ClinicPageContentBuilder {
       `${treatmentLabel} clinic in ${cityName}, ${countryName}.`,
     ];
 
-    const summary = clinic.editorialSummary ?? clinic.shortDescription ?? clinic.longDescription;
-    if (summary) {
+    const aiEnrichment = readAiEnrichment(clinic.sourcePayload);
+    const overview = clinic.longDescription?.trim();
+    const summary = clinic.editorialSummary ?? clinic.shortDescription;
+
+    if (overview) {
+      lines.push('', overview);
+    } else if (summary) {
       lines.push('', summary.trim());
     }
 
@@ -180,6 +188,16 @@ export class ClinicPageContentBuilder {
 
     if (treatments.length) {
       lines.push('', '## Treatments Offered', treatments.join(', '));
+    } else if (aiEnrichment?.services?.length) {
+      lines.push('', '## Treatments Offered', aiEnrichment.services.join(', '));
+    }
+
+    const faqs: LocalFaq[] = aiEnrichment?.localFaqs ?? [];
+    if (faqs.length) {
+      lines.push('', '## Frequently Asked Questions');
+      for (const faq of faqs) {
+        lines.push('', `### ${faq.question}`, '', faq.answer);
+      }
     }
 
     const hours = parseOpeningHours(clinic.openingHours);

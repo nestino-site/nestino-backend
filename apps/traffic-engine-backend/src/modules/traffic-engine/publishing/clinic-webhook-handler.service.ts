@@ -13,6 +13,7 @@ import {
   ClinicListItem,
   ClinicPageContentBuilder,
 } from './clinic-page-content.builder';
+import { readAiEnrichment } from '../../clinic-inventory/clinics/enrichment/clinic-enrichment.mapper';
 import { ClinicPhotoCdnService } from './clinic-photo-cdn.service';
 import { PublishService } from './publish.service';
 import { resolveClinicPhotoDisplayUrl } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
@@ -272,6 +273,41 @@ export class ClinicWebhookHandlerService {
       specParts.length === 4 &&
       specParts[0] === 'clinics' &&
       !isTreatmentSlug(specParts[3], treatmentSlugSetForSeo);
+
+    let metaTitle = spec.metaTitle;
+    let metaDescription = spec.metaDescription;
+    let faqSchema: object | undefined;
+
+    if (isPdpSpec) {
+      const clinicRecord = await this.prisma.clinic.findUnique({
+        where: { id: payload.clinicId },
+        select: { sourcePayload: true, shortDescription: true },
+      });
+      const aiEnrichment = readAiEnrichment(clinicRecord?.sourcePayload);
+      if (aiEnrichment?.seoMeta?.title) {
+        metaTitle = aiEnrichment.seoMeta.title;
+      }
+      if (aiEnrichment?.seoMeta?.description) {
+        metaDescription = aiEnrichment.seoMeta.description;
+      } else if (clinicRecord?.shortDescription) {
+        metaDescription = clinicRecord.shortDescription;
+      }
+      if (aiEnrichment?.localFaqs?.length) {
+        faqSchema = {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: aiEnrichment.localFaqs.map((faq) => ({
+            '@type': 'Question',
+            name: faq.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: faq.answer,
+            },
+          })),
+        };
+      }
+    }
+
     let interviewCount: number | undefined;
     if (isPdpSpec) {
       const score = await this.prisma.clinicTruthScore.findUnique({
@@ -284,14 +320,21 @@ export class ClinicWebhookHandlerService {
     const seo = await this.pageSeoEnricher.enrich({
       slug: spec.slug,
       title: spec.title,
-      metaTitle: spec.metaTitle,
-      metaDescription: spec.metaDescription,
+      metaTitle,
+      metaDescription,
       siteDomain: site?.domain ?? DEFAULT_CLINIC_SITE_DOMAIN,
       interviewCount,
       googleRating: payload.googleRating,
       googleReviewCount: payload.googleReviewCount,
-      heroAnswer: spec.metaDescription,
+      heroAnswer: metaDescription,
     });
+
+    const schemaMarkup = faqSchema
+      ? {
+          '@context': 'https://schema.org',
+          '@graph': [seo.schemaMarkup, faqSchema].filter(Boolean),
+        }
+      : seo.schemaMarkup;
 
     let page;
     if (existingPage) {
@@ -301,7 +344,7 @@ export class ClinicWebhookHandlerService {
           title: spec.title,
           metaTitle: seo.metaTitle,
           metaDescription: seo.metaDescription,
-          schemaMarkup: seo.schemaMarkup,
+          schemaMarkup,
           pageType: seo.pageType,
           entities: seo.entities,
           contentBlocks: seo.contentBlocks,
@@ -320,7 +363,7 @@ export class ClinicWebhookHandlerService {
           title: spec.title,
           metaTitle: seo.metaTitle,
           metaDescription: seo.metaDescription,
-          schemaMarkup: seo.schemaMarkup,
+          schemaMarkup,
           pageType: seo.pageType,
           entities: seo.entities,
           contentBlocks: seo.contentBlocks,
@@ -372,6 +415,7 @@ export class ClinicWebhookHandlerService {
             openingHours: true,
             shortDescription: true,
             longDescription: true,
+            sourcePayload: true,
             city: { select: { slug: true, name: true, country: { select: { name: true, codeIso2: true } } } },
             country: { select: { name: true, codeIso2: true } },
             media: { where: { isPrimary: true }, take: 1, select: { url: true } },
