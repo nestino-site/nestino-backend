@@ -219,6 +219,7 @@ export class ClinicsService {
 
   async backfillPhotosToCdn(options?: { ids?: number[]; limit?: number }): Promise<{
     cloudinaryConfigured: boolean;
+    googlePlacesConfigured: boolean;
     processed: number;
     uploaded: number;
     skipped: number;
@@ -226,12 +227,18 @@ export class ClinicsService {
     failures: Array<{ clinicId: number; error: string }>;
   }> {
     const cloudinaryConfigured = !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
+    const googlePlacesConfigured = !!process.env.GOOGLE_PLACES_API_KEY?.trim();
     if (!this.clinicPhotoCdn) {
       throw new ServiceUnavailableException('ClinicPhotoCdnService is not available');
     }
     if (!cloudinaryConfigured) {
       throw new ServiceUnavailableException(
         'CLOUDINARY_URL is not configured on the server. Set it in Railway variables and redeploy.',
+      );
+    }
+    if (!googlePlacesConfigured) {
+      throw new ServiceUnavailableException(
+        'GOOGLE_PLACES_API_KEY is not configured on the server. Required to fetch photos for CDN upload.',
       );
     }
 
@@ -250,6 +257,7 @@ export class ClinicsService {
 
     const result = {
       cloudinaryConfigured,
+      googlePlacesConfigured,
       processed: 0,
       uploaded: 0,
       skipped: 0,
@@ -262,7 +270,7 @@ export class ClinicsService {
       try {
         const before = await this.prisma.clinic.findUnique({
           where: { id: clinicId },
-          select: { heroImageUrl: true },
+          select: { heroImageUrl: true, googlePhotos: true },
         });
         const hadCloudinary = /res\.cloudinary\.com/i.test(before?.heroImageUrl ?? '');
 
@@ -270,8 +278,16 @@ export class ClinicsService {
         if (cdnUrl && /res\.cloudinary\.com/i.test(cdnUrl)) {
           if (hadCloudinary) result.skipped++;
           else result.uploaded++;
-        } else {
+        } else if (hadCloudinary) {
           result.skipped++;
+        } else if (!before?.googlePhotos) {
+          result.skipped++;
+        } else {
+          result.failed++;
+          result.failures.push({
+            clinicId,
+            error: 'Google photo fetch or Cloudinary upload failed (check server logs)',
+          });
         }
       } catch (error) {
         result.failed++;
