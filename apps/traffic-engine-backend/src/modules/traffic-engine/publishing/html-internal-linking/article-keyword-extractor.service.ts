@@ -81,10 +81,11 @@ export class ArticleKeywordExtractorService {
 
 Rules:
 - Return ONLY a valid JSON object matching the schema below. No markdown fences, no extra text.
-- Each phrase must be 2–6 words, naturally occurring in the text.
+- Mix of phrase lengths: include 1–2 word short phrases (city names, treatment names, specialties) AND 3–5 word descriptive phrases.
+- Every phrase MUST appear verbatim (or near-verbatim) in the article text — these are used as anchor text.
 - Weight: 5 = primary topic, 4 = major subtopic, 3 = supporting topic, 1–2 = secondary.
-- Prefer specific medical/health phrases over generic words.
-- Do NOT include brand names or URLs.
+- Prioritise: city/location names, medical specialty names, treatment types, condition names.
+- Do NOT include brand names, clinic names, URLs, or phone numbers.
 
 JSON schema:
 {
