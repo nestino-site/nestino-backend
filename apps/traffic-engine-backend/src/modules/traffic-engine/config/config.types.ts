@@ -54,8 +54,14 @@ export interface RuntimeConfig {
   maxRetries: number;
   /** Minimum seo_check score (0–100) required before pipelineStatus READY. Default 50. */
   minSeoCheckScore?: number;
-  /** Enable post–SEO-check internal link injection. Default true. */
+  /** Enable post–SEO-check internal link injection (markdown pipeline). Default true. */
   enableInternalLinking?: boolean;
+  /**
+   * Enable HTML-level internal link injection at publish time via
+   * HtmlInternalLinkingService (cheerio + deepseek-v4-flash).
+   * Default false — flip to true only after Phase 1 QA is confirmed.
+   */
+  enableHtmlInternalLinking?: boolean;
 }
 
 export interface SiteConfigRecord {

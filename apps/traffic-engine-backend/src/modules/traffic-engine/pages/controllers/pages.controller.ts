@@ -37,6 +37,7 @@ import { UpdatePageContentDto } from '../dto/update-page-content.dto';
 import { UpdatePageSlugDto } from '../dto/update-page-slug.dto';
 import { PageKeywordService } from '../services/page-keyword.service';
 import { PagesService } from '../services/pages.service';
+import { HtmlInternalLinkingService } from '../../publishing/html-internal-linking/html-internal-linking.service';
 
 @ApiTags('Pages')
 @ApiBearerAuth('bearer')
@@ -51,6 +52,7 @@ export class PagesController {
     private readonly publishService: PublishService,
     private readonly pageHeroCdn: PageHeroCdnService,
     private readonly imageGeneration: ImageGenerationService,
+    private readonly htmlInternalLinking: HtmlInternalLinkingService,
   ) {}
 
   @Post()
@@ -404,6 +406,36 @@ export class PagesController {
   async publishPage(@ParseIntParam('id') pageId: number) {
     const result = await this.publishService.publishPage(pageId);
     return result;
+  }
+
+  /**
+   * Phase 1 QA: dry-run internal-linking pipeline on a page.
+   *
+   * Renders the page's markdown to HTML (same as publish would), runs the full
+   * deepseek-v4-flash keyword extraction + DB lookup + cheerio injection pipeline
+   * in memory WITHOUT writing anything to the database.
+   *
+   * Returns:
+   *  - extractedKeywords: what deepseek-v4-flash found (or heuristic fallback)
+   *  - candidateTargets: scored published-page matches
+   *  - proposedLinks: the <a> tags that would be injected
+   *  - htmlBefore / htmlAfter: first 2000 chars of HTML for quick visual diff
+   *  - report: full SEO quality report (passed, score, issues, constraint violations…)
+   *
+   * Use this endpoint to validate link quality before setting
+   * runtimeConfig.enableHtmlInternalLinking = true for the site.
+   */
+  @Post(':id/internal-linking/preview')
+  @ApiOperation({
+    summary: 'Dry-run HTML internal linking (Phase 1 QA — no DB write)',
+    description:
+      'Runs the full deepseek-v4-flash + cheerio linking pipeline in memory and returns ' +
+      'a full SEO quality report. Use this before enabling runtimeConfig.enableHtmlInternalLinking.',
+  })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  @ApiResponse({ status: 200, description: 'Preview result with SEO report' })
+  async previewInternalLinking(@ParseIntParam('id') pageId: number) {
+    return this.htmlInternalLinking.preview(pageId);
   }
 
   @Get()

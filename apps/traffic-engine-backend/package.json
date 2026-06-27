@@ -23,7 +23,8 @@
     "test:entity-resolver": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/content-api/seo/entity-resolver.spec.ts",
     "test:gsc-strategist-input": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/modules/traffic-engine/analytics/gsc-strategist-input.builder.spec.ts",
     "backfill:guide-entities": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-guide-entities.ts",
-    "backfill:clinic-robots-index": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-clinic-robots-index.ts"
+    "backfill:clinic-robots-index": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-clinic-robots-index.ts",
+    "backfill:internal-linking": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/backfill-internal-linking.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -44,6 +45,7 @@
     "axios": "^1.16.1",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.16.0",
+    "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cloudinary": "^2.10.0",

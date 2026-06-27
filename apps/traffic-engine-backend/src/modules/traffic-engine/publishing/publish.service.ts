@@ -6,8 +6,10 @@ import { buildAffectedPaths } from '../content-api/seo/page-type.util';
 import { ContentCacheService } from '../content-api/content-cache.service';
 import { ContentRenderService } from '../content-api/content-render.service';
 import { PageSeoEnricherService } from '../content-api/seo/page-seo-enricher.service';
+import { SiteConfigService } from '../config/site-config.service';
 import { PageHeroCdnService } from './page-hero-cdn.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
+import { HtmlInternalLinkingService } from './html-internal-linking/html-internal-linking.service';
 
 export interface PublishWebhookPayload {
   pageId: number;
@@ -45,6 +47,8 @@ export class PublishService {
     private readonly contentCache: ContentCacheService,
     private readonly contentRender: ContentRenderService,
     private readonly pageSeoEnricher: PageSeoEnricherService,
+    private readonly siteConfig: SiteConfigService,
+    private readonly htmlInternalLinking: HtmlInternalLinkingService,
   ) {}
 
   async publishPage(pageId: number): Promise<PublishResult> {
@@ -100,6 +104,36 @@ export class PublishService {
     await this.pageHeroCdn.uploadHeroOnPublish(pageId);
 
     const rendered = this.contentRender.renderFromMarkdown(page.finalContent);
+
+    // Phase-gated HTML internal linking (default OFF; enable via runtimeConfig.enableHtmlInternalLinking)
+    try {
+      const cfg = await this.siteConfig.getForSite(page.siteId);
+      if (rendered.htmlContent && cfg.runtimeConfig.enableHtmlInternalLinking) {
+        const linkResult = await this.htmlInternalLinking.injectLinks({
+          html: rendered.htmlContent,
+          siteId: page.siteId,
+          currentPageId: pageId,
+          domain: page.site.domain,
+          maxLinks: 4,
+        });
+        rendered.htmlContent = linkResult.html;
+        this.logger.log({
+          msg: 'html_internal_linking_applied',
+          pageId,
+          linksInjected: linkResult.linksInjected,
+          reportScore: linkResult.report.score,
+          reportPassed: linkResult.report.passed,
+        });
+      }
+    } catch (err: unknown) {
+      // Never block publishing — log and continue with unlinked HTML
+      this.logger.error({
+        msg: 'html_internal_linking_publish_error',
+        pageId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     const renderedFields = this.contentRender.toJsonFields(rendered);
 
     const tagPatch = await this.buildFillIfEmptyTagPatch(page);

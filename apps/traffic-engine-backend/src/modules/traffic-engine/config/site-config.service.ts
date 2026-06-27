@@ -165,6 +165,8 @@ export class SiteConfigService {
           : 50,
       enableInternalLinking:
         typeof r.enableInternalLinking === 'boolean' ? r.enableInternalLinking : true,
+      enableHtmlInternalLinking:
+        typeof r.enableHtmlInternalLinking === 'boolean' ? r.enableHtmlInternalLinking : false,
     };
   }
 }
