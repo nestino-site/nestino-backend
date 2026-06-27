@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
 import sharp from 'sharp';
+import { getCloudinaryV2, isCloudinaryConfigured } from '../../../common/cloudinary/cloudinary-client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 function formatUploadError(error: unknown): string {
@@ -24,16 +24,6 @@ function formatUploadError(error: unknown): string {
   return String(error);
 }
 
-function isCloudinaryConfigured(): boolean {
-  return !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
-}
-
-function initCloudinary(): void {
-  // cloudinary.config() picks up CLOUDINARY_URL automatically when it is set
-  // in the environment. Calling it once without arguments re-reads the env.
-  cloudinary.config();
-}
-
 export interface HeroCdnUploadResult {
   pageId: number;
   uploaded: boolean;
@@ -47,10 +37,10 @@ export class PageHeroCdnService {
 
   constructor(private readonly prisma: PrismaService) {
     if (isCloudinaryConfigured()) {
-      initCloudinary();
+      getCloudinaryV2();
       this.logger.log('cloudinary_cdn_enabled');
     } else {
-      this.logger.warn('cloudinary_cdn_disabled: CLOUDINARY_URL not set');
+      this.logger.warn('cloudinary_cdn_disabled: CLOUDINARY_URL not set or invalid');
     }
   }
 
@@ -119,6 +109,7 @@ export class PageHeroCdnService {
   }
 
   private uploadToCloudinary(buffer: Buffer, pageId: number): Promise<string> {
+    const cloudinary = getCloudinaryV2();
     return new Promise((resolve, reject) => {
       const publicId = `pages/${pageId}/hero`;
       const uploadStream = cloudinary.uploader.upload_stream(

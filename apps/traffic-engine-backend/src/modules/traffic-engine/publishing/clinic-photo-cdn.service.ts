@@ -1,13 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
 import axios from 'axios';
 import sharp from 'sharp';
+import { getCloudinaryV2, isCloudinaryConfigured } from '../../../common/cloudinary/cloudinary-client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { resolveClinicPhotoRedirectUrl, parseGooglePhotoRef } from '../../clinic-inventory/clinics/utils/clinic-photo.util';
-
-function isCloudinaryConfigured(): boolean {
-  return !!process.env.CLOUDINARY_URL?.startsWith('cloudinary://');
-}
 
 function isCloudinaryUrl(url: string): boolean {
   return /res\.cloudinary\.com/i.test(url);
@@ -19,10 +15,10 @@ export class ClinicPhotoCdnService {
 
   constructor(private readonly prisma: PrismaService) {
     if (isCloudinaryConfigured()) {
-      cloudinary.config();
+      getCloudinaryV2();
       this.logger.log('clinic_photo_cdn_enabled');
     } else {
-      this.logger.warn('clinic_photo_cdn_disabled: CLOUDINARY_URL not set');
+      this.logger.warn('clinic_photo_cdn_disabled: CLOUDINARY_URL not set or invalid');
     }
   }
 
@@ -127,6 +123,7 @@ export class ClinicPhotoCdnService {
   }
 
   private uploadToCloudinary(buffer: Buffer, clinicId: number): Promise<string> {
+    const cloudinary = getCloudinaryV2();
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
