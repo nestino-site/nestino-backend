@@ -54,6 +54,7 @@ export class LinkTargetRepository {
     });
 
     const phrases = keywords.map((k) => ({
+      phrase: k.phrase,
       normalized: k.phrase.toLowerCase(),
       dashed: k.phrase.toLowerCase().replace(/\s+/g, '-'),
       weight: k.weight,
@@ -70,12 +71,21 @@ export class LinkTargetRepository {
       const slug = page.slug.toLowerCase();
 
       let score = 0;
-      for (const { normalized, dashed, weight } of phrases) {
+      let bestMatchedKeyword = '';
+      let bestHit = 0;
+
+      for (const { phrase, normalized, dashed, weight } of phrases) {
         let hit = 0;
         if (kw.includes(normalized) || normalized.includes(kw)) hit += 3;
         if (title.includes(normalized)) hit += 2;
         if (slug.includes(dashed) || slug.includes(normalized)) hit += 1;
-        score += hit * weight;
+        const weighted = hit * weight;
+        score += weighted;
+        // Track the highest-scoring extracted phrase so the injector can find it in article text
+        if (weighted > bestHit) {
+          bestHit = weighted;
+          bestMatchedKeyword = phrase;
+        }
       }
 
       if (score < MIN_SCORE) continue;
@@ -89,6 +99,7 @@ export class LinkTargetRepository {
         slug: page.slug,
         title: page.title,
         primaryKeyword: page.keyword.keyword,
+        matchedKeyword: bestMatchedKeyword || page.keyword.keyword,
         relevanceScore: score,
         url: `${base}${normalizedSlug}`,
         robotsMeta: page.robotsMeta,

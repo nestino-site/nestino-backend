@@ -26,6 +26,12 @@ export interface InternalLinkTarget {
   title: string | null;
   /** The page's primary keyword.keyword string */
   primaryKeyword: string;
+  /**
+   * The extracted keyword phrase that caused this target to score.
+   * Used by the injector to find the actual match in the article text.
+   * Falls back to primaryKeyword if not set.
+   */
+  matchedKeyword: string;
   /** Relevance score computed during candidate ranking */
   relevanceScore: number;
   /** Fully qualified URL e.g. https://medcover.io/guides/foo/ */

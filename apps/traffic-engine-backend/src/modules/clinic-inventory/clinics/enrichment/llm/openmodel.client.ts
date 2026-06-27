@@ -39,7 +39,7 @@ export class OpenModelClient implements LlmClient {
     const baseURL = (process.env.OPENMODEL_BASE_URL ?? 'https://api.openmodel.ai/v1').replace(/\/+$/, '');
     this.messagesUrl = baseURL.endsWith('/v1') ? `${baseURL}/messages` : `${baseURL}/v1/messages`;
     this.model = process.env.OPENMODEL_MODEL ?? 'deepseek-v4-flash';
-    this.timeoutMs = Number(process.env.OPENMODEL_TIMEOUT_MS ?? 90_000);
+    this.timeoutMs = Number(process.env.OPENMODEL_TIMEOUT_MS ?? 8_000);
 
     if (!process.env.OPENMODEL_API_KEY?.trim()) {
       this.logger.warn(

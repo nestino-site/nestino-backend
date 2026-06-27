@@ -50,7 +50,9 @@ export function injectInternalLinks(input: InjectorInput): InjectorOutput {
     if (injectedLinks.length >= maxLinks) break;
     if (usedUrls.has(target.url)) continue;
 
-    const phrase = target.primaryKeyword.trim();
+    // Use the extracted keyword phrase that actually appears in the article text,
+    // not the DB primaryKeyword which may not appear verbatim.
+    const phrase = (target.matchedKeyword || target.primaryKeyword).trim();
     const phraseKey = phrase.toLowerCase();
     if (usedPhrases.has(phraseKey)) continue;
 
