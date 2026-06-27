@@ -4,6 +4,7 @@ import { ContentTasksModule } from '../content-tasks/content-tasks.module';
 import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { PipelineV3Module } from '../pipeline-v3/pipeline-v3.module';
 import { PublishingModule } from '../publishing/publishing.module';
+import { HtmlInternalLinkingModule } from '../publishing/html-internal-linking/html-internal-linking.module';
 import { PagesController } from './controllers/pages.controller';
 import { PageKeywordService } from './services/page-keyword.service';
 import { PagesService } from './services/pages.service';
@@ -15,6 +16,7 @@ import { PagesService } from './services/pages.service';
     PipelineV3Module,
     PublishingModule,
     ContentApiModule,
+    HtmlInternalLinkingModule,
   ],
   controllers: [PagesController],
   providers: [PagesService, PageKeywordService],
