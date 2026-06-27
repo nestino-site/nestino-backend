@@ -237,18 +237,27 @@ export class HtmlInternalLinkingService {
 
     let applied = false;
     if (result.report.passed && result.linksInjected > 0) {
-      await this.prisma.page.update({
-        where: { id: pageId },
-        data: { htmlContent: result.html },
-      });
-      await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
-      applied = true;
-      this.logger.log({
-        msg: 'html_internal_linking_applied',
-        pageId,
-        linksInjected: result.linksInjected,
-        reportScore: result.report.score,
-      });
+      const hasLinkInHtml = result.injectedLinks.some((link) => result.html.includes(link.url));
+      if (!hasLinkInHtml) {
+        this.logger.warn({
+          msg: 'html_internal_linking_apply_skipped_corrupt_html',
+          pageId,
+          linksInjected: result.linksInjected,
+        });
+      } else {
+        await this.prisma.page.update({
+          where: { id: pageId },
+          data: { htmlContent: result.html },
+        });
+        await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
+        applied = true;
+        this.logger.log({
+          msg: 'html_internal_linking_applied',
+          pageId,
+          linksInjected: result.linksInjected,
+          reportScore: result.report.score,
+        });
+      }
     }
 
     return { ...result, applied, slug: page.slug };

@@ -37,7 +37,9 @@ export function injectInternalLinks(input: InjectorInput): InjectorOutput {
 
   // Sort longest-first so "dental implants turkey" is matched before "dental"
   const targets = [...input.targets].sort(
-    (a, b) => b.primaryKeyword.length - a.primaryKeyword.length,
+    (a, b) =>
+      (b.matchedKeyword || b.primaryKeyword).length -
+      (a.matchedKeyword || a.primaryKeyword).length,
   );
 
   const $ = cheerio.load(html, null, false);
@@ -92,9 +94,11 @@ export function injectInternalLinks(input: InjectorInput): InjectorOutput {
           return `<a href="${target.url}" title="${escapeHtmlAttr(titleAttr)}">${matched}</a>`;
         });
 
-        // cheerio: replace text node with parsed HTML
-        const $placeholder = cheerio.load(newText, null, false);
-        const nodes = $placeholder('body').contents().toArray();
+        // Parse inline HTML fragment; fragment mode has no <body>, so wrap briefly
+        const $placeholder = cheerio.load(`<span>${newText}</span>`, null, false);
+        const nodes = $placeholder('span').contents().toArray();
+        if (nodes.length === 0) break;
+
         $(child).replaceWith(nodes as AnyNode[]);
 
         injectedLinks.push({
