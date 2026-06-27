@@ -438,6 +438,22 @@ export class PagesController {
     return this.htmlInternalLinking.preview(pageId);
   }
 
+  /**
+   * Phase 3: apply internal links to a page's htmlContent in the database.
+   * Only writes when the SEO report passes and at least one link was injected.
+   */
+  @Post(':id/internal-linking/apply')
+  @ApiOperation({
+    summary: 'Apply HTML internal links to a page (writes htmlContent)',
+    description:
+      'Runs the full linking pipeline and persists htmlContent when report.passed and linksInjected > 0.',
+  })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  @ApiResponse({ status: 200, description: 'Apply result with linksInjected and applied flag' })
+  async applyInternalLinking(@ParseIntParam('id') pageId: number) {
+    return this.htmlInternalLinking.apply(pageId);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List pages for a site with pagination' })
   @ApiQuery({ name: 'siteId', type: Number, required: true, example: 1 })

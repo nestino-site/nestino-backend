@@ -137,13 +137,14 @@ export class LinkTargetRepository {
       seen.add(page.slug);
       const normalizedSlug = page.slug.startsWith('/') ? page.slug : `/${page.slug}`;
       const base = normalizeDomain(domain);
+      const primaryKeyword = page.keyword?.keyword ?? page.title ?? '';
 
       scored.push({
         pageId: page.id,
         slug: page.slug,
         title: page.title,
-        primaryKeyword: page.keyword.keyword,
-        matchedKeyword: bestMatchedKeyword || page.keyword.keyword,
+        primaryKeyword,
+        matchedKeyword: bestMatchedKeyword || primaryKeyword,
         relevanceScore: score,
         url: `${base}${normalizedSlug}`,
         robotsMeta: page.robotsMeta,

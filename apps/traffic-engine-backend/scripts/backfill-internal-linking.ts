@@ -31,7 +31,7 @@ import type { SeoLinkingReport } from '../src/modules/traffic-engine/publishing/
 // ---------------------------------------------------------------------------
 const args = process.argv.slice(2);
 const dryRun = !args.includes('--apply');
-const siteDomain = (args.find((a) => a.startsWith('--site='))?.split('=')[1]) ?? 'medcover.io';
+const siteDomain = (args.find((a) => a.startsWith('--site='))?.split('=')[1]) ?? 'www.medcover.io';
 const language = args.find((a) => a.startsWith('--language='))?.split('=')[1];
 const limitArg = args.find((a) => a.startsWith('--limit='))?.split('=')[1];
 const batchArg = args.find((a) => a.startsWith('--batch='))?.split('=')[1];

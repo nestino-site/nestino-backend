@@ -9,6 +9,7 @@
 #   ADMIN_PASSWORD=... ./scripts/rollout-html-internal-linking-production.sh
 #   ./scripts/rollout-html-internal-linking-production.sh --preview-only
 #   ./scripts/rollout-html-internal-linking-production.sh --republish-only
+#   ./scripts/rollout-html-internal-linking-production.sh --apply-only
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -188,6 +189,48 @@ if mode in ("--full", "--republish-only"):
         time.sleep(0.3)
 
     print(f"\n  Republish summary: ok={ok} skipped={skipped} failed={failed}")
+
+# --- Phase 4: Apply internal links (writes htmlContent) ---
+if mode in ("--full", "--apply-only"):
+    print("\n--- Phase 4: Apply internal links to all published pages ---")
+    applied = 0
+    no_links = 0
+    skipped = 0
+    failed = 0
+    total_links = 0
+    for p in published:
+        pid = p["id"]
+        slug = p.get("slug", "")
+        try:
+            _, full = api(f"/pages/{pid}", timeout=30)
+        except Exception as e:
+            print(f"  ✗ failed load {pid} {slug} — {e.__class__.__name__}")
+            failed += 1
+            continue
+        if not (full.get("finalContent") or "").strip():
+            print(f"  skip {pid} {slug} — no finalContent")
+            skipped += 1
+            continue
+        try:
+            _, result = api(f"/pages/{pid}/internal-linking/apply", method="POST", timeout=120)
+            links = int(result.get("linksInjected") or 0)
+            report = result.get("report") or {}
+            if result.get("applied"):
+                print(f"  ✓ applied {pid} {slug} — {links} links (score {report.get('score')})")
+                applied += 1
+                total_links += links
+            else:
+                print(f"  – no write {pid} {slug} — {links} links, passed={report.get('passed')}")
+                no_links += 1
+        except urllib.error.HTTPError:
+            print(f"  ✗ failed {pid} {slug}")
+            failed += 1
+        except Exception as e:
+            print(f"  ✗ failed {pid} {slug} — {e.__class__.__name__}")
+            failed += 1
+        time.sleep(0.5)
+
+    print(f"\n  Apply summary: applied={applied} no_write={no_links} skipped={skipped} failed={failed} total_links={total_links}")
 
 print("\nDone.")
 PY

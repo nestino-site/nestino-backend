@@ -10,6 +10,7 @@
  */
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { ContentCacheService } from '../../content-api/content-cache.service';
 import { ContentRenderService } from '../../content-api/content-render.service';
 import { ArticleKeywordExtractorService } from './article-keyword-extractor.service';
 import { injectInternalLinks } from './html-link-injector';
@@ -33,6 +34,7 @@ export class HtmlInternalLinkingService {
     private readonly repo: LinkTargetRepository,
     private readonly prisma: PrismaService,
     private readonly contentRender: ContentRenderService,
+    private readonly contentCache: ContentCacheService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -190,5 +192,65 @@ export class HtmlInternalLinkingService {
       htmlAfter: linkedHtml.slice(0, HTML_PREVIEW_CHARS),
       report,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public: apply (write linked HTML to DB)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Runs injectLinks and persists htmlContent when the SEO report passes and
+   * at least one link was injected. Invalidates the content cache afterward.
+   */
+  async apply(pageId: number): Promise<InjectLinksResult & { applied: boolean; slug: string }> {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { site: true },
+    });
+
+    if (!page) {
+      throw new NotFoundException(`Page ${pageId} not found`);
+    }
+
+    const rendered = this.contentRender.renderFromMarkdown(page.finalContent);
+    const html = rendered.htmlContent ?? '';
+
+    if (!html.trim()) {
+      const emptyReport = buildSeoReport('', [], []);
+      return {
+        html,
+        linksInjected: 0,
+        injectedLinks: [],
+        report: emptyReport,
+        applied: false,
+        slug: page.slug,
+      };
+    }
+
+    const result = await this.injectLinks({
+      html,
+      siteId: page.siteId,
+      currentPageId: pageId,
+      domain: page.site.domain,
+      maxLinks: DEFAULT_MAX_LINKS,
+    });
+
+    let applied = false;
+    if (result.report.passed && result.linksInjected > 0) {
+      await this.prisma.page.update({
+        where: { id: pageId },
+        data: { htmlContent: result.html },
+      });
+      await this.contentCache.invalidatePage(page.siteId, page.slug, pageId);
+      applied = true;
+      this.logger.log({
+        msg: 'html_internal_linking_applied',
+        pageId,
+        linksInjected: result.linksInjected,
+        reportScore: result.report.score,
+      });
+    }
+
+    return { ...result, applied, slug: page.slug };
   }
 }
