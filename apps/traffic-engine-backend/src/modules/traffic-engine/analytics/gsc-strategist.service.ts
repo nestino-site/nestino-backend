@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiOrchestratorService } from '../ai/ai-orchestrator.service';
+import { AiGatewayConfig } from '../ai/config/ai-gateway.config';
 import { AiPipelineStepConfig } from '../ai/types/ai-pipeline.types';
 import { buildGscStrategistPrompt } from './gsc-strategist.prompt';
 import { GscStrategistInputBuilder } from './gsc-strategist-input.builder';
@@ -50,6 +51,7 @@ export class GscStrategistService {
     private readonly prisma: PrismaService,
     private readonly inputBuilder: GscStrategistInputBuilder,
     private readonly orchestrator: AiOrchestratorService,
+    private readonly gatewayConfig: AiGatewayConfig,
   ) {}
 
   async preview(siteId: number): Promise<GscStrategistPreviewResult> {
@@ -124,7 +126,7 @@ export class GscStrategistService {
     }
 
     const prompt = buildGscStrategistPrompt(payload);
-    const provider = AiProvider.google;
+    const provider = this.gatewayConfig.resolveProvider('ideas');
     const step: AiPipelineStepConfig = {
       stepKey: 'gsc_strategist',
       provider,
@@ -230,7 +232,7 @@ export class GscStrategistService {
           confidenceScore: opportunity.priority_score / 100,
           status: IdeaStatus.PENDING_REVIEW,
           reviewNotes,
-          generatedBy: AiProvider.google,
+          generatedBy: this.gatewayConfig.resolveProvider('ideas'),
           generatedModel: DEFAULT_GEMINI_MODEL,
         },
       });
@@ -352,6 +354,8 @@ export class GscStrategistService {
         return process.env.AI_IDEA_OPENAI_MODEL ?? 'gpt-4o-mini';
       case AiProvider.anthropic:
         return process.env.AI_IDEA_ANTHROPIC_MODEL ?? 'claude-3-5-haiku-20241022';
+      case AiProvider.conduit:
+        return process.env.AI_FALLBACK_CONDUIT_MODEL ?? 'gpt-4o-mini';
       case AiProvider.google:
       default:
         return DEFAULT_GEMINI_MODEL;

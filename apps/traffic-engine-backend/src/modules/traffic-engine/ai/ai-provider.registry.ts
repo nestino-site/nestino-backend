@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AiProvider } from '@prisma/client';
 import { AiProviderClient } from './providers/ai-provider.client';
 import { AnthropicProvider } from './providers/anthropic.provider';
+import { ConduitProvider } from './providers/conduit.provider';
 import { GoogleGeminiProvider } from './providers/google-gemini.provider';
 import { OpenAiProvider } from './providers/openai.provider';
 
@@ -11,6 +12,7 @@ export class AiProviderRegistry {
     private readonly openai: OpenAiProvider,
     private readonly anthropic: AnthropicProvider,
     private readonly google: GoogleGeminiProvider,
+    private readonly conduit: ConduitProvider,
   ) {}
 
   get(provider: AiProvider): AiProviderClient {
@@ -21,6 +23,8 @@ export class AiProviderRegistry {
         return this.anthropic;
       case AiProvider.google:
         return this.google;
+      case AiProvider.conduit:
+        return this.conduit;
       default:
         throw new Error(`Unsupported provider: ${String(provider)}`);
     }

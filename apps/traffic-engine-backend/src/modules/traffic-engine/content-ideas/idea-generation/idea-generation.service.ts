@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { AiOrchestratorService } from '../../ai/ai-orchestrator.service';
+import { AiGatewayConfig } from '../../ai/config/ai-gateway.config';
 import { AiPipelineStepConfig } from '../../ai/types/ai-pipeline.types';
 import { SubjectsService } from '../../subjects/services/subjects.service';
 import { IdeaValidationService, ParsedIdeaDraft } from '../idea-validation.service';
@@ -24,13 +25,15 @@ export class IdeaGenerationService {
     private readonly subjectsService: SubjectsService,
     private readonly orchestrator: AiOrchestratorService,
     private readonly validation: IdeaValidationService,
+    private readonly gatewayConfig: AiGatewayConfig,
   ) {}
 
   async generateForSubject(
     subjectId: number,
     count: number,
-    provider: AiProvider = AiProvider.google,
+    provider?: AiProvider,
   ): Promise<{ created: number; subjectId: number }> {
+    const resolvedProvider = provider ?? this.gatewayConfig.resolveProvider('ideas');
     const subject = await this.subjectsService.findOne(subjectId);
     if (!subject) {
       throw new NotFoundException(`Subject ${subjectId} not found`);
@@ -51,8 +54,8 @@ export class IdeaGenerationService {
 
     const step: AiPipelineStepConfig = {
       stepKey: 'idea_generation',
-      provider,
-      model: this.resolveModel(provider),
+      provider: resolvedProvider,
+      model: this.resolveModel(resolvedProvider),
       promptTemplateId: 'idea_generation_v1',
       maxOutputTokens: Math.min(8000, 400 + count * 350),
       timeoutMs: 180_000,
@@ -96,7 +99,7 @@ export class IdeaGenerationService {
             confidenceScore,
             hallucinationRiskScore,
             status,
-            generatedBy: provider,
+            generatedBy: resolvedProvider,
             generatedModel: step.model,
           },
         });
@@ -117,6 +120,8 @@ export class IdeaGenerationService {
         return process.env.AI_IDEA_OPENAI_MODEL ?? 'gpt-4o-mini';
       case AiProvider.anthropic:
         return process.env.AI_IDEA_ANTHROPIC_MODEL ?? 'claude-3-5-haiku-20241022';
+      case AiProvider.conduit:
+        return process.env.AI_FALLBACK_CONDUIT_MODEL ?? 'gpt-4o-mini';
       case AiProvider.google:
       default:
         return DEFAULT_GEMINI_MODEL;

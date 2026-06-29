@@ -39,9 +39,12 @@ echo ""
 
 TOKEN="$(login)"
 export BASE TOKEN SITE_DOMAIN MODE
+export PYTHONUNBUFFERED=1
 
-python3 <<'PY'
+python3 -u <<'PY'
 import json, os, sys, time, urllib.error, urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 base = os.environ["BASE"].rstrip("/")
 token = os.environ["TOKEN"]
@@ -92,10 +95,36 @@ if not site:
 site_id = site["id"]
 print(f"Site: {site_domain} (id={site_id})\n")
 
-# --- List pages ---
-_, pages = api(f"/pages?siteId={site_id}")
-published = [p for p in pages if p.get("status") == "PUBLISHED"]
-print(f"Published pages: {len(published)}")
+# --- List all published pages (paginated; API default limit=50 would miss most of the site) ---
+def fetch_all_published(site_id: int) -> list:
+    all_pages: list = []
+    page_num = 1
+    limit = 200
+    while True:
+        _, batch = api(
+            f"/pages?siteId={site_id}&status=PUBLISHED&page={page_num}&limit={limit}",
+            timeout=60,
+        )
+        if not batch:
+            break
+        all_pages.extend(batch)
+        if len(batch) < limit:
+            break
+        page_num += 1
+    # De-dupe by id (safety)
+    seen: set = set()
+    unique: list = []
+    for p in all_pages:
+        pid = p.get("id")
+        if pid is None or pid in seen:
+            continue
+        seen.add(pid)
+        unique.append(p)
+    return unique
+
+
+published = fetch_all_published(site_id)
+print(f"Published pages: {len(published)} (fetched with pagination)", flush=True)
 
 # Pick preview candidates: fetch detail for top published pages (list omits finalContent)
 detail_pages = []
@@ -118,7 +147,7 @@ if not preview_ids and candidates:
 if mode in ("--full", "--preview-only"):
     print("\n--- Phase 1: Preview QA ---")
     for pid in preview_ids:
-        page = next((p for p in pages if p["id"] == pid), {"id": pid, "slug": "?"})
+        page = next((p for p in published if p["id"] == pid), {"id": pid, "slug": "?"})
         try:
             _, result = api(f"/pages/{pid}/internal-linking/preview", method="POST", timeout=90)
             links = len(result.get("proposedLinks") or [])
@@ -193,44 +222,61 @@ if mode in ("--full", "--republish-only"):
 # --- Phase 4: Apply internal links (writes htmlContent) ---
 if mode in ("--full", "--apply-only"):
     print("\n--- Phase 4: Apply internal links to all published pages ---")
-    applied = 0
-    no_links = 0
-    skipped = 0
-    failed = 0
-    total_links = 0
-    for p in published:
-        pid = p["id"]
-        slug = p.get("slug", "")
-        try:
-            _, full = api(f"/pages/{pid}", timeout=30)
-        except Exception as e:
-            print(f"  ✗ failed load {pid} {slug} — {e.__class__.__name__}")
-            failed += 1
-            continue
-        if not (full.get("finalContent") or "").strip():
-            print(f"  skip {pid} {slug} — no finalContent")
-            skipped += 1
-            continue
+    workers = max(1, int(os.environ.get("APPLY_WORKERS", "8")))
+    print(f"  Workers: {workers}", flush=True)
+    stats = {"applied": 0, "no_links": 0, "failed": 0, "total_links": 0, "done": 0}
+    total = len(published)
+    lock = Lock()
+
+    def apply_one(idx: int, page: dict) -> None:
+        pid = page["id"]
+        slug = page.get("slug", "")
+        prefix = f"[{idx}/{total}]"
         try:
             _, result = api(f"/pages/{pid}/internal-linking/apply", method="POST", timeout=120)
             links = int(result.get("linksInjected") or 0)
             report = result.get("report") or {}
             if result.get("applied"):
-                print(f"  ✓ applied {pid} {slug} — {links} links (score {report.get('score')})")
-                applied += 1
-                total_links += links
+                with lock:
+                    stats["applied"] += 1
+                    stats["total_links"] += links
+                print(f"  {prefix} ✓ applied {pid} {slug} — {links} links (score {report.get('score')})", flush=True)
             else:
-                print(f"  – no write {pid} {slug} — {links} links, passed={report.get('passed')}")
-                no_links += 1
+                with lock:
+                    stats["no_links"] += 1
+                if links > 0 or idx <= 10 or idx % 100 == 0:
+                    print(f"  {prefix} – no write {pid} {slug} — {links} links, passed={report.get('passed')}", flush=True)
         except urllib.error.HTTPError:
-            print(f"  ✗ failed {pid} {slug}")
-            failed += 1
+            with lock:
+                stats["failed"] += 1
+            print(f"  {prefix} ✗ failed {pid} {slug}", flush=True)
         except Exception as e:
-            print(f"  ✗ failed {pid} {slug} — {e.__class__.__name__}")
-            failed += 1
-        time.sleep(0.5)
+            with lock:
+                stats["failed"] += 1
+            print(f"  {prefix} ✗ failed {pid} {slug} — {e.__class__.__name__}", flush=True)
+        finally:
+            with lock:
+                stats["done"] += 1
+                done = stats["done"]
+                if done % 50 == 0 or done == total:
+                    print(
+                        f"  ... progress {done}/{total}: applied={stats['applied']} no_write={stats['no_links']} "
+                        f"failed={stats['failed']} total_links={stats['total_links']}",
+                        flush=True,
+                    )
 
-    print(f"\n  Apply summary: applied={applied} no_write={no_links} skipped={skipped} failed={failed} total_links={total_links}")
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [
+            pool.submit(apply_one, idx, page)
+            for idx, page in enumerate(published, 1)
+        ]
+        for fut in as_completed(futures):
+            fut.result()
+
+    print(
+        f"\n  Apply summary: applied={stats['applied']} no_write={stats['no_links']} "
+        f"failed={stats['failed']} total_links={stats['total_links']}"
+    )
 
 print("\nDone.")
 PY

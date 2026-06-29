@@ -78,6 +78,7 @@ enum AiProvider {
   openai
   anthropic
   google
+  conduit
 }
 
 enum AiGenerationStatus {

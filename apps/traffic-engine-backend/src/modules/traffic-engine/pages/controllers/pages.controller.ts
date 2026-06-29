@@ -38,6 +38,7 @@ import { UpdatePageSlugDto } from '../dto/update-page-slug.dto';
 import { PageKeywordService } from '../services/page-keyword.service';
 import { PagesService } from '../services/pages.service';
 import { HtmlInternalLinkingService } from '../../publishing/html-internal-linking/html-internal-linking.service';
+import { PipelineMetricsService } from '../../observability/pipeline-metrics.service';
 
 @ApiTags('Pages')
 @ApiBearerAuth('bearer')
@@ -53,6 +54,7 @@ export class PagesController {
     private readonly pageHeroCdn: PageHeroCdnService,
     private readonly imageGeneration: ImageGenerationService,
     private readonly htmlInternalLinking: HtmlInternalLinkingService,
+    private readonly pipelineMetrics: PipelineMetricsService,
   ) {}
 
   @Post()
@@ -70,10 +72,17 @@ export class PagesController {
   @ApiOperation({ summary: 'Queue content generation pipeline for a page' })
   @ApiParam({ name: 'id', type: Number, example: 100 })
   @ApiQuery({ name: 'resetCheckpoint', type: String, required: false, example: 'true' })
+  @ApiQuery({
+    name: 'skipYmylAudit',
+    required: false,
+    example: 'true',
+    description: 'Use lightweight seo_check via Conduit only (skip Gemini YMYL audit)',
+  })
   @ApiResponse({ status: 201, description: 'Content task queued' })
   async queueGenerateContent(
     @ParseIntParam('id') pageId: number,
     @Query('resetCheckpoint') resetCheckpoint?: string,
+    @Query('skipYmylAudit') skipYmylAudit?: string,
   ) {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
@@ -88,10 +97,12 @@ export class PagesController {
     if (resetCheckpoint === 'true' || resetCheckpoint === '1') {
       await this.pipelineCheckpoint.clear(pageId);
     }
+    const useLightweightAudit = skipYmylAudit === 'true' || skipYmylAudit === '1';
     return this.contentTasks.create({
       siteId: page.siteId,
       keywordId: page.keywordId,
       pageId: page.id,
+      payload: useLightweightAudit ? { skipYmylAudit: true } : undefined,
     });
   }
 
@@ -469,6 +480,36 @@ export class PagesController {
     @Query('language') language?: ContentLanguage,
   ) {
     return this.pagesService.findBySite(siteId, status, language, page, limit);
+  }
+
+  @Get(':id/ai-generation-logs')
+  @ApiOperation({ summary: 'Per-step AI generation metrics for a page (provider, model, latency)' })
+  @ApiParam({ name: 'id', type: Number, example: 100 })
+  async getAiGenerationLogs(@ParseIntParam('id') id: number) {
+    await this.pagesService.findOne(id);
+    const logs = await this.pipelineMetrics.getStepBreakdown(id);
+    const totalDurationMs = logs.reduce((sum, log) => sum + log.durationMs, 0);
+    const totalTokens = logs.reduce(
+      (sum, log) => sum + log.inputTokens + log.outputTokens,
+      0,
+    );
+    return {
+      pageId: id,
+      stepCount: logs.length,
+      totalDurationMs,
+      totalTokens,
+      logs: logs.map((log) => ({
+        stepKey: log.stepKey,
+        provider: log.provider,
+        model: log.model,
+        inputTokens: log.inputTokens,
+        outputTokens: log.outputTokens,
+        durationMs: log.durationMs,
+        cost: Number(log.cost),
+        status: log.status,
+        createdAt: log.createdAt,
+      })),
+    };
   }
 
   @Get(':id')

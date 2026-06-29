@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { AiProvider, KeywordIntent } from '@prisma/client';
+import { KeywordIntent } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { SiteConfigService } from '../../config/site-config.service';
 import { AiOrchestratorService } from '../ai-orchestrator.service';
+import { AiAction, AiGatewayConfig } from '../config/ai-gateway.config';
 import { AiModelRouterService } from '../model-router/ai-model-router.service';
 import { AiPipelineStepConfig } from '../types/ai-pipeline.types';
-import { BudgetAction, PipelineStep, PromptCompositionContext } from '../types/ai-execution.types';
+import { PipelineStep, PromptCompositionContext } from '../types/ai-execution.types';
 import { CostControllerService } from './cost-controller.service';
 import { PromptCompositionEngineService } from '../prompt-engine/prompt-composition-engine.service';
 
@@ -30,6 +31,7 @@ export class AiExecutionService {
     private readonly costController: CostControllerService,
     private readonly promptEngine: PromptCompositionEngineService,
     private readonly orchestrator: AiOrchestratorService,
+    private readonly gatewayConfig: AiGatewayConfig,
   ) {}
 
   async execute(input: ExecuteStepInput) {
@@ -85,7 +87,7 @@ export class AiExecutionService {
 
     const stepCfg: AiPipelineStepConfig = {
       stepKey: input.step,
-      provider: this.resolveProviderFromModel(model),
+      provider: this.gatewayConfig.resolveProvider(input.step as AiAction),
       model,
       promptTemplateId: `${input.step}_${promptContext.version}`,
       timeoutMs: input.timeoutMs ?? 120_000,
@@ -149,14 +151,4 @@ export class AiExecutionService {
     };
   }
 
-  private resolveProviderFromModel(model: string): AiProvider {
-    const lowered = model.toLowerCase();
-    if (lowered.includes('claude')) {
-      return AiProvider.anthropic;
-    }
-    if (lowered.includes('gemini')) {
-      return AiProvider.google;
-    }
-    return AiProvider.openai;
-  }
 }

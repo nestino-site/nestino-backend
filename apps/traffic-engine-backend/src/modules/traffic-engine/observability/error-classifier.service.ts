@@ -13,6 +13,7 @@ const PROVIDER_PREFIXES = [
   'Anthropic HTTP',
   'Gemini HTTP',
   'Imagen HTTP',
+  'Conduit HTTP',
 ] as const;
 
 const BILLING_PHRASES = [
@@ -69,6 +70,7 @@ export class ErrorClassifierService {
 
   inferProvider(error: unknown): string {
     const message = this.messageOf(error);
+    if (message.includes('Conduit HTTP')) return 'conduit';
     if (message.includes('OpenAI HTTP')) return 'openai';
     if (message.includes('Anthropic HTTP')) return 'anthropic';
     if (message.includes('Imagen HTTP')) return 'google-imagen';

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { AiProvider } from '@prisma/client';
 import { AiProviderRegistry } from './ai-provider.registry';
+import { AiGatewayConfig } from './config/ai-gateway.config';
 import { BuiltPrompt, PromptBuildInput, PromptTemplateRegistry } from './prompt-template.registry';
 import {
   AiCompletionRequest,
@@ -20,6 +20,7 @@ export class AiOrchestratorService {
   constructor(
     private readonly registry: AiProviderRegistry,
     private readonly templates: PromptTemplateRegistry,
+    private readonly gatewayConfig: AiGatewayConfig,
   ) {}
 
   handleFailure(error: unknown): FailureClassification {
@@ -39,22 +40,12 @@ export class AiOrchestratorService {
   }
 
   fallbackProvider(step: AiPipelineStepConfig): AiPipelineStepConfig | null {
-    const order: AiProvider[] = [AiProvider.openai, AiProvider.anthropic, AiProvider.google];
-    const idx = order.indexOf(step.provider);
-    if (idx < 0 || idx >= order.length - 1) {
-      return null;
-    }
-    const next = order[idx + 1];
-    const model =
-      next === AiProvider.openai
-        ? process.env.AI_FALLBACK_OPENAI_MODEL ?? 'gpt-4o-mini'
-        : next === AiProvider.anthropic
-          ? process.env.AI_FALLBACK_ANTHROPIC_MODEL ?? 'claude-3-5-haiku-20241022'
-          : process.env.AI_FALLBACK_GOOGLE_MODEL ?? 'gemini-1.5-flash';
+    const next = this.gatewayConfig.nextFallback(step.provider);
+    if (!next) return null;
     return {
       ...step,
-      provider: next,
-      model,
+      provider: next.provider,
+      model: next.model,
       promptTemplateId: step.promptTemplateId,
     };
   }

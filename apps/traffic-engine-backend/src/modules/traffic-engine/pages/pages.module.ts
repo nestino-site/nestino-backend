@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ContentApiModule } from '../content-api/content-api.module';
 import { ContentTasksModule } from '../content-tasks/content-tasks.module';
 import { IntelligenceModule } from '../intelligence/intelligence.module';
+import { ObservabilityModule } from '../observability/observability.module';
 import { PipelineV3Module } from '../pipeline-v3/pipeline-v3.module';
 import { PublishingModule } from '../publishing/publishing.module';
 import { HtmlInternalLinkingModule } from '../publishing/html-internal-linking/html-internal-linking.module';
@@ -17,6 +18,7 @@ import { PagesService } from './services/pages.service';
     PublishingModule,
     ContentApiModule,
     HtmlInternalLinkingModule,
+    ObservabilityModule,
   ],
   controllers: [PagesController],
   providers: [PagesService, PageKeywordService],
