@@ -561,8 +561,14 @@ export class GeminiAuditService {
         return failSafeAudit('Audit failed: empty response from Conduit');
       }
 
-      this.logger.log({ msg: 'conduit_audit_phase_complete', model, chars: text.length });
-      return normalizeAuditResult(parseAuditJsonFromText(text));
+      this.logger.log({ msg: 'conduit_audit_phase_complete', model, chars: text.length, preview: text.slice(0, 200) });
+
+      try {
+        return normalizeAuditResult(parseAuditJsonFromText(text));
+      } catch {
+        this.logger.error({ msg: 'conduit_audit_parse_failed', model, rawText: text.slice(0, 800) });
+        return failSafeAudit('Audit failed: model returned non-JSON response. Check logs for raw output.');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error({ msg: 'conduit_audit_phase_failed', error: message });
@@ -619,11 +625,17 @@ export class GeminiAuditService {
         return failSafeAudit('Audit failed: empty response from Conduit');
       }
 
-      this.logger.log({ msg: 'conduit_audit_raw_phase_complete', model, chars: text.length });
-      return normalizeAuditResult(parseAuditJsonFromText(text));
+      this.logger.log({ msg: 'conduit_audit_raw_phase_complete', model, chars: text.length, preview: text.slice(0, 200) });
+
+      try {
+        return normalizeAuditResult(parseAuditJsonFromText(text));
+      } catch {
+        this.logger.error({ msg: 'conduit_audit_raw_parse_failed', model, rawText: text.slice(0, 800) });
+        return failSafeAudit('Audit failed: model returned non-JSON response. Check logs for raw output.');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error({ msg: 'conduit_audit_raw_phase_failed', error: message, rawResponse: message.slice(0, 500) });
+      this.logger.error({ msg: 'conduit_audit_raw_phase_failed', error: message });
       return failSafeAudit(`Audit failed due to system error: ${message}`);
     } finally {
       clearTimeout(timer);
