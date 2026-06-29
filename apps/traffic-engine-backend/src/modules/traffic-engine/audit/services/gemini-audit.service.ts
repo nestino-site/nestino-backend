@@ -510,6 +510,30 @@ export class GeminiAuditService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AUDIT_TIMEOUT_MS);
 
+    // Truncate very long articles to avoid hitting token limits (keep ~12k chars)
+    const MAX_CONTENT_CHARS = 12_000;
+    const truncatedContent =
+      content.length > MAX_CONTENT_CHARS
+        ? content.slice(0, MAX_CONTENT_CHARS) + '\n\n[...content truncated for audit...]'
+        : content;
+
+    const requestBody: Record<string, unknown> = {
+      model,
+      temperature: 0.2,
+      max_tokens: 4096,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_INSTRUCTION },
+        {
+          role: 'user',
+          content:
+            'Please audit the following draft article. Respond with one JSON object only ' +
+            '(keys: approved, eeat_score, critical_errors, seo_and_ux_recommendations, internal_linking_audit).\n\n' +
+            `<draft_content>\n${truncatedContent}\n</draft_content>`,
+        },
+      ],
+    };
+
     try {
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -517,6 +541,54 @@ export class GeminiAuditService {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        // If the model doesn't support response_format, retry without it
+        if (res.status === 400 && body.includes('response_format')) {
+          return this.runConduitAuditPhaseRaw(apiKey, truncatedContent, model, baseUrl);
+        }
+        throw new Error(`Conduit HTTP ${res.status}: ${body.slice(0, 300)}`);
+      }
+
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data.choices?.[0]?.message?.content?.trim() ?? '';
+
+      if (!text) {
+        return failSafeAudit('Audit failed: empty response from Conduit');
+      }
+
+      this.logger.log({ msg: 'conduit_audit_phase_complete', model, chars: text.length });
+      return normalizeAuditResult(parseAuditJsonFromText(text));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error({ msg: 'conduit_audit_phase_failed', error: message });
+      return failSafeAudit(`Audit failed due to system error: ${message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Fallback audit without response_format (for models that don't support it). */
+  private async runConduitAuditPhaseRaw(
+    apiKey: string,
+    content: string,
+    model: string,
+    baseUrl: string,
+  ): Promise<AuditResult> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AUDIT_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.CONDUIT_API_KEY?.trim() ?? ''}`,
         },
         body: JSON.stringify({
           model,
@@ -547,11 +619,11 @@ export class GeminiAuditService {
         return failSafeAudit('Audit failed: empty response from Conduit');
       }
 
-      this.logger.log({ msg: 'conduit_audit_phase_complete', model, chars: text.length });
+      this.logger.log({ msg: 'conduit_audit_raw_phase_complete', model, chars: text.length });
       return normalizeAuditResult(parseAuditJsonFromText(text));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error({ msg: 'conduit_audit_phase_failed', error: message });
+      this.logger.error({ msg: 'conduit_audit_raw_phase_failed', error: message, rawResponse: message.slice(0, 500) });
       return failSafeAudit(`Audit failed due to system error: ${message}`);
     } finally {
       clearTimeout(timer);
@@ -568,6 +640,13 @@ export class GeminiAuditService {
       (process.env.CONDUIT_AUDIT_MODEL ?? 'claude-opus-4-5').trim();
     const baseUrl =
       (process.env.CONDUIT_BASE_URL ?? 'https://conduit.ozdoev.net/api/v1').trim();
+
+    // Truncate very long articles to avoid hitting token limits (keep ~12k chars)
+    const MAX_CONTENT_CHARS = 12_000;
+    const truncatedContent =
+      content.length > MAX_CONTENT_CHARS
+        ? content.slice(0, MAX_CONTENT_CHARS) + '\n\n[...content truncated for fix...]'
+        : content;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FIX_TIMEOUT_MS);
@@ -586,7 +665,7 @@ export class GeminiAuditService {
           max_tokens: 8192,
           messages: [
             { role: 'system', content: FIX_SYSTEM_INSTRUCTION },
-            { role: 'user', content: buildFixPrompt(content, auditResult, context) },
+            { role: 'user', content: buildFixPrompt(truncatedContent, auditResult, context) },
           ],
         }),
       });
