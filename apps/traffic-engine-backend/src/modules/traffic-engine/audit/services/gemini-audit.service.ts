@@ -13,6 +13,18 @@ const AUDIT_TIMEOUT_MS = 120_000;
 const FIX_TIMEOUT_MS = 180_000;
 const MAX_FIX_ATTEMPTS = 2;
 
+/**
+ * Returns 'conduit' when YMYL_AUDIT_PROVIDER=conduit (default) or
+ * 'google' when explicitly set and GOOGLE_AI_API_KEY is available.
+ */
+function resolveAuditProvider(): 'conduit' | 'google' {
+  const raw = (process.env.YMYL_AUDIT_PROVIDER ?? 'conduit').trim().toLowerCase();
+  if (raw === 'google' && process.env.GOOGLE_AI_API_KEY?.trim()) {
+    return 'google';
+  }
+  return 'conduit';
+}
+
 const SYSTEM_INSTRUCTION = `You are an elite YMYL Medical SEO Auditor and Expert Fact-Checker.
 Your primary job is to audit medical tourism content (specifically IVF, fertility treatments, and destination-specific laws) for absolute accuracy and E-E-A-T compliance.
 
@@ -220,11 +232,21 @@ export class GeminiAuditService {
   /**
    * Audits draft content and applies up to two fix passes when issues are found.
    * Returns the best final markdown for pipeline and manual endpoints.
+   *
+   * Routing: YMYL_AUDIT_PROVIDER=conduit (default) → Conduit chat completions.
+   *          YMYL_AUDIT_PROVIDER=google → Gemini 2.5 Pro with Google Search Grounding.
    */
   async auditAndImproveContent(
     draftContent: string,
     context?: AuditFixContext,
   ): Promise<AuditAndFixResult> {
+    const provider = resolveAuditProvider();
+    this.logger.log({ msg: 'ymyl_audit_start', provider });
+
+    if (provider === 'conduit') {
+      return this.auditAndImproveViaConduit(draftContent, context);
+    }
+
     const apiKey = process.env.GOOGLE_AI_API_KEY?.trim();
     if (!apiKey) {
       const auditResult = failSafeAudit(
@@ -411,6 +433,180 @@ export class GeminiAuditService {
       if (sources.length > 0) {
         this.logger.log({ msg: 'gemini_audit_grounding_sources', phase, sources });
       }
+    }
+  }
+
+  // ─── Conduit path ──────────────────────────────────────────────────────────
+
+  private async auditAndImproveViaConduit(
+    draftContent: string,
+    context?: AuditFixContext,
+  ): Promise<AuditAndFixResult> {
+    const conduitKey = process.env.CONDUIT_API_KEY?.trim();
+    if (!conduitKey) {
+      const auditResult = failSafeAudit(
+        'Audit failed due to system error: CONDUIT_API_KEY is not configured',
+      );
+      return { auditResult, finalContent: draftContent, contentChanged: false, fixAttempts: 0 };
+    }
+
+    let currentContent = draftContent;
+    let fixAttempts = 0;
+    let auditResult = await this.runConduitAuditPhase(conduitKey, currentContent);
+    let bestAuditResult = auditResult;
+    const initiallyApproved =
+      auditResult.approved && auditResult.critical_errors.trim().length === 0;
+
+    while (needsFix(auditResult) && fixAttempts < MAX_FIX_ATTEMPTS) {
+      this.logger.log({
+        msg: 'conduit_audit_fix_pass_started',
+        fixAttempt: fixAttempts + 1,
+        approved: auditResult.approved,
+      });
+
+      const fixed = await this.runConduitFixPhase(conduitKey, currentContent, auditResult, context);
+      if (fixed?.trim()) {
+        currentContent = cleanMarkdownOutput(fixed);
+      } else {
+        this.logger.warn({ msg: 'conduit_audit_fix_pass_empty_output', fixAttempt: fixAttempts + 1 });
+      }
+
+      fixAttempts += 1;
+      auditResult = await this.runConduitAuditPhase(conduitKey, currentContent);
+      if (auditQualityScore(auditResult) >= auditQualityScore(bestAuditResult)) {
+        bestAuditResult = auditResult;
+      }
+    }
+
+    if (
+      !auditResult.approved &&
+      auditResult.critical_errors.trim().length === 0 &&
+      bestAuditResult.approved
+    ) {
+      auditResult = bestAuditResult;
+    }
+
+    auditResult = finalizeAuditResult(auditResult);
+
+    if (initiallyApproved && !auditResult.approved && auditResult.critical_errors.trim().length === 0) {
+      auditResult = { ...bestAuditResult, approved: true };
+    }
+
+    return {
+      auditResult,
+      finalContent: currentContent,
+      contentChanged: currentContent !== draftContent,
+      fixAttempts,
+      initiallyApproved,
+    };
+  }
+
+  private async runConduitAuditPhase(apiKey: string, content: string): Promise<AuditResult> {
+    const model =
+      (process.env.CONDUIT_AUDIT_MODEL ?? 'claude-opus-4-5').trim();
+    const baseUrl =
+      (process.env.CONDUIT_BASE_URL ?? 'https://conduit.ozdoev.net/api/v1').trim();
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AUDIT_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 4096,
+          messages: [
+            { role: 'system', content: SYSTEM_INSTRUCTION },
+            {
+              role: 'user',
+              content:
+                'Please audit the following draft article. Respond with one JSON object only ' +
+                '(keys: approved, eeat_score, critical_errors, seo_and_ux_recommendations, internal_linking_audit).\n\n' +
+                `<draft_content>\n${content}\n</draft_content>`,
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Conduit HTTP ${res.status}: ${body.slice(0, 300)}`);
+      }
+
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data.choices?.[0]?.message?.content?.trim() ?? '';
+
+      if (!text) {
+        return failSafeAudit('Audit failed: empty response from Conduit');
+      }
+
+      this.logger.log({ msg: 'conduit_audit_phase_complete', model, chars: text.length });
+      return normalizeAuditResult(parseAuditJsonFromText(text));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error({ msg: 'conduit_audit_phase_failed', error: message });
+      return failSafeAudit(`Audit failed due to system error: ${message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async runConduitFixPhase(
+    apiKey: string,
+    content: string,
+    auditResult: AuditResult,
+    context?: AuditFixContext,
+  ): Promise<string | null> {
+    const model =
+      (process.env.CONDUIT_AUDIT_MODEL ?? 'claude-opus-4-5').trim();
+    const baseUrl =
+      (process.env.CONDUIT_BASE_URL ?? 'https://conduit.ozdoev.net/api/v1').trim();
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FIX_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.3,
+          max_tokens: 8192,
+          messages: [
+            { role: 'system', content: FIX_SYSTEM_INSTRUCTION },
+            { role: 'user', content: buildFixPrompt(content, auditResult, context) },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Conduit HTTP ${res.status}: ${body.slice(0, 300)}`);
+      }
+
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data.choices?.[0]?.message?.content?.trim() ?? '';
+
+      this.logger.log({ msg: 'conduit_fix_phase_complete', model, chars: text.length });
+      return text || null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error({ msg: 'conduit_fix_phase_failed', error: message });
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }
